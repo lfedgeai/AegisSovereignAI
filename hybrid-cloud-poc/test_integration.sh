@@ -601,16 +601,16 @@ main() {
 
     # Run test_mtls_client.sh on agents host (where client runs)
     MTLS_TEST_PASSED=true
-    #if run_on_agents "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>&1 | tee "/tmp/remote_test_mtls_client.log"; then
-    #    echo ""
-    #    echo -e "${GREEN}✓ mTLS client test completed successfully${NC}"
-    #    MTLS_TEST_PASSED=true
-    #else
-    #    echo ""
-    #    echo -e "${RED}✗ mTLS client test failed${NC}"
-    #    echo -e "${YELLOW}Check logs: /tmp/remote_test_mtls_client.log${NC}"
-    #    MTLS_TEST_PASSED=false
-    #fi
+    if run_on_agents "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>&1 | tee "/tmp/remote_test_mtls_client.log"; then
+        echo ""
+        echo -e "${GREEN}✓ mTLS client test completed successfully${NC}"
+        MTLS_TEST_PASSED=true
+    else
+        echo ""
+        echo -e "${RED}✗ mTLS client test failed${NC}"
+        echo -e "${YELLOW}Check logs: /tmp/remote_test_mtls_client.log${NC}"
+        MTLS_TEST_PASSED=false
+    fi
 
     if [ "$MTLS_TEST_PASSED" != "true" ]; then
         echo -e "${RED}mTLS client test failed. Aborting.${NC}"
