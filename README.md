@@ -2,9 +2,9 @@
 
 **AegisSovereignAI** is the **Trust Integration Layer** for the Linux Foundation AI ecosystem. It delivers verifiable trust for AI workloads across the **distributed enterprise** - from **Centralized Clouds** to the **Far Edge** - unifying open standards from the CNCF (SPIFFE/Keylime/OPA) and IETF (RATS/WIMSE) into a contiguous **Chain of Trust** from Silicon to Prompt.
 
-We don't just integrate with AI frameworks; we actively harden them. From defining **Zero-Trust Governance Middleware** for **LangChain** to proposing **Hardware-Verified Location APIs** for the **Linux Foundation CAMARA Project**, we are driving security standards directly into the tools developers and carriers use daily.
+We don't just integrate with AI frameworks; we actively harden them. From defining **Zero-Trust Governance Middleware** for **LangChain** to proposing **Hardware-Verified Location APIs** for the **Linux Foundation CAMARA Project**, we are driving security standards directly into the tools developers and carriers use daily. While our current implementations focus on RAG and Agentic Workflows, the AegisSovereignAI substrate is model-agnostic. It is designed as an extensible layer that generalizes to any distributed AI execution model, including future multi-modal, federated inference, and autonomous swarm patterns.
 
-### The Missing Link in the LF AI Ecosystem
+## The Missing Link in the LF AI Ecosystem
 Our architecture is designed to complement the emerging Linux Foundation AI stack:
 * **Complements [OPEA](https://opea.dev) (Open Platform for Enterprise AI):** While OPEA defines the *reference architecture* for building RAG pipelines, AegisSovereignAI provides the **Hardened Runtime** - ensuring those microservices only boot on verified hardware.
 * **Complements [AAIF](https://lfaidata.foundation) (Agentic AI Foundation):** While AAIF standardizes *how* agents communicate (via the Model Context Protocol, MCP), AegisSovereignAI defines **Who** is communicating - securing agent-to-agent interactions with hardware-rooted Mutual TLS.
@@ -108,13 +108,29 @@ We extend the standard software identity (SPIFFE) by cryptographically binding i
         * *Enrollment:* Restricted to manufacturer-issued **TPM Endorsement Keys (EK)**.
         * *Inventory:* Out-of-band verification of components (NICs, GPUs) against purchase orders via BMC.
 
-### 2. Zero-Trust RAG Governance
-Security does not stop at identity; it must extend to the data the AI consumes.
+### 2. Zero-Trust AI Governance
+Security does not stop at identity; it must extend to the data and the execution context of the AI.
 
-* **Challenge:** "Context Contamination" and the "GenAI Audit Paradox." In RAG systems, malicious actors can inject poisoned data into the retrieval pipeline, and standard logs cannot prove *why* a model made a specific decision.
-* **Solution:** We introduce a **Policy Enforcement Point (PEP)** middleware that sits between the vector database and the LLM.
-    * *Pre-Computation:* It enforces **OPA (Open Policy Agent)** rules to filter retrieved context before the model sees it.
-    * *Post-Computation:* It generates an immutable audit log that cryptographically binds the **User Prompt** + **Retrieved Context Hash** + **Model Response**.
+Challenge 1: Context & Semantic Contamination 
+
+Standard RAG systems are vulnerable to "Context Injection" (unauthorized data inserted in transit) and "Semantic Contamination" (authorized but malicious/misleading data designed to bias the model).
+
+Solution: We introduce a Policy Enforcement Point (PEP) middleware that acts as the trust substrate between the vector database and the LLM.
+
+Authorization Scope: Aegis provides the evidence (e.g., "This workload is verified and running in a secure enclave"). The application-level OPA rules then make the policy decision (e.g., "Allow/Deny access to this specific document").
+
+Mitigation Boundary: While Aegis stops unauthorized context injection via cryptographic pinning, it provides the audit trail to help detect semantic contamination by authorized users.
+
+Challenge 2: The "GenAI Audit Paradox" 
+
+Logs typically capture what was said, but not the integrity of the environment that said it. Furthermore, a digital signature from an autonomous agent does not explicitly prove the intent of the human user.
+
+Solution: Aegis generates Immutable Audit Logs that capture the "Immutable Triad" (User Input + Context Hash + Model Config).
+
+Forensic vs. Intent: This provides Forensic Integrity—mathematical proof of exactly what code ran on what data.
+
+Clarification: While this captures the technical "consent" of the agent, it is designed to be a ledger of technical truth; the legal interpretation of "user intent" remains a governance layer above the trust substrate.
+Security does not stop at identity; it must extend to the data the AI consumes.
 
 ## Additional Resources
 * **Zero‑Trust Sovereign AI Deck:** [View Deck](https://1drv.ms/b/c/746ada9dc9ba7cb7/ETTLFqSUV3pCsIWiD4zMDt0BXzSwcCMGX8cA-qllKfmYvw?e=ONrjf1)
