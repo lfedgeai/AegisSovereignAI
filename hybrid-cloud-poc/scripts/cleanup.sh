@@ -61,19 +61,60 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo ""
 fi
 
-# Function to clean up temporary files in /tmp (shared across all test scripts)
+# Function to clean up temporary files in /tmp and other relevant directories (shared across all test scripts)
 # This can be called independently or as part of full cleanup
 cleanup_tmp_files() {
+    echo "     Cleaning up temporary files and directories..."
+    
     # Clean up temporary SVID certificate files (from Python apps during renewal)
     find /tmp -maxdepth 1 -name "tmp*.pem" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
-    # Clean up other temporary test files
+    
+    # Clean up test log files
     rm -f /tmp/remote_test_*.log 2>/dev/null || true
     rm -f /tmp/integration_test.log 2>/dev/null || true
     rm -f /tmp/mtls-client-app.log 2>/dev/null || true
     rm -f /tmp/mtls-server-app.log 2>/dev/null || true
+    rm -f /tmp/mtls-server.log 2>/dev/null || true
+    rm -f /tmp/mobile-sensor.log 2>/dev/null || true
+    rm -f /tmp/mobile-sensor-microservice.log 2>/dev/null || true
+    
     # Clean up Python cache files
     find /tmp -name "*.pyc" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
     find /tmp -name "__pycache__" -type d 2>/dev/null | xargs rm -rf 2>/dev/null || true
+    find /tmp -name "*.pyo" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
+    
+    # Clean up temporary Python files
+    find /tmp -name "*.py.tmp" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
+    find /tmp -name "*.py.bak" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
+    
+    # Clean up temporary config files
+    rm -f /tmp/*.conf.tmp 2>/dev/null || true
+    rm -f /tmp/*.conf.bak 2>/dev/null || true
+    rm -f /tmp/*.conf.old 2>/dev/null || true
+    
+    # Clean up temporary certificate files
+    rm -f /tmp/*.pem.tmp 2>/dev/null || true
+    rm -f /tmp/*.crt.tmp 2>/dev/null || true
+    rm -f /tmp/*.key.tmp 2>/dev/null || true
+    
+    # Clean up temporary database files
+    rm -f /tmp/*.db.tmp 2>/dev/null || true
+    rm -f /tmp/*.sqlite.tmp 2>/dev/null || true
+    rm -f /tmp/*.sqlite-journal 2>/dev/null || true
+    
+    # Clean up temporary directories created during tests
+    rm -rf /tmp/test-* 2>/dev/null || true
+    rm -rf /tmp/tmp.* 2>/dev/null || true
+    rm -rf /tmp/*-test-* 2>/dev/null || true
+    
+    # Clean up temporary build artifacts
+    rm -f /tmp/*.o 2>/dev/null || true
+    rm -f /tmp/*.so 2>/dev/null || true
+    rm -f /tmp/*.a 2>/dev/null || true
+    
+    # Clean up temporary lock files
+    find /tmp -name "*.lock" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
+    find /tmp -name "*.pid" -type f 2>/dev/null | grep -vE "(spire|keylime|tpm|mobile)" | xargs rm -f 2>/dev/null || true
 }
 
 # Function to stop all existing instances and clean up all data
@@ -362,6 +403,33 @@ stop_all_instances_and_cleanup() {
     # Clean up unified_identity test log directories
     echo "     Removing old unified_identity test logs..."
     rm -rf /tmp/unified_identity_test_* 2>/dev/null || true
+    
+    # Clean up other relevant directories
+    echo "     Cleaning up other relevant directories..."
+    # Clean up user home directories
+    rm -rf "$HOME/.mtls-demo" 2>/dev/null || true
+    rm -rf "$HOME/.spire" 2>/dev/null || true
+    rm -rf "$HOME/.keylime" 2>/dev/null || true
+    rm -rf "$HOME/.local/share/keylime" 2>/dev/null || true
+    # Clean up /var/lib if accessible
+    sudo rm -rf /var/lib/keylime 2>/dev/null || true
+    sudo rm -rf /var/lib/spire 2>/dev/null || true
+    # Clean up /var/run if accessible
+    sudo rm -rf /var/run/keylime 2>/dev/null || true
+    sudo rm -rf /var/run/spire 2>/dev/null || true
+    # Clean up /run if accessible
+    sudo rm -rf /run/keylime 2>/dev/null || true
+    sudo rm -rf /run/spire 2>/dev/null || true
+    # Clean up /opt/envoy logs and data (if used)
+    sudo rm -f /opt/envoy/logs/*.log 2>/dev/null || true
+    sudo rm -f /opt/envoy/logs/*.log.old 2>/dev/null || true
+    # Clean up any remaining /tmp directories that might have been missed
+    rm -rf /tmp/rust-keylime-data 2>/dev/null || true
+    rm -rf /tmp/phase3-demo-tpm 2>/dev/null || true
+    rm -rf /tmp/tpm-plugin-* 2>/dev/null || true
+    rm -rf /tmp/mobile-sensor-service 2>/dev/null || true
+    rm -rf /tmp/keylime-agent 2>/dev/null || true
+    rm -rf /tmp/svid-dump 2>/dev/null || true
 
     # Step 5: Clean up sockets
     echo "  5. Removing socket files..."

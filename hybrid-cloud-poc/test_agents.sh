@@ -159,6 +159,13 @@ stop_agent_services_only() {
 
     # Remove SPIRE Agent data (not Server data)
     echo "     Removing SPIRE Agent data directories..."
+    # Remove agent data directory from config (typically /opt/spire/data/agent)
+    # This contains agent keys and persistent state
+    if [ -d "/opt/spire/data/agent" ]; then
+        echo "     Removing SPIRE Agent data directory: /opt/spire/data/agent"
+        sudo rm -rf /opt/spire/data/agent 2>/dev/null || true
+    fi
+    # Also remove /tmp/spire-agent (used for sockets and logs)
     rm -rf /tmp/spire-agent 2>/dev/null || true
     rm -f /tmp/spire-agent.pid 2>/dev/null || true
     rm -f /tmp/spire-agent.log 2>/dev/null || true
@@ -179,6 +186,19 @@ stop_agent_services_only() {
     # Remove SVID dump directory
     echo "     Removing SVID dump directory..."
     rm -rf /tmp/svid-dump 2>/dev/null || true
+    
+    # Clean up other relevant directories
+    echo "     Cleaning up other relevant directories..."
+    # Clean up user home directories (agent-specific only)
+    rm -rf "$HOME/.spire" 2>/dev/null || true
+    # Note: Do NOT clean up ~/.mtls-demo - it's set up by test_onprem.sh
+    # and needed by test_mtls_client.sh which runs after this script
+    # Clean up /var/lib if accessible
+    sudo rm -rf /var/lib/spire 2>/dev/null || true
+    # Clean up /var/run if accessible
+    sudo rm -rf /var/run/spire 2>/dev/null || true
+    # Clean up /run if accessible
+    sudo rm -rf /run/spire 2>/dev/null || true
 
     # Step 3: Remove PID files
     echo "  3. Removing PID files..."
@@ -1559,20 +1579,86 @@ fi
 
 # Ensure tpm2-abrmd (resource manager) is running for hardware TPM
 if [ -c /dev/tpmrm0 ] || [ -c /dev/tpm0 ]; then
-    if ! pgrep -x tpm2-abrmd >/dev/null 2>&1; then
-        echo "    Starting tpm2-abrmd resource manager for hardware TPM..."
-        # Start tpm2-abrmd in background if not running
-        if command -v tpm2-abrmd >/dev/null 2>&1; then
-            tpm2-abrmd --tcti=device 2>/dev/null &
-            sleep 1
-            if pgrep -x tpm2-abrmd >/dev/null 2>&1; then
-                echo "    ✓ tpm2-abrmd started"
-            else
-                echo -e "${YELLOW}    ⚠ tpm2-abrmd may need to be started manually or via systemd${NC}"
-            fi
+    # Check if tpm2-abrmd is already running (either as process or systemd service)
+    TPM_ABRMD_RUNNING=false
+    if pgrep -x tpm2-abrmd >/dev/null 2>&1; then
+        TPM_ABRMD_RUNNING=true
+    elif command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tpm2-abrmd 2>/dev/null; then
+        TPM_ABRMD_RUNNING=true
+    fi
+    
+    # Check if /dev/tpmrm0 is available (indicates tpm2-abrmd is working)
+    TPMRM0_AVAILABLE=false
+    if [ -c /dev/tpmrm0 ]; then
+        TPMRM0_AVAILABLE=true
+    fi
+    
+    if [ "$TPM_ABRMD_RUNNING" = true ] || [ "$TPMRM0_AVAILABLE" = true ]; then
+        if [ "$TPM_ABRMD_RUNNING" = true ]; then
+            echo "    ✓ tpm2-abrmd resource manager is running"
+        else
+            echo "    ✓ /dev/tpmrm0 is available (tpm2-abrmd is running via systemd or other means)"
         fi
     else
-        echo "    ✓ tpm2-abrmd resource manager is running"
+        echo "    Starting tpm2-abrmd resource manager for hardware TPM..."
+        TPM_ABRMD_STARTED=false
+        
+        # Try to start via systemd first (preferred method)
+        # Suppress authentication prompts in non-interactive mode
+        if command -v systemctl >/dev/null 2>&1; then
+            # Try with sudo first (if available and passwordless sudo is configured)
+            if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+                if sudo systemctl start tpm2-abrmd 2>/dev/null; then
+                    sleep 2
+                    if systemctl is-active --quiet tpm2-abrmd 2>/dev/null || pgrep -x tpm2-abrmd >/dev/null 2>&1; then
+                        echo "    ✓ tpm2-abrmd started via systemd (with sudo)"
+                        TPM_ABRMD_STARTED=true
+                    fi
+                fi
+            else
+                # Try without sudo (may fail with authentication prompt, but suppress output)
+                if systemctl start tpm2-abrmd 2>/dev/null 2>&1; then
+                    sleep 2
+                    if systemctl is-active --quiet tpm2-abrmd 2>/dev/null || pgrep -x tpm2-abrmd >/dev/null 2>&1; then
+                        echo "    ✓ tpm2-abrmd started via systemd"
+                        TPM_ABRMD_STARTED=true
+                    fi
+                fi
+            fi
+        fi
+        
+        # If systemd didn't work, try manual start
+        if [ "$TPM_ABRMD_STARTED" = false ] && command -v tpm2-abrmd >/dev/null 2>&1; then
+            # Try starting in background
+            tpm2-abrmd --tcti=device >/dev/null 2>&1 &
+            TPM_ABRMD_PID=$!
+            sleep 2
+            if kill -0 "$TPM_ABRMD_PID" 2>/dev/null || pgrep -x tpm2-abrmd >/dev/null 2>&1; then
+                echo "    ✓ tpm2-abrmd started manually"
+                TPM_ABRMD_STARTED=true
+            fi
+        fi
+        
+        # Verify it's actually working by checking if /dev/tpmrm0 is accessible
+        if [ "$TPM_ABRMD_STARTED" = true ]; then
+            if [ -c /dev/tpmrm0 ]; then
+                echo "    ✓ tpm2-abrmd is working (/dev/tpmrm0 is accessible)"
+            else
+                echo -e "${YELLOW}    ⚠ tpm2-abrmd started but /dev/tpmrm0 not accessible yet${NC}"
+            fi
+        else
+            # Check if /dev/tpmrm0 exists anyway (might be provided by kernel or another service)
+            if [ -c /dev/tpmrm0 ]; then
+                echo "    ✓ /dev/tpmrm0 is available (tpm2-abrmd is running via systemd or other means)"
+            else
+                echo -e "${YELLOW}    ⚠ Could not start tpm2-abrmd automatically${NC}"
+                echo "    You may need to start it manually:"
+                echo "      sudo systemctl start tpm2-abrmd"
+                echo "    Or if systemd is not available:"
+                echo "      sudo tpm2-abrmd --tcti=device &"
+                echo "    Note: The agent may still work if /dev/tpm0 is available directly"
+            fi
+        fi
     fi
 fi
 
@@ -2883,9 +2969,50 @@ if [ -f "./create-registration-entry.sh" ]; then
     ./create-registration-entry.sh
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}  ✓ Registration entry created${NC}"
-        # Wait for entry to propagate to agent (agent syncs with server periodically)
-        echo "  Waiting 10s for registration entry to propagate to agent..."
-        sleep 10
+        # Wait for entry to propagate to agent (agent syncs with server periodically, typically every 5-10s)
+        echo "  Waiting for registration entry to propagate to agent..."
+        echo "  (Agent syncs with server periodically - checking agent logs for entry sync)"
+        
+        MAX_SYNC_WAIT=30
+        SYNC_WAIT_START=$(date +%s)
+        ENTRY_SYNCED=false
+        
+        while [ $(($(date +%s) - SYNC_WAIT_START)) -lt $MAX_SYNC_WAIT ]; do
+            # Check if agent has synced the entry by looking for the SPIFFE ID in agent logs
+            # The agent logs when it processes entries during sync
+            if [ -f /tmp/spire-agent.log ]; then
+                # Look for evidence that agent has the entry (entry processing, workload API calls, etc.)
+                if grep -q "python-app\|Entry.*synced\|FetchX509SVID.*python-app" /tmp/spire-agent.log 2>/dev/null; then
+                    ENTRY_SYNCED=true
+                    ELAPSED=$(($(date +%s) - SYNC_WAIT_START))
+                    echo "  ✓ Entry synced to agent after ${ELAPSED}s"
+                    break
+                fi
+            fi
+            
+            # Also check if we can verify entry exists on server
+            if "${SPIRE_DIR}/bin/spire-server" entry show \
+                -spiffeID "$WORKLOAD_SPIFFE_ID" \
+                -socketPath "$SERVER_SOCKET" 2>/dev/null | grep -q "$WORKLOAD_SPIFFE_ID"; then
+                # Entry exists on server, but may not be synced to agent yet
+                ELAPSED=$(($(date +%s) - SYNC_WAIT_START))
+                if [ $ELAPSED -ge 15 ]; then
+                    # After 15s, give a warning but continue (agent should sync soon)
+                    echo "  ⚠ Entry exists on server but not yet visible in agent logs after ${ELAPSED}s"
+                    echo "  Agent should sync within next 5-10 seconds"
+                    break
+                fi
+            fi
+            
+            sleep 2
+        done
+        
+        if [ "$ENTRY_SYNCED" = false ]; then
+            ELAPSED=$(($(date +%s) - SYNC_WAIT_START))
+            echo "  ⚠ Entry may not have synced to agent after ${ELAPSED}s"
+            echo "  This is normal - agent syncs periodically. Entry should sync within next sync cycle."
+            echo "  Agent sync interval is typically 5-10 seconds"
+        fi
     else
         echo -e "${RED}  ✗ Registration entry creation failed${NC}"
         abort_on_error "Registration entry creation failed - workload SVID cannot be issued"

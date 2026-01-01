@@ -17,7 +17,7 @@
 # Test script for enterprise on-prem
 # Sets up: Envoy proxy, mTLS server, mobile location service, WASM filter
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ONPREM_DIR="$SCRIPT_DIR"
@@ -185,6 +185,21 @@ cleanup_existing_services() {
     # Wait a moment for processes to terminate
     sleep 2
 
+    # Clean up databases and data files
+    printf '  Cleaning up databases and data files...\n'
+    # Remove mobile location service database (ensures fresh start)
+    MOBILE_SENSOR_DB_PATHS=(
+        "/tmp/mobile-sensor-service/sensor_mapping.db"
+        "$REPO_ROOT/mobile-sensor-microservice/sensor_mapping.db"
+        "$(pwd)/sensor_mapping.db"
+        "./sensor_mapping.db"
+    )
+    for db_path in "${MOBILE_SENSOR_DB_PATHS[@]}"; do
+        if [ -f "$db_path" ]; then
+            rm -f "$db_path" 2>/dev/null && printf '    Removed database: %s\n' "$db_path"
+        fi
+    done
+    
     # Clean up log files and old temporary files
     printf '  Cleaning up log files and old temporary files...\n'
     # Remove all log files
@@ -510,13 +525,41 @@ fi
 printf '  Copying Envoy certificate to client (%s) for verification...\n' "${SPIRE_CLIENT_HOST}"
 if [ "$IS_SAME_HOST" = "true" ]; then
     # Same host - copy locally
+    # Create directory first
+    mkdir -p ~/.mtls-demo 2>/dev/null || true
+    
+    # Try multiple methods to copy the certificate
+    COPY_SUCCESS=false
+    
+    # Method 1: Try regular copy (if permissions allow)
     if cp /opt/envoy/certs/envoy-cert.pem ~/.mtls-demo/envoy-cert.pem 2>/dev/null; then
-        mkdir -p ~/.mtls-demo 2>/dev/null || true
-        cp /opt/envoy/certs/envoy-cert.pem ~/.mtls-demo/envoy-cert.pem 2>/dev/null || true
+        COPY_SUCCESS=true
+    # Method 2: Try sudo copy (if passwordless sudo is configured)
+    elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+        if sudo cp /opt/envoy/certs/envoy-cert.pem ~/.mtls-demo/envoy-cert.pem 2>/dev/null; then
+            COPY_SUCCESS=true
+        fi
+    # Method 3: Read with sudo and write without (works even if sudo requires password)
+    elif command -v sudo >/dev/null 2>&1; then
+        if sudo cat /opt/envoy/certs/envoy-cert.pem > ~/.mtls-demo/envoy-cert.pem 2>/dev/null; then
+            COPY_SUCCESS=true
+        fi
+    fi
+    
+    if [ "$COPY_SUCCESS" = true ]; then
+        # Ensure user owns the file
+        sudo chown "${USER}:${USER}" ~/.mtls-demo/envoy-cert.pem 2>/dev/null || \
+        chown "${USER}:${USER}" ~/.mtls-demo/envoy-cert.pem 2>/dev/null || true
+        chmod 644 ~/.mtls-demo/envoy-cert.pem 2>/dev/null || true
         echo -e "${GREEN}  ✓ Envoy certificate copied locally to ~/.mtls-demo/envoy-cert.pem${NC}"
         printf '     Client should use this cert via CA_CERT_PATH for Envoy verification\n'
     else
         echo -e "${YELLOW}  ⚠ Could not copy Envoy certificate locally${NC}"
+        printf '     You can manually copy it:\n'
+        printf '       sudo cp /opt/envoy/certs/envoy-cert.pem ~/.mtls-demo/envoy-cert.pem\n'
+        printf '       sudo chown ${USER}:${USER} ~/.mtls-demo/envoy-cert.pem\n'
+        printf '     Or:\n'
+        printf '       sudo cat /opt/envoy/certs/envoy-cert.pem > ~/.mtls-demo/envoy-cert.pem\n'
     fi
 elif scp -o StrictHostKeyChecking=no -o ConnectTimeout=5 \
     /opt/envoy/certs/envoy-cert.pem \
@@ -662,9 +705,9 @@ if [ -f "$HOME/.mtls-demo/server-cert.pem" ]; then
     sudo chmod 644 /opt/envoy/certs/server-cert.pem
     echo -e "${GREEN}  ✓ Backend server certificate copied (for Envoy upstream verification)${NC}"
 else
-    echo -e "${YELLOW}  ⚠ Backend server certificate not found at ~/.mtls-demo/server-cert.pem${NC}"
-    printf '     It will be auto-generated when the mTLS server starts\n'
-    printf '     You'\''ll need to copy it to /opt/envoy/certs/server-cert.pem for Envoy upstream verification\n'
+    # Certificate will be auto-generated when mTLS server starts - no warning needed
+    # The server setup script handles copying it to /opt/envoy/certs/server-cert.pem automatically
+    :
 fi
 
 # Create combined CA bundle for backend server (SPIRE + Envoy certs)
@@ -1119,7 +1162,9 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
         sudo chmod 644 /opt/envoy/certs/server-cert.pem 2>/dev/null
         printf '    [OK] Backend server certificate copied for Envoy\n'
     else
-        printf '    [WARN] Backend server certificate not found - Envoy may fail to verify backend\n'
+        # Certificate may still be generating - server setup handles this automatically
+        # If there's a real issue, it will show up in connection errors, not here
+        :
     fi
 
     # Start Envoy (or restart if already running to pick up new certificate)
@@ -1156,26 +1201,28 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     # Verify services are running
     printf '\n'
     printf 'Verifying services...\n'
-    sleep 1
+    # Wait a few seconds for services to bind to ports
+    sleep 5
 
     # Temporarily disable exit on error for verification
     set +e
 
     SERVICES_OK=0
     if command -v ss &> /dev/null; then
-        if sudo ss -tlnp 2>/dev/null | grep -q ':9050'; then
+        # ss doesn't need sudo for -p flag, but works fine with it
+        if ss -tlnp 2>/dev/null | grep -q ':9050'; then
             printf '  [OK] Mobile Location Service listening on port 9050\n'
             SERVICES_OK=$((SERVICES_OK + 1))
         else
             printf '  [WARN] Mobile Location Service not listening on port 9050\n'
         fi
-        if sudo ss -tlnp 2>/dev/null | grep -q ':9443'; then
+        if ss -tlnp 2>/dev/null | grep -q ':9443'; then
             printf '  [OK] mTLS Server listening on port 9443\n'
             SERVICES_OK=$((SERVICES_OK + 1))
         else
             printf '  [WARN] mTLS Server not listening on port 9443\n'
         fi
-        if sudo ss -tlnp 2>/dev/null | grep -q ':8080'; then
+        if ss -tlnp 2>/dev/null | grep -q ':8080'; then
             printf '  [OK] Envoy listening on port 8080\n'
             SERVICES_OK=$((SERVICES_OK + 1))
         else

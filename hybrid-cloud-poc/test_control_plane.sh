@@ -132,24 +132,70 @@ stop_control_plane_services_only() {
     rm -f /tmp/spire-server.log 2>/dev/null || true
     # Also clean up the data directory in the SPIRE folder
     rm -rf "${SPIRE_DIR}/.data" 2>/dev/null || true
+    # Clean up the configured data directory (from spire-server.conf: /opt/spire/data/server)
+    # This is where the actual database (datastore.sqlite3) is stored
+    if [ -d "/opt/spire/data/server" ] || [ -f "/opt/spire/data/server/datastore.sqlite3" ]; then
+        echo "     Removing SPIRE Server database: /opt/spire/data/server"
+        # Ensure server is stopped to release database lock
+        pkill -f "spire-server" >/dev/null 2>&1 || true
+        sleep 1
+        rm -rf /opt/spire/data/server 2>/dev/null || true
+        # Also try removing just the database files if directory removal fails
+        rm -f /opt/spire/data/server/datastore.sqlite3* 2>/dev/null || true
+    fi
     # Also clean up any SQLite database files that might be in the data directory
     find /tmp -name "*.db" -path "*/spire-server/*" -delete 2>/dev/null || true
     find /tmp -name "*.sqlite" -path "*/spire-server/*" -delete 2>/dev/null || true
+    # Clean up any SQLite database files in /opt/spire (including -shm and -wal files)
+    find /opt/spire -name "*.sqlite3*" -o -name "*.db" 2>/dev/null | while read -r db_file; do
+        if [ -f "$db_file" ]; then
+            rm -f "$db_file" 2>/dev/null || true
+        fi
+    done
 
     # Remove Keylime databases and persistent data
     echo "     Removing Keylime databases and persistent data..."
+    # Stop Keylime services first to release database locks
+    pkill -f "keylime_verifier" >/dev/null 2>&1 || true
+    pkill -f "keylime\.cmd\.verifier" >/dev/null 2>&1 || true
+    pkill -f "keylime_registrar" >/dev/null 2>&1 || true
+    pkill -f "keylime\.cmd\.registrar" >/dev/null 2>&1 || true
+    sleep 1
+    # Remove registrar database (reg_data.sqlite) - explicit removal
+    # The registrar database is at /tmp/keylime/reg_data.sqlite
+    rm -f /tmp/keylime/reg_data.sqlite* 2>/dev/null || true
+    # Remove entire /tmp/keylime directory (contains registrar database and other data)
     rm -rf /tmp/keylime 2>/dev/null || true
+    # Remove verifier database files
     rm -f /tmp/keylime-verifier.pid 2>/dev/null || true
     rm -f /tmp/keylime-registrar.pid 2>/dev/null || true
     rm -f /tmp/keylime-verifier.log 2>/dev/null || true
     rm -f /tmp/keylime-registrar.log 2>/dev/null || true
-
-    # Remove local Keylime database if running in test mode
+    # Remove local Keylime database if running in test mode (cv_data.sqlite, verifier.db, verifier.sqlite)
     rm -f "${KEYLIME_DIR}/cv_data.sqlite" 2>/dev/null || true
+    rm -f "${KEYLIME_DIR}/verifier.db" 2>/dev/null || true
+    rm -f "${KEYLIME_DIR}/verifier.sqlite" 2>/dev/null || true
+    # Also clean up any SQLite database files in Keylime directory
+    find "${KEYLIME_DIR}" -maxdepth 1 -name "*.sqlite*" -o -name "*.db" 2>/dev/null | while read -r db_file; do
+        if [ -f "$db_file" ]; then
+            rm -f "$db_file" 2>/dev/null || true
+        fi
+    done
 
     # Remove TLS certificates (needed for Keylime)
     echo "     Removing TLS certificates..."
     rm -rf "${KEYLIME_DIR}/cv_ca" 2>/dev/null || true
+    rm -rf "${KEYLIME_DIR}/reg_ca" 2>/dev/null || true
+    
+    # Clean up other relevant directories
+    echo "     Cleaning up other relevant directories..."
+    # Clean up user home directories
+    rm -rf "$HOME/.keylime" 2>/dev/null || true
+    rm -rf "$HOME/.local/share/keylime" 2>/dev/null || true
+    # Clean up /var/lib if accessible
+    sudo rm -rf /var/lib/keylime 2>/dev/null || true
+    # Clean up /var/run if accessible
+    sudo rm -rf /var/run/keylime 2>/dev/null || true
 
     # Step 3: Remove PID files
     echo "  3. Removing PID files..."
@@ -168,8 +214,12 @@ stop_control_plane_services_only() {
     rm -f /tmp/spire-server/private/api.sock 2>/dev/null || true
     rm -f /tmp/spire-server/public/api.sock 2>/dev/null || true
 
-    # Step 6: Create clean data directories
-    echo "  6. Creating clean data directories..."
+    # Step 6: Clean up temporary files in /tmp (using cleanup.sh function)
+    echo "  6. Cleaning up temporary files in /tmp..."
+    cleanup_tmp_files
+
+    # Step 7: Create clean data directories
+    echo "  7. Creating clean data directories..."
     mkdir -p /tmp/spire-server/private 2>/dev/null || true
     mkdir -p /tmp/spire-server/public 2>/dev/null || true
     mkdir -p /tmp/keylime 2>/dev/null || true
@@ -1759,8 +1809,27 @@ if [ -f "${SERVER_CONFIG}" ]; then
         echo "    Removing SPIRE Server database directory: ${SERVER_WORK_DIR}/.data"
         rm -rf "${SERVER_WORK_DIR}/.data" 2>/dev/null || true
     fi
+    # Clean up the configured data directory (from spire-server.conf: /opt/spire/data/server)
+    # This is where the actual database (datastore.sqlite3) is stored
+    if [ -d "/opt/spire/data/server" ] || [ -f "/opt/spire/data/server/datastore.sqlite3" ]; then
+        echo "    Removing SPIRE Server configured data directory: /opt/spire/data/server"
+        # Stop any processes that might have the database locked
+        pkill -f "spire-server" >/dev/null 2>&1 || true
+        sleep 1
+        # Remove the directory and all its contents
+        rm -rf /opt/spire/data/server 2>/dev/null || true
+        # Also try removing just the database file if directory removal fails
+        rm -f /opt/spire/data/server/datastore.sqlite3* 2>/dev/null || true
+    fi
     # Clean up any SQLite database files in the spire directory
     find "${SERVER_WORK_DIR}" -maxdepth 2 -name "*.sqlite3" -o -name "*.db" 2>/dev/null | while read -r db_file; do
+        if [ -f "$db_file" ]; then
+            echo "    Removing database file: $db_file"
+            rm -f "$db_file" 2>/dev/null || true
+        fi
+    done
+    # Also clean up any SQLite database files in /opt/spire (including -shm and -wal files)
+    find /opt/spire -name "*.sqlite3*" -o -name "*.db" 2>/dev/null | while read -r db_file; do
         if [ -f "$db_file" ]; then
             echo "    Removing database file: $db_file"
             rm -f "$db_file" 2>/dev/null || true

@@ -31,6 +31,8 @@ import subprocess
 from pathlib import Path
 
 try:
+
+    
     import grpc
     from google.protobuf import json_format
 except ImportError:
@@ -199,6 +201,13 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
         abs_socket_path = os.path.abspath(socket_path)
         channel = grpc.insecure_channel(f'unix:{abs_socket_path}')
 
+        # Wait for channel to be ready (with timeout)
+        try:
+            grpc.channel_ready_future(channel).result(timeout=5)
+        except Exception as e:
+            print(f"  ⚠ Warning: Channel not ready after 5s: {e}")
+            print("  Will proceed anyway - channel may become ready during call")
+
         # Create stub
         stub = workload_pb2_grpc.SpiffeWorkloadAPIStub(channel)
 
@@ -213,41 +222,102 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
 
         # Wait for agent to have SVID in logs before calling gRPC
         # This ensures the agent is ready before we make the call
-        wait_for_agent_svid_in_logs(max_wait_seconds=max_wait_seconds)
+        wait_for_agent_svid_in_logs(max_wait_seconds=min(max_wait_seconds, 30))
 
-        # Also wait for registration entry to propagate to agent
-        # Check agent logs for entry creation
-        agent_log_path = "/tmp/spire-agent.log"
-        if os.path.exists(agent_log_path):
-            print("  Waiting for registration entry to propagate to agent...")
-            import time
-            max_entry_wait = 30  # Wait up to 30 seconds for entry to propagate
+        # Verify current process UID matches registration entry selector
+        import pwd
+        current_uid = os.getuid()
+        print(f"  Current process UID: {current_uid}")
+        print(f"  Registration entry should have selector: unix:uid:{current_uid}")
+
+        # Verify registration entry exists on server
+        print("  Verifying registration entry exists on SPIRE server...")
+        import subprocess
+        script_dir = Path(__file__).parent
+        spire_server_bin = script_dir.parent / "spire" / "bin" / "spire-server"
+        
+        entry_exists = False
+        if spire_server_bin.exists():
+            try:
+                result = subprocess.run(
+                    [str(spire_server_bin), "entry", "show", 
+                     "-spiffeID", "spiffe://example.org/python-app",
+                     "-socketPath", "/tmp/spire-server/private/api.sock"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and "spiffe://example.org/python-app" in result.stdout:
+                    entry_exists = True
+                    print(f"  ✓ Registration entry exists on server")
+                    # Check if selector matches
+                    if f"unix:uid:{current_uid}" in result.stdout:
+                        print(f"  ✓ Selector matches current UID ({current_uid})")
+                    else:
+                        print(f"  ⚠ Warning: Selector in entry may not match current UID")
+                        print(f"  Entry details:")
+                        for line in result.stdout.split('\n')[:10]:
+                            if line.strip():
+                                print(f"    {line}")
+                else:
+                    print(f"  ⚠ Registration entry not found on server")
+                    if result.stderr:
+                        print(f"  Server error: {result.stderr[:200]}")
+            except Exception as e:
+                print(f"  ⚠ Could not verify entry on server: {e}")
+
+        # Wait briefly for registration entry to propagate to agent, then proceed with gRPC call
+        # SPIRE agent syncs with server periodically (typically every 5-10 seconds)
+        # The streaming RPC will handle waiting for the SVID if the entry is available
+        import time
+        if entry_exists:
+            # Entry exists on server - wait briefly for agent sync, then proceed
+            # Streaming RPC will wait for SVID if entry is available
+            print("  Waiting briefly for agent to sync entry (agent syncs every 5-10s)...")
+            time.sleep(10)  # Give agent one sync cycle
+            print("  Proceeding with gRPC call (streaming will wait for SVID if needed)")
+        else:
+            # Entry doesn't exist on server - wait longer to give it time to be created
+            print("  ⚠ Registration entry not found on server")
+            print("  Waiting up to 30s for entry to be created and synced...")
             entry_wait_start = time.time()
-            entry_found = False
-
+            max_entry_wait = 30
             while time.time() - entry_wait_start < max_entry_wait:
+                # Re-check if entry exists on server
                 try:
-                    with open(agent_log_path, 'r') as f:
-                        log_content = f.read()
-                        # Look for entry creation or SVID creation for python-app
-                        if "python-app" in log_content or "Entry created" in log_content or "Creating X509-SVID" in log_content:
-                            entry_found = True
-                            elapsed = int(time.time() - entry_wait_start)
-                            print(f"  ✓ Registration entry found in agent logs after {elapsed}s")
-                            break
+                    result = subprocess.run(
+                        [str(spire_server_bin), "entry", "show", 
+                         "-spiffeID", "spiffe://example.org/python-app",
+                         "-socketPath", "/tmp/spire-server/private/api.sock"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    if result.returncode == 0 and "spiffe://example.org/python-app" in result.stdout:
+                        entry_exists = True
+                        elapsed = int(time.time() - entry_wait_start)
+                        print(f"  ✓ Registration entry found on server after {elapsed}s")
+                        print("  Proceeding with gRPC call (streaming will wait for SVID)")
+                        break
                 except Exception:
                     pass
-                time.sleep(1)
-
-            if not entry_found:
-                print(f"  ⚠ Registration entry not found in agent logs after {max_entry_wait}s")
-                print("  Will proceed anyway - entry may propagate during streaming RPC")
+                
+                elapsed = int(time.time() - entry_wait_start)
+                if elapsed > 0 and elapsed % 10 == 0:
+                    print(f"  ... still waiting for entry creation ({elapsed}s/{max_entry_wait}s)...")
+                
+                time.sleep(2)
+            
+            if not entry_exists:
+                print("  ⚠ Registration entry not found on server after waiting")
+                print("  Proceeding anyway - gRPC call will fail if entry doesn't exist")
 
         print()
         print("Calling FetchX509SVID...")
-        print("  (Agent should have SVID ready based on log check)")
+        # Streaming RPC will handle waiting for SVID if entry is available
 
         import time
+        import signal
 
         # The agent needs time to:
         # 1. Attest this process (extract UID, etc.)
@@ -255,25 +325,48 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
         # 3. Fetch SVID from server if not cached
         # For streaming RPCs, the agent will send updates when SVID becomes available
 
+        # Set a timeout for the entire gRPC call (60 seconds total)
+        grpc_timeout_seconds = 60
+        start_time = time.time()
+
         try:
+            # For streaming RPCs, we can't set timeout directly, so we'll check elapsed time in the loop
             responses = stub.FetchX509SVID(request, metadata=grpc_metadata)
 
             # Get the first response (streaming may send multiple updates)
             # The agent will send updates when SVID becomes available
             response = None
-            max_wait_updates = 40  # Wait for up to 40 updates (agent sends updates periodically, ~1 per second)
+            max_wait_updates = 30  # Reduced from 40 - wait for up to 30 updates
             update_count = 0
+            last_update_time = time.time()
 
             for resp in responses:
+                # Check if we've exceeded the overall timeout
+                elapsed = time.time() - start_time
+                if elapsed >= grpc_timeout_seconds:
+                    print(f"  ⚠ Timeout after {elapsed:.1f}s waiting for SVID")
+                    print("  This usually means:")
+                    print("    1. Registration entry hasn't propagated to agent yet")
+                    print("    2. Process selectors don't match the entry")
+                    print("    3. Agent hasn't fetched SVID from server yet")
+                    print("    4. Agent is not responding to Workload API requests")
+                    print("  Try:")
+                    print("    - Check agent logs: tail -20 /tmp/spire-agent.log")
+                    print("    - Verify entry: ../spire/bin/spire-server entry show -spiffeID spiffe://example.org/python-app")
+                    print("    - Check agent is running: ps aux | grep spire-agent")
+                    return None, None
+
                 update_count += 1
+                last_update_time = time.time()
+                
                 if resp.svids and len(resp.svids) > 0:
                     response = resp
-                    print(f"  ✓ SVID received after {update_count} update(s)")
+                    print(f"  ✓ SVID received after {update_count} update(s) ({elapsed:.1f}s)")
                     break
 
                 # If we've waited too long, give up
                 if update_count >= max_wait_updates:
-                    print(f"  ⚠ No SVID after {max_wait_updates} updates")
+                    print(f"  ⚠ No SVID after {max_wait_updates} updates ({elapsed:.1f}s)")
                     print("  This usually means:")
                     print("    1. Registration entry hasn't propagated to agent yet")
                     print("    2. Process selectors don't match the entry")
@@ -285,10 +378,12 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
 
                 # Show progress for long waits
                 if update_count % 5 == 0:
-                    print(f"  ... still waiting (update {update_count}/{max_wait_updates})...")
+                    elapsed = time.time() - start_time
+                    print(f"  ... still waiting (update {update_count}/{max_wait_updates}, {elapsed:.1f}s elapsed)...")
 
             if not response:
-                print("  ⚠ No SVID received from agent")
+                elapsed = time.time() - start_time
+                print(f"  ⚠ No SVID received from agent after {elapsed:.1f}s")
                 print("  Check agent logs for details: tail -20 /tmp/spire-agent.log")
                 return None, None
 
@@ -297,13 +392,32 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
             if e.code() == grpc.StatusCode.PERMISSION_DENIED:
                 error_msg = str(e.details()) if e.details() else str(e)
                 if "no identity issued" in error_msg.lower():
-                    print("  ⚠ Got 'no identity issued' error")
+                    elapsed = time.time() - start_time if 'start_time' in locals() else 0
+                    print(f"  ⚠ Got 'no identity issued' error after {elapsed:.1f}s")
                     print("  This means the agent doesn't have an SVID for this workload yet.")
-                    print("  Check agent logs: tail -20 /tmp/spire-agent.log")
-                    print("  Verify registration entry matches this process's selectors")
+                    print("  Possible causes:")
+                    print(f"    1. Registration entry hasn't propagated to agent (agent syncs every 5-10s)")
+                    print(f"    2. Process UID ({current_uid}) doesn't match entry selector")
+                    print(f"    3. Entry doesn't exist on server")
+                    print("  Troubleshooting:")
+                    print("    - Check agent logs: tail -30 /tmp/spire-agent.log | grep -E '(python-app|Entry|attest)'")
+                    print("    - Verify entry: ../spire/bin/spire-server entry show -spiffeID spiffe://example.org/python-app -socketPath /tmp/spire-server/private/api.sock")
+                    print(f"    - Check current UID: id -u (should match entry selector unix:uid:{current_uid})")
+                    print("    - Wait a few seconds and try again (agent syncs periodically)")
                     return None, None
+            elif e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+                elapsed = time.time() - start_time if 'start_time' in locals() else 0
+                print(f"  ⚠ gRPC call timed out after {elapsed:.1f}s")
+                print("  The agent may not be responding or the registration entry hasn't propagated")
+                print("  Check agent logs: tail -20 /tmp/spire-agent.log")
+                return None, None
             # Re-raise other errors
             raise
+        except Exception as e:
+            elapsed = time.time() - start_time if 'start_time' in locals() else 0
+            print(f"  ⚠ Error during gRPC call after {elapsed:.1f}s: {e}")
+            print("  Check agent logs: tail -20 /tmp/spire-agent.log")
+            return None, None
 
         if not response.svids:
             print("Error: No SVIDs in response")
