@@ -1344,6 +1344,46 @@ The Pillar 2 document provides detailed analysis of all 6 upstreaming tasks requ
 2. **Moderate Refactoring** (10 days): Task 2 - separate geolocation endpoint
 3. **Major Refactoring** (20 days): Tasks 4 & 5 - SPIRE plugin extraction
 
+### Known Limitations & Community Discussion Topics
+
+#### SPIRE CredentialComposer Plugin Interface Expansion
+
+**Current Limitation**: The SPIRE `CredentialComposer` plugin interface (`spire/pkg/server/plugin/credentialcomposer/credentialcomposer.go`) currently only allows plugins to modify:
+- `Subject` (pkix.Name)
+- `DNSNames` ([]string)
+- `ExtraExtensions` ([]pkix.Extension)
+
+**Issue**: Agent SVIDs act as intermediate certificates in the certificate chain (Server CA → Agent SVID → Workload SVID), but the current plugin interface does not expose `IsCA` or `KeyUsage` fields for modification. This means:
+- Agent SVIDs cannot be marked as CA certificates (`IsCA = true`) via plugins
+- Agent SVIDs cannot have `KeyUsageCertSign` added to their KeyUsage via plugins
+- Strict X.509 validators (e.g., `python-spiffe` library) may reject agent SVIDs as intermediate certificates
+
+**Current Workaround**: Client-side validation bypass (monkey-patching `_validate_intermediate_certificate` in `python-spiffe`) - see `mtls-client-app.py` lines 220-235.
+
+**Proposed Enhancement**: Extend the `X509SVIDAttributes` struct to include:
+```go
+type X509SVIDAttributes struct {
+    Subject         pkix.Name
+    DNSNames        []string
+    ExtraExtensions []pkix.Extension
+    IsCA            *bool              // Optional: allow plugins to set CA flag
+    KeyUsage        *x509.KeyUsage     // Optional: allow plugins to modify KeyUsage
+}
+```
+
+**Community Discussion Points**:
+1. **Use Case**: Should agent SVIDs be configurable as intermediate CAs? This would enable hierarchical certificate chains where agents can sign workload certificates.
+2. **Security Implications**: What are the security considerations of allowing plugins to modify fundamental certificate properties like `IsCA`?
+3. **Backward Compatibility**: How can this be added without breaking existing CredentialComposer plugins?
+4. **Alternative Approaches**: Should this be a core SPIRE configuration option rather than a plugin capability?
+
+**Location in SPIRE Codebase**:
+- Plugin Interface: `spire/pkg/server/plugin/credentialcomposer/credentialcomposer.go`
+- Template Builder: `spire/pkg/server/credtemplate/builder.go` (lines 256-273, 478-482)
+- Agent SVID Creation: `spire/pkg/server/ca/ca.go` (lines 262-286)
+
+**Impact**: This enhancement would enable proper X.509 certificate chain validation without client-side workarounds, improving interoperability with strict TLS validators and aligning with X.509 best practices for intermediate certificate authorities.
+
 ### Test Infrastructure
 
 **CI/CD Ready**: ✅ Complete

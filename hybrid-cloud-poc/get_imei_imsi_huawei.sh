@@ -23,11 +23,16 @@ echo "--- Mobile Device Identity Retrieval ---"
 
 # 1. Dynamically find the Huawei Modem
 #    Matches any device with manufacturer '[huawei]'
-MODEM_PATH=$(sudo mmcli -L | grep '\[huawei\]' | head -n 1 | awk '{print $1}')
+MODEM_PATH=$(sudo mmcli -L 2>/dev/null | grep '\[huawei\]' | head -n 1 | awk '{print $1}')
 
 if [ -z "$MODEM_PATH" ]; then
-    echo "❌ ERROR: No Huawei modem detected."
-    exit 1
+    echo "ℹ️  No Huawei modem detected (not present)"
+    echo "----------------------------------------"
+    echo "Device Summary:"
+    echo "Modem IMEI: Not present"
+    echo "SIM IMSI:   Not present"
+    echo "----------------------------------------"
+    exit 0
 fi
 
 # Extract the Modem Index number (e.g., '5' from '.../Modem/5')
