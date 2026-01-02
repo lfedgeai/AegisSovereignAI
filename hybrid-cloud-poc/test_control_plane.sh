@@ -87,6 +87,8 @@ PROJECT_ROOT="${SCRIPT_DIR}"
 source "${SCRIPT_DIR}/scripts/cleanup.sh"
 # Restore SCRIPT_DIR after sourcing (cleanup.sh may have changed it)
 SCRIPT_DIR="${TEST_SCRIPT_DIR}"
+# Source step reporting for CI integration (after SCRIPT_DIR is restored)
+source "${SCRIPT_DIR}/scripts/step_report.sh"
 
 # Wrap the cleanup function to add "Step 0:" prefix for consistency with test script output
 # Save original function before we override it by copying it with a different name
@@ -1284,6 +1286,7 @@ else
 fi
 
 # Step 1: Setup Keylime environment with TLS certificates
+report_step_start "1" "Setting up Keylime environment with TLS certificates"
 echo -e "${CYAN}Step 1: Setting up Keylime environment with TLS certificates...${NC}"
 echo ""
 
@@ -1399,6 +1402,7 @@ else
     echo -e "${GREEN}  ✓ TLS certificates already exist${NC}"
 fi
 
+report_step_success "Keylime environment with TLS certificates set up"
 pause_at_phase "Step 1 Complete" "TLS certificates have been generated. Keylime environment is ready."
 
 
@@ -1447,6 +1451,7 @@ stop_control_plane_services() {
 }
 
 # Step 2: Start Keylime Verifier with unified_identity enabled
+report_step_start "2" "Starting Keylime Verifier with unified_identity enabled"
 echo ""
 echo -e "${CYAN}Step 2: Starting Keylime Verifier with unified_identity enabled...${NC}"
 cd "${KEYLIME_DIR}"
@@ -1535,9 +1540,11 @@ else
     abort_on_error "unified_identity feature flag is DISABLED (expected: True, got: $FEATURE_ENABLED)"
 fi
 
+report_step_success "Keylime Verifier running with unified_identity enabled"
 pause_at_phase "Step 2 Complete" "Keylime Verifier is running and ready. unified_identity feature is enabled."
 
 # Step 3: Start Keylime Registrar (required for rust-keylime agent registration)
+report_step_start "3" "Starting Keylime Registrar for agent registration"
 echo ""
 echo -e "${CYAN}Step 3: Starting Keylime Registrar (required for agent registration)...${NC}"
 cd "${KEYLIME_DIR}"
@@ -1636,6 +1643,7 @@ if [ "$REGISTRAR_STARTED" = false ]; then
     abort_on_error "Keylime Registrar failed to become ready"
 fi
 
+report_step_success "Keylime Registrar running and ready for agent registration"
 pause_at_phase "Step 3 Complete" "Keylime Registrar is running. Ready for agent registration."
 
 # Step 4: Skipping rust-keylime Agent (control plane only - agent services managed by test_agents.sh)
@@ -1660,6 +1668,7 @@ echo -e "${YELLOW}  TPM Plugin Server is managed by test_agents.sh${NC}"
 # Removed: All TPM Plugin Server startup code (not needed for control plane only)
 
 # Step 4: Build SPIRE Server binary (if needed) and start it
+report_step_start "4" "Building and starting SPIRE Server"
 echo ""
 echo -e "${CYAN}Step 4: Building SPIRE Server (if needed) and starting it...${NC}"
 
@@ -2083,6 +2092,7 @@ if false; then
     fi
 fi
 
+report_step_success "SPIRE Server running and control plane services ready"
 pause_at_phase "Step 4 Complete" "SPIRE Server is running. Control plane services ready."
 echo ""
 echo -e "${GREEN}Control plane services started successfully:${NC}"

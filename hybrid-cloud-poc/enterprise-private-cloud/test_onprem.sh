@@ -27,6 +27,8 @@ REPO_ROOT="$(cd "$ONPREM_DIR/.." && pwd)"
 # This ensures consistent /tmp cleanup across all test scripts
 PROJECT_ROOT="${REPO_ROOT}"
 source "${REPO_ROOT}/scripts/cleanup.sh"
+# Source step reporting for CI integration
+source "${REPO_ROOT}/scripts/step_report.sh"
 
 # Read host IPs from environment variables (passed by test_integration.sh) BEFORE setting defaults
 # This ensures we use the correct IPs when all hosts are the same

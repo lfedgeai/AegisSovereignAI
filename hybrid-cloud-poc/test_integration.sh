@@ -37,6 +37,18 @@ if [ -z "${LOGGING_SETUP:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source step reporting for CI integration
+source "${SCRIPT_DIR}/scripts/step_report.sh"
+# Source cleanup script for initial state reset
+source "${SCRIPT_DIR}/scripts/cleanup.sh"
+
+# Clean up all previous test state at the start
+echo ""
+echo "Cleaning up previous test state (including /tmp files)..."
+cleanup_tmp_files
+echo "✓ Previous test state cleaned up"
+echo ""
+
 # Default all sub-scripts to run on 10.1.0.11
 CONTROL_PLANE_HOST="${CONTROL_PLANE_HOST:-10.1.0.11}"
 AGENTS_HOST="${AGENTS_HOST:-10.1.0.11}"

@@ -48,6 +48,8 @@ class TestRunner:
         self.log_dir = None
         self.errors = []
         self.warnings = []
+        self.steps = []  # Track step progress: (script, step, substep, status, message)
+        self.current_step = None  # Track current step for error attribution
 
         if no_color or not sys.stdout.isatty():
             Colors.disable()
@@ -57,6 +59,23 @@ class TestRunner:
         match = re.search(r'Logs will be aggregated in (/tmp/unified_identity_test_\d+)', line)
         if match:
             self.log_dir = match.group(1)
+            return True
+        return False
+
+    def parse_step_marker(self, line):
+        """Parse structured step markers from output"""
+        # Format: [STEP:<script>:<step>:<substep>:<status>] <message>
+        match = re.search(r'\[STEP:([^:]+):([^:]+):([^:]+):([^\]]+)\]\s*(.*)', line)
+        if match:
+            script, step, substep, status, message = match.groups()
+            self.steps.append((script, step, substep, status, message.strip()))
+            if status == 'START':
+                self.current_step = (script, step, substep)
+            elif status == 'SUCCESS':
+                self.current_step = None
+            elif status == 'FAILURE':
+                # Failure already recorded in step, will be included in summary
+                pass
             return True
         return False
 
@@ -90,6 +109,11 @@ class TestRunner:
         if '✗' in line:
             if any(pattern in line.lower() for pattern in ['cleanup', 'stopping', 'cleaning up']):
                 return False  # Ignore cleanup failures
+            self.errors.append(line.strip())
+            return True
+
+        # Check for step failure markers
+        if '[STEP:' in line and ':FAILURE]' in line:
             self.errors.append(line.strip())
             return True
 
@@ -194,6 +218,26 @@ class TestRunner:
         if self.log_dir:
             print(f"Logs: {self.log_dir}")
 
+        # Show step progress summary
+        if self.steps:
+            completed = [s for s in self.steps if s[3] == 'SUCCESS']
+            failed = [s for s in self.steps if s[3] == 'FAILURE']
+            in_progress = [s for s in self.steps if s[3] == 'START' and 
+                          not any(c[0:3] == s[0:3] for c in completed + failed)]
+            
+            print(f"\n{Colors.CYAN}Step Progress:{Colors.NC}")
+            print(f"  Completed: {len(completed)} steps")
+            
+            if failed:
+                print(f"\n{Colors.RED}Failed Steps:{Colors.NC}")
+                for script, step, substep, status, msg in failed:
+                    print(f"  ✗ {script}:Step {step}.{substep} - {msg}")
+            
+            if in_progress and self.exit_code != 0:
+                print(f"\n{Colors.YELLOW}Failed During Step:{Colors.NC}")
+                for script, step, substep, status, msg in in_progress:
+                    print(f"  → {script}:Step {step}.{substep} - {msg}")
+
         if self.warnings:
             print(f"\n{Colors.YELLOW}Warnings ({len(self.warnings)}):{Colors.NC}")
             for warning in self.warnings[:5]:  # Show first 5
@@ -247,6 +291,9 @@ class TestRunner:
 
                 # Extract log directory
                 self.extract_log_dir(line)
+
+                # Parse step markers for CI progress tracking
+                self.parse_step_marker(line)
 
                 # Detect errors and warnings
                 self.detect_error(line)

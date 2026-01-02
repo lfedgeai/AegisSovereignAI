@@ -91,16 +91,22 @@ In a modern distributed enterprise, inference happens everywhere—from secure c
 
 ## Core Solution Architecture
 
+### 0. Key Technical Definitions
+TPM (Trusted Platform Module): A dedicated hardware vault on the motherboard that secures cryptographic keys and provides unforgeable measurements of the system state.
+
+BMC (Baseboard Management Controller): An independent service processor used for out-of-band monitoring and management of physical server hardware.
+
 ### 1. Unified Workload Identity
 We extend the standard software identity (SPIFFE) by cryptographically binding it to the physical reality of the device. This creates a "Unified ID" that serves as the root of trust for all three critical security assertions:
 
 * **A. Proof of Residency (PoR)**
     * **Challenge:** Weak bearer tokens in exposed environments allow identity theft and replay attacks.
     * **Solution:** We bind **Workload Identity** (Code Hash) + **Host Hardware Identity** (TPM PKI) + **Platform Policy** (Kernel Version). This generates a certificate that proves *what* is running and *where* it is running.
+    Note: For end user sytems, we bind the user's OIDC context to the hardware-verified SPIFFE identity. This ensures that every AI action is rooted in both human intent and a verified physical platform.
 
 * **B. Proof of Geofencing (PoG)**
     * **Challenge:** Unreliable IP-based location checks are easily bypassed via VPNs.
-    * **Solution:** We extend PoR to include **Location Hardware Identity** (GNSS/Mobile Sensors). This enables verifiable enforcement of geographic policy at the workload level, ensuring data sovereignty even on the far edge.
+    * **Solution:** We extend PoR to include **Location Hardware Identity** (GNSS/Mobile Sensors). This enables verifiable enforcement of geographic policy at the workload level, ensuring data sovereignty even on the far edge. This is explicitly mapped to CAMARA’s Device Location Verification APIs, allowing AegisSovereignAI to provide hardware-rooted location assurance through standardized carrier network interfaces.
 
 * **C. Supply Chain Security**
     * **Challenge:** Counterfeit hardware and firmware downgrades in physical deployments.
@@ -111,26 +117,17 @@ We extend the standard software identity (SPIFFE) by cryptographically binding i
 ### 2. Zero-Trust AI Governance
 Security does not stop at identity; it must extend to the data and the execution context of the AI.
 
-Challenge 1: Context & Semantic Contamination 
+* **A. Context & Semantic Contamination**
+    * **Challenge:** Standard RAG systems are vulnerable to "Context Injection" (unauthorized data inserted in transit) and "Semantic Contamination" (authorized but malicious/misleading data designed to bias the model).
+    * **Solution:** We introduce a **Policy Enforcement Point (PEP)** middleware that acts as the trust substrate between the vector database and the LLM.
+        * *Authorization Scope:* AegisSovereignAI provides the evidence (e.g., "This workload is verified and running in a secure enclave"). The application-level OPA rules then make the policy decision (e.g., "Allow/Deny access to this specific document").
+        * *Mitigation Boundary:* While AegisSovereignAI stops unauthorized context injection via cryptographic pinning, it provides the audit trail to help detect semantic contamination by authorized users.
 
-Standard RAG systems are vulnerable to "Context Injection" (unauthorized data inserted in transit) and "Semantic Contamination" (authorized but malicious/misleading data designed to bias the model).
-
-Solution: We introduce a Policy Enforcement Point (PEP) middleware that acts as the trust substrate between the vector database and the LLM.
-
-Authorization Scope: Aegis provides the evidence (e.g., "This workload is verified and running in a secure enclave"). The application-level OPA rules then make the policy decision (e.g., "Allow/Deny access to this specific document").
-
-Mitigation Boundary: While Aegis stops unauthorized context injection via cryptographic pinning, it provides the audit trail to help detect semantic contamination by authorized users.
-
-Challenge 2: The "GenAI Audit Paradox" 
-
-Logs typically capture what was said, but not the integrity of the environment that said it. Furthermore, a digital signature from an autonomous agent does not explicitly prove the intent of the human user.
-
-Solution: Aegis generates Immutable Audit Logs that capture the "Immutable Triad" (User Input + Context Hash + Model Config).
-
-Forensic vs. Intent: This provides Forensic Integrity—mathematical proof of exactly what code ran on what data.
-
-Clarification: While this captures the technical "consent" of the agent, it is designed to be a ledger of technical truth; the legal interpretation of "user intent" remains a governance layer above the trust substrate.
-Security does not stop at identity; it must extend to the data the AI consumes.
+* **B. The "GenAI Audit Paradox"**
+    * **Challenge:** Logs typically capture *what* was said, but not the integrity of the environment that said it. Furthermore, a digital signature from an autonomous agent does not explicitly prove the intent of the human user.
+    * **Solution:** AegisSovereignAI generates **Immutable Audit Logs** that capture the "Immutable Triad" (User Input + Context Hash + Model Config).
+        * *Forensic vs. Intent:* This provides Forensic Integrity—mathematical proof of exactly what code ran on what data.
+        * *Clarification:* While this captures the technical "consent" of the agent, it is designed to be a ledger of technical truth; the legal interpretation of "user intent" remains a governance layer above the trust substrate.
 
 ## Additional Resources
 * **Zero‑Trust Sovereign AI Deck:** [View Deck](https://1drv.ms/b/c/746ada9dc9ba7cb7/ETTLFqSUV3pCsIWiD4zMDt0BXzSwcCMGX8cA-qllKfmYvw?e=ONrjf1)

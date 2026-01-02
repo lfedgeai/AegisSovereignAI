@@ -119,6 +119,8 @@ PROJECT_ROOT="${SCRIPT_DIR}"
 source "${SCRIPT_DIR}/scripts/cleanup.sh"
 # Restore SCRIPT_DIR after sourcing (cleanup.sh may have changed it)
 SCRIPT_DIR="${TEST_SCRIPT_DIR}"
+# Source step reporting for CI integration (after SCRIPT_DIR is restored)
+source "${SCRIPT_DIR}/scripts/step_report.sh"
 
 # Wrap the cleanup function to add "Step 0:" prefix for consistency with test script output
 # Save original function before we override it by copying it with a different name
