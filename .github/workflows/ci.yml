@@ -1,5 +1,5 @@
 name: Unified Identity CI
- 
+
 on:
     push:
         branches:
@@ -13,67 +13,69 @@ on:
     pull_request:
         branches: ["main", "develop", "hybrid-cloud-poc"]
     workflow_dispatch:
- 
+
 jobs:
     license-headers:
         name: Check Apache 2.0 License Headers
         runs-on: ubuntu-latest
         timeout-minutes: 10
- 
+
         steps:
             - name: Checkout Code
               uses: actions/checkout@v4
               with:
                   submodules: recursive
- 
+
             - name: Check License Headers
               run: |
                   cd hybrid-cloud-poc
                   python3 scripts/add_license_headers.py --check --root .
               continue-on-error: false
- 
+
     integration-test:
         name: Hybrid Cloud PoC Integration Test
         runs-on: self-hosted
         timeout-minutes: 30
- 
+
         steps:
             - name: Pre-Run Environment Cleanup
               run: |
                   echo "?? Cleaning orphan processes and stale workspaces..."
                   # Ensure working directory exists (previous run may have deleted it)
                   mkdir -p /home/mw/actions-runner/_work/AegisSovereignAI/AegisSovereignAI
-                  pkill -9 -f "envoy" || true
-                  pkill -9 -f "spire-server" || true
-                  pkill -9 -f "spire-agent" || true
-                  pkill -9 -f "tpm_plugin" || true
-                  pkill -9 -f "ci_test_runner" || true
-                  pkill -9 -f "test_integration" || true
+                  # Kill CI-spawned processes only (specific patterns to avoid system services)
+                  # Redirect stderr to hide 'Operation not permitted' for root processes
+                  pkill -9 -f "envoy -c" 2>/dev/null || true
+                  pkill -9 -f "spire-server run" 2>/dev/null || true
+                  pkill -9 -f "spire-agent run" 2>/dev/null || true
+                  pkill -9 -f "tpm_plugin_server" 2>/dev/null || true
+                  pkill -9 -f "ci_test_runner" 2>/dev/null || true
+                  pkill -9 -f "test_integration" 2>/dev/null || true
                   # Clean up temp files from previous runs
                   rm -rf /tmp/unified_identity_test_* || true
                   rm -rf /tmp/spire-* || true
                   echo "? Pre-cleanup complete"
- 
+
             - name: Checkout Code (Fresh Clone)
               uses: actions/checkout@v4
               with:
                   submodules: recursive
                   clean: true
- 
+
             - name: Debug - Inspect File System
               run: |
                   echo "Current directory: $(pwd)"
                   echo "Workspace: ${{ github.workspace }}"
                   echo "Runner _work directory contents:"
                   ls -la /home/mw/actions-runner/_work/ || true
- 
+
             - name: Install Python Dependencies
               timeout-minutes: 5
               run: |
                   cd hybrid-cloud-poc
                   python3 -m pip install --upgrade pip
                   python3 -m pip install -r keylime/requirements.txt
- 
+
             - name: Run Integration Tests
               timeout-minutes: 5
               shell: bash
@@ -85,18 +87,19 @@ jobs:
                   echo "?? Running integration tests with ci_test_runner.py..."
                   python3 ./ci_test_runner.py --no-color -- --control-plane-host 10.1.0.10 --agents-host 10.1.0.10 --onprem-host 10.1.0.10
                   echo "? Integration tests completed"
- 
+
             - name: Post-Run Cleanup (Mandatory Purge)
               if: always()
               run: |
                   echo "??? Purging all workspaces to prevent state poisoning..."
-                  # Kill any spawned processes
-                  pkill -9 -f "spire-server" || true
-                  pkill -9 -f "spire-agent" || true
-                  pkill -9 -f "tpm_plugin" || true
-                  pkill -9 -f "envoy" || true
-                  pkill -9 -f "ci_test_runner" || true
-                  pkill -9 -f "test_integration" || true
+                  # Kill CI-spawned processes only (specific patterns to avoid system services)
+                  # Redirect stderr to hide 'Operation not permitted' for root processes
+                  pkill -9 -f "spire-server run" 2>/dev/null || true
+                  pkill -9 -f "spire-agent run" 2>/dev/null || true
+                  pkill -9 -f "tpm_plugin_server" 2>/dev/null || true
+                  pkill -9 -f "envoy -c" 2>/dev/null || true
+                  pkill -9 -f "ci_test_runner" 2>/dev/null || true
+                  pkill -9 -f "test_integration" 2>/dev/null || true
                   # Remove temp files
                   rm -rf /tmp/unified_identity_test_* || true
                   rm -rf /tmp/spire-* || true

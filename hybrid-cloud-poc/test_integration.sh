@@ -147,11 +147,19 @@ run_script() {
         return 0
     else
         # Unified-Identity - Testing: Fail-Fast
-        # Immediate error reporting
+        # Immediate error reporting and step failure reporting
         echo ""
         echo -e "${RED}✗ ${description} failed${NC}"
         echo -e "${YELLOW}Last 20 lines of log (${log_file}):${NC}"
         tail -n 20 "${log_file}" | sed 's/^/    /'
+        # Report step failure for CI test runner (fail-fast)
+        if [ -n "${_CURRENT_STEP:-}" ]; then
+            report_step_failure "${description} failed - check log: ${log_file}"
+        else
+            echo "[STEP:${_STEP_REPORT_SCRIPT}:0:0:FAILURE] ✗ ${description} failed - check log: ${log_file}"
+            exit 1
+        fi
+        # report_step_failure already exits, but just in case:
         return 1
     fi
 }
@@ -429,11 +437,19 @@ run_script() {
         return 0
     else
         # Unified-Identity - Testing: Fail-Fast
-        # Immediate error reporting
+        # Immediate error reporting and step failure reporting
         echo ""
         echo -e "${RED}✗ ${description} failed${NC}"
         echo -e "${YELLOW}Last 20 lines of log (${log_file}):${NC}"
         tail -n 20 "${log_file}" | sed 's/^/    /'
+        # Report step failure for CI test runner (fail-fast)
+        if [ -n "${_CURRENT_STEP:-}" ]; then
+            report_step_failure "${description} failed - check log: ${log_file}"
+        else
+            echo "[STEP:${_STEP_REPORT_SCRIPT}:0:0:FAILURE] ✗ ${description} failed - check log: ${log_file}"
+            exit 1
+        fi
+        # report_step_failure already exits, but just in case:
         return 1
     fi
 }
@@ -494,6 +510,7 @@ main() {
     fi
     if ! run_script "run_on_control_plane" "test_control_plane.sh" "$CONTROL_PLANE_ARGS" \
         "Step 1: Starting Control Plane Services (SPIRE Server, Keylime Verifier/Registrar)"; then
+        # run_script already reports failure and exits, but ensure we stop here
         echo -e "${RED}Control plane setup failed. Aborting.${NC}"
         exit 1
     fi
@@ -546,7 +563,13 @@ main() {
     else
         echo ""
         echo -e "${RED}✗ Failed to start on-prem services (exit code: $ONPREM_EXIT_CODE)${NC}"
-        exit 1
+        # Report step failure and stop (fail-fast)
+        if [ -n "${_CURRENT_STEP:-}" ]; then
+            report_step_failure "On-prem services failed to start (exit code: $ONPREM_EXIT_CODE)"
+        else
+            echo "[STEP:${_STEP_REPORT_SCRIPT}:2:0:FAILURE] ✗ On-prem services failed to start (exit code: $ONPREM_EXIT_CODE)"
+            exit 1
+        fi
     fi
 
     # Verify on-prem services are up
@@ -578,6 +601,7 @@ main() {
     fi
     if ! run_script "run_on_agents" "test_agents.sh" "$AGENTS_ARGS" \
         "Step 3: Running Complete Integration Test (Agent Attestation, Workload SVID)"; then
+        # run_script already reports failure and exits, but ensure we stop here
         echo -e "${RED}Complete integration test failed.${NC}"
         report_step_failure "Agent integration test failed"
     fi

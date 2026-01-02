@@ -27,6 +27,8 @@ set -euo pipefail
 export UNIFIED_IDENTITY_ENABLED="${UNIFIED_IDENTITY_ENABLED:-true}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source step reporting for CI integration
+source "${SCRIPT_DIR}/scripts/step_report.sh"
 # All components are now consolidated in the root directory
 PROJECT_DIR="${SCRIPT_DIR}"
 KEYLIME_DIR="${SCRIPT_DIR}/keylime"
@@ -87,10 +89,19 @@ if [ ! -t 1 ] || [ -n "${NO_COLOR:-}" ]; then
 fi
 
 # Helper function to abort on critical errors
+# Reports step failure before exiting (fail-fast)
 abort_on_error() {
     local message="$1"
+    local step_desc="${2:-Critical error}"
     echo -e "${RED}✗ CRITICAL ERROR: ${message}${NC}" >&2
-    echo -e "${RED}Aborting test execution.${NC}" >&2
+    # Report step failure for CI test runner
+    if [ -n "${_CURRENT_STEP:-}" ]; then
+        report_step_failure "${step_desc}: ${message}"
+    else
+        echo "[STEP:${_STEP_REPORT_SCRIPT}:0:0:FAILURE] ✗ ${step_desc}: ${message}"
+        exit 1
+    fi
+    # report_step_failure already exits, but just in case:
     exit 1
 }
 

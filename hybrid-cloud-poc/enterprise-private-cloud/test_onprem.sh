@@ -486,7 +486,13 @@ if [ ! -f /opt/envoy/certs/envoy-cert.pem ] || [ ! -f /opt/envoy/certs/envoy-key
         printf '     Key: /opt/envoy/certs/envoy-key.pem\n'
     else
         echo -e "${RED}  ✗ Failed to generate Envoy certificates${NC}"
-        exit 1
+        # Report step failure and stop (fail-fast)
+        if [ -n "${_CURRENT_STEP:-}" ]; then
+            report_step_failure "Failed to generate Envoy certificates"
+        else
+            echo "[STEP:${_STEP_REPORT_SCRIPT}:3:0:FAILURE] ✗ Failed to generate Envoy certificates"
+            exit 1
+        fi
     fi
 else
     echo -e "${GREEN}  ✓ Envoy certificates already exist${NC}"
@@ -852,7 +858,13 @@ echo -e "\n${GREEN}[7/7] Setting up Envoy proxy...${NC}"
 # Copy Envoy configuration
 if [ ! -f "$ONPREM_DIR/envoy/envoy.yaml" ]; then
     echo -e "${RED}  ✗ Envoy configuration file not found: $ONPREM_DIR/envoy/envoy.yaml${NC}"
-    exit 1
+    # Report step failure and stop (fail-fast)
+    if [ -n "${_CURRENT_STEP:-}" ]; then
+        report_step_failure "Envoy configuration file not found: $ONPREM_DIR/envoy/envoy.yaml"
+    else
+        echo "[STEP:${_STEP_REPORT_SCRIPT}:7:0:FAILURE] ✗ Envoy configuration file not found"
+        exit 1
+    fi
 fi
 
 sudo cp "$ONPREM_DIR/envoy/envoy.yaml" /opt/envoy/envoy.yaml
@@ -945,7 +957,13 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
             else
                 printf '  [ERROR] CAMARA_BYPASS=false but no credentials found\n'
                 printf '          Please provide camara_basic_auth.txt in %s/mobile-sensor-microservice\n' "$REPO_ROOT"
-                exit 1
+                # Report step failure and stop (fail-fast)
+                if [ -n "${_CURRENT_STEP:-}" ]; then
+                    report_step_failure "CAMARA credentials missing (CAMARA_BYPASS=false but no credentials found)"
+                else
+                    echo "[STEP:${_STEP_REPORT_SCRIPT}:4:0:FAILURE] ✗ CAMARA credentials missing"
+                    exit 1
+                fi
             fi
         fi
 
