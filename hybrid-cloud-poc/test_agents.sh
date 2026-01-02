@@ -1262,6 +1262,7 @@ fi
 # Step 1: Setup Keylime environment with TLS certificates
 # Skipped for act 2 - non-control plane only (handled by test_control_plane.sh)
 echo ""
+report_step_start "1" "Verifying control plane services are running"
 echo -e "${CYAN}Step 1: Skipping Keylime setup (act 2 - non-control plane only)${NC}"
 echo -e "${YELLOW}  Assuming control plane services are already running from test_control_plane.sh${NC}"
 
@@ -1314,9 +1315,10 @@ if [ "$CONTROL_PLANE_READY" = false ]; then
     echo "  - Keylime Registrar"
     echo ""
     echo "Then run this script (test_agents.sh) to start agent services."
-    abort_on_error "Control plane services must be running before starting agent services"
+    report_step_failure "Control plane services must be running before starting agent services"
 fi
 
+report_step_success "Control plane services verified"
 echo ""
 
 # Set VERIFIER_CONFIG_ABS even though we're skipping setup (needed for later steps)
@@ -1459,6 +1461,7 @@ echo -e "${YELLOW}  Assuming Keylime Registrar is already running${NC}"
 
 # Step 4: Start rust-keylime Agent
 echo ""
+report_step_start "4" "Starting rust-keylime Agent with delegated certification"
 echo -e "${CYAN}Step 4: Starting rust-keylime Agent with delegated certification...${NC}"
 
 # Clear TPM state before starting agent to avoid NV_Read errors and inconsistent state
@@ -2111,14 +2114,16 @@ if [ "$RUST_AGENT_STARTED" = false ]; then
     fi
 
     if [ "$RUST_AGENT_STARTED" = false ]; then
-        abort_on_error "rust-keylime Agent failed to become ready - delegated certification is required"
+        report_step_failure "rust-keylime Agent failed to become ready - delegated certification is required"
     fi
 fi
 
+report_step_success "rust-keylime Agent running and ready"
 pause_at_phase "Step 4 Complete" "rust-keylime Agent is running. Ready for registration and attestation."
 
 # Step 5: Verify rust-keylime Agent Registration and TPM Attested Geolocation
 echo ""
+report_step_start "5" "Verifying rust-keylime Agent Registration"
 echo -e "${CYAN}Step 5: Verifying rust-keylime Agent Registration (and optional TPM geolocation)...${NC}"
 echo "  This ensures the agent is registered with Keylime Verifier"
 echo "  and surfaces any geolocation claims only if sensors report them."
@@ -2347,10 +2352,12 @@ fi
 
 echo "  TPM Plugin and SPIRE can now be started."
 
+report_step_success "rust-keylime Agent registration verified"
 pause_at_phase "Step 5 Complete" "Agent is registered with Keylime. Geolocation claims are optional and surface only when sensors report them. Ready for SPIRE integration."
 
 # Step 6: Start TPM Plugin Server (HTTP/UDS)
 echo ""
+report_step_start "6" "Starting TPM Plugin Server"
 echo -e "${CYAN}Step 6: Starting TPM Plugin Server (HTTP/UDS)...${NC}"
 
     TPM_PLUGIN_SERVER="${SCRIPT_DIR}/tpm-plugin/tpm_plugin_server.py"
@@ -2544,11 +2551,13 @@ if [ "$APP_KEY_READY" = false ]; then
     echo "  Verifying TPM_PLUGIN_ENDPOINT: ${TPM_PLUGIN_ENDPOINT}"
 fi
 
+report_step_success "TPM Plugin Server running"
 pause_at_phase "Step 6 Complete" "TPM Plugin Server is running. Ready for SPIRE to use TPM operations."
 
 # Step 7: Start SPIRE Agent
 # SPIRE Server is managed by test_control_plane.sh
 echo ""
+report_step_start "7" "Starting SPIRE Agent"
 echo -e "${CYAN}Step 7: Starting SPIRE Agent (SPIRE Server managed by test_control_plane.sh)...${NC}"
 
 if [ ! -d "${PROJECT_DIR}" ]; then
@@ -2917,10 +2926,12 @@ echo "  Waiting for SPIRE Agent to complete attestation and receive SVID..."
         fi
     fi
 
+report_step_success "SPIRE Agent attested and running"
 pause_at_phase "Step 7 Complete" "SPIRE Agent has completed attestation. Ready for workload registration."
 
 # Step 8: Create Registration Entry
 echo ""
+report_step_start "8" "Creating registration entry for workload"
 echo -e "${CYAN}Step 8: Creating registration entry for workload...${NC}"
 
 # Clean up any existing registration entries for the Python app workload
@@ -2968,8 +2979,7 @@ fi
 
 cd "${PROJECT_DIR}/python-app-demo"
 if [ -f "./create-registration-entry.sh" ]; then
-    ./create-registration-entry.sh
-    if [ $? -eq 0 ]; then
+    if ./create-registration-entry.sh; then
         echo -e "${GREEN}  ✓ Registration entry created${NC}"
         # Wait for entry to propagate to agent (agent syncs with server periodically, typically every 5-10s)
         echo "  Waiting for registration entry to propagate to agent..."
@@ -3017,16 +3027,18 @@ if [ -f "./create-registration-entry.sh" ]; then
         fi
     else
         echo -e "${RED}  ✗ Registration entry creation failed${NC}"
-        abort_on_error "Registration entry creation failed - workload SVID cannot be issued"
+        report_step_failure "Registration entry creation failed - workload SVID cannot be issued"
     fi
 else
     echo -e "${YELLOW}  ⚠ Registration entry script not found, skipping...${NC}"
 fi
 
+report_step_success "Registration entry created for workload"
 pause_at_phase "Step 8 Complete" "Registration entry created for workload. Workload can now request SVIDs."
 
 # Step 9: Verify TPM Operations in SPIRE Agent Attestation
 echo ""
+report_step_start "9" "Verifying TPM Operations in SPIRE Agent Attestation"
 echo -e "${CYAN}Step 9: Verifying TPM Operations in SPIRE Agent Attestation...${NC}"
 echo "  During Step 7, the SPIRE agent should have:"
 echo "    1. Generated TPM App Key (via TPM Plugin)"
@@ -3168,10 +3180,12 @@ else
     echo "        when unified_identity is enabled and TPM Plugin Server is running."
 fi
 
+report_step_success "TPM Operations verified"
 pause_at_phase "Step 9 Complete" "TPM operations verified in SPIRE agent attestation. Agent SVID includes TPM-attested claims."
 
 # Step 10: Generate Sovereign SVID (reuse demo script to avoid duplication)
 echo ""
+report_step_start "10" "Generating Sovereign SVID with AttestedClaims"
 echo -e "${CYAN}Step 10: Generating Sovereign SVID with AttestedClaims...${NC}"
 echo "  (Reusing demo.sh to avoid code duplication)"
 echo ""
@@ -3201,10 +3215,12 @@ else
     fi
 fi
 
+report_step_success "Sovereign SVID generated"
 pause_at_phase "Step 10 Complete" "Sovereign SVID generated with AttestedClaims. Certificate chain includes Workload + Agent SVIDs."
 
 # Step 11: Run All Tests
 echo ""
+report_step_start "11" "Running all verification tests"
 echo -e "${CYAN}Step 11: Running all tests...${NC}"
 
 cd "${PROJECT_DIR}"
@@ -3314,6 +3330,8 @@ if [ -f /tmp/spire-agent.log ]; then
 else
     echo -e "${YELLOW}  ⚠ SPIRE Agent log not found${NC}"
 fi
+
+report_step_success "All verification tests passed"
 
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"

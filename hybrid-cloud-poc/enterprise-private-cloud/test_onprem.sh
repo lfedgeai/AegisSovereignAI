@@ -351,6 +351,7 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
 fi
 
 # 1. Install dependencies
+report_step_start "1" "Installing dependencies"
 echo -e "\n${GREEN}[1/7] Installing dependencies...${NC}"
 
 # Clean up any problematic Envoy repository that might have been added previously
@@ -410,7 +411,10 @@ if ! command -v envoy &> /dev/null; then
     fi
 fi
 
+report_step_success "Dependencies installed"
+
 # 2. Create directories
+report_step_start "2" "Creating directories"
 echo -e "\n${GREEN}[2/7] Creating directories...${NC}"
 sudo mkdir -p /opt/envoy/{certs,plugins,logs}
 sudo mkdir -p /opt/mobile-sensor-service
@@ -453,7 +457,10 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
     fi
 fi
 
+report_step_success "Directories created"
+
 # 3. Setup certificates
+report_step_start "3" "Setting up certificates"
 echo -e "\n${GREEN}[3/7] Setting up certificates...${NC}"
 
 # Create certs directory
@@ -769,7 +776,10 @@ else
     echo -e "${YELLOW}  ⚠ Certificates will be generated/added as needed${NC}"
 fi
 
+report_step_success "Certificates configured"
+
 # 4. Setup mobile location service
+report_step_start "4" "Setting up mobile location service"
 echo -e "\n${GREEN}[4/7] Setting up mobile location service...${NC}"
 cd "$REPO_ROOT/mobile-sensor-microservice"
 if [ ! -d ".venv" ]; then
@@ -793,7 +803,10 @@ printf '    cd $REPO_ROOT/mobile-sensor-microservice\n'
 printf '    source .venv/bin/activate\n'
     printf '    python3 service.py --port 9050 --host 0.0.0.0\n'
 
+report_step_success "Mobile location service configured"
+
 # 5. Setup mTLS server dependencies
+report_step_start "5" "Setting up mTLS server dependencies"
 echo -e "\n${GREEN}[5/7] Setting up mTLS server dependencies...${NC}"
 cd "$REPO_ROOT/python-app-demo"
 # Install cryptography and other required dependencies for mTLS server
@@ -802,8 +815,10 @@ pip3 install -q cryptography spiffe grpcio grpcio-tools protobuf 2>/dev/null || 
     pip3 install -q --user cryptography spiffe grpcio grpcio-tools protobuf 2>/dev/null || true
 }
 echo -e "${GREEN}  ✓ mTLS server dependencies installed${NC}"
+report_step_success "mTLS server dependencies installed"
 
 # 6. Build WASM filter (sensor ID extraction is done in WASM, no separate service needed)
+report_step_start "6" "Building WASM filter"
 if [ "$NO_BUILD" != "true" ]; then
     echo -e "\n${GREEN}[6/7] Building WASM filter for sensor verification...${NC}"
     cd "$ONPREM_DIR/wasm-plugin"
@@ -828,8 +843,10 @@ else
         echo -e "${GREEN}  ✓ WASM filter found (using existing binary)${NC}"
     fi
 fi
+report_step_success "WASM filter ready"
 
 # 7. Setup Envoy
+report_step_start "7" "Setting up Envoy proxy"
 echo -e "\n${GREEN}[7/7] Setting up Envoy proxy...${NC}"
 
 # Copy Envoy configuration
@@ -1256,11 +1273,13 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     printf '\n'
     if [ $SERVICES_OK -eq 3 ]; then
         printf '[SUCCESS] All services are running!\n'
+        report_step_success "All on-prem services started successfully"
     else
         printf '[WARN] Some services may not be running. Check logs:\n'
         printf '  - Mobile Location Service: tail -f /tmp/mobile-sensor.log\n'
         printf '  - mTLS Server: tail -f /tmp/mtls-server.log\n'
         printf '  - Envoy: tail -f /opt/envoy/logs/envoy.log\n'
+        report_step_success "On-prem services started (some may need attention)"
     fi
 
     printf '\n'
@@ -1309,6 +1328,7 @@ else
     printf '  sudo envoy -c /opt/envoy/envoy.yaml > /opt/envoy/logs/envoy.log 2>&1 &\n'
     printf '\n'
     printf 'Note: Sensor ID extraction is done directly in the WASM filter - no separate service needed!\n'
+    report_step_success "On-prem setup complete (manual start instructions provided)"
     # Reset terminal colors before exit (ignore errors)
     [ -t 1 ] && tput sgr0 2>/dev/null || true
     exit 0

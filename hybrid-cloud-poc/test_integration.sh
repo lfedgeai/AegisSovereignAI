@@ -487,6 +487,7 @@ main() {
     echo ""
 
     # Step 1: Start Control Plane on 10.1.0.11
+    report_step_start "1" "Starting Control Plane Services"
     CONTROL_PLANE_ARGS="--no-pause"
     if [ "$NO_BUILD" = "true" ]; then
         CONTROL_PLANE_ARGS="$CONTROL_PLANE_ARGS --no-build"
@@ -500,8 +501,9 @@ main() {
     # Verify control plane services are up
     if ! verify_control_plane; then
         echo -e "${RED}Control plane services verification failed. Aborting.${NC}"
-        exit 1
+        report_step_failure "Control plane services verification failed"
     fi
+    report_step_success "Control Plane Services started"
 
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -518,6 +520,7 @@ main() {
     fi
 
     # Step 2: Start On-Prem Services on on-prem host
+    report_step_start "2" "Starting On-Prem Services"
     # Temporarily disable exit on error for on-prem (it may have warnings)
     set +e
     # Pass --no-pause if NO_PAUSE is set, and pass host environment variables
@@ -549,8 +552,9 @@ main() {
     # Verify on-prem services are up
     if ! verify_onprem; then
         echo -e "${RED}On-prem services verification failed. Aborting.${NC}"
-        exit 1
+        report_step_failure "On-prem services verification failed"
     fi
+    report_step_success "On-Prem Services started"
 
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -567,6 +571,7 @@ main() {
     fi
 
     # Step 3: Run Complete Integration Test on agents host
+    report_step_start "3" "Running Agent Integration Test"
     AGENTS_ARGS="--no-pause"
     if [ "$NO_BUILD" = "true" ]; then
         AGENTS_ARGS="$AGENTS_ARGS --no-build"
@@ -574,8 +579,9 @@ main() {
     if ! run_script "run_on_agents" "test_agents.sh" "$AGENTS_ARGS" \
         "Step 3: Running Complete Integration Test (Agent Attestation, Workload SVID)"; then
         echo -e "${RED}Complete integration test failed.${NC}"
-        exit 1
+        report_step_failure "Agent integration test failed"
     fi
+    report_step_success "Agent Integration Test completed"
 
     # Step 4: Test CAMARA Caching and GPS Bypass Features
     #echo ""
@@ -591,6 +597,7 @@ main() {
     #test_camara_caching_and_gps_bypass
 
     # Step 5: Test mTLS Client with IMEI/IMSI validation
+    report_step_start "5" "Testing mTLS Client with IMEI/IMSI Validation"
     echo ""
     if [ "$NO_PAUSE" = "true" ]; then
         echo "  (--no-pause: continuing automatically...)"
@@ -626,8 +633,9 @@ main() {
 
     if [ "$MTLS_TEST_PASSED" != "true" ]; then
         echo -e "${RED}mTLS client test failed. Aborting.${NC}"
-        exit 1
+        report_step_failure "mTLS client test failed"
     fi
+    report_step_success "mTLS Client test passed"
 
     echo ""
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

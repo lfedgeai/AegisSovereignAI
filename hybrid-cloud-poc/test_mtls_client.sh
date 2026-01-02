@@ -22,11 +22,17 @@ set -e
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 # Script directory (hybrid-cloud-poc root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+
+# Source step reporting utilities
+if [ -f "${SCRIPT_DIR}/scripts/step_report.sh" ]; then
+    source "${SCRIPT_DIR}/scripts/step_report.sh"
+fi
 
 # Python app demo directory
 PYTHON_APP_DIR="${SCRIPT_DIR}/python-app-demo"
@@ -37,6 +43,7 @@ echo "=========================================="
 echo ""
 
 # Step 1: Clean up existing processes and log files
+report_step_start "1" "Cleaning up existing processes"
 echo -e "${YELLOW}Cleaning up existing processes and log files...${NC}"
 # Kill any existing mTLS client processes
 if pkill -f mtls-client-app.py 2>/dev/null; then
@@ -49,8 +56,10 @@ fi
 rm -f /tmp/mtls-client-app.log
 echo -e "${GREEN}✓ Log files cleaned${NC}"
 echo ""
+report_step_success "Cleanup complete"
 
 # Step 2: Set up environment variables
+report_step_start "2" "Setting up environment"
 echo -e "${YELLOW}Setting up environment...${NC}"
 
 # SPIRE configuration
@@ -93,8 +102,10 @@ echo "  SERVER_PORT=$SERVER_PORT"
 echo "  CA_CERT_PATH=$CA_CERT_PATH"
 echo "  CLIENT_LOG_FILE=$CLIENT_LOG_FILE"
 echo ""
+report_step_success "Environment configured"
 
 # Step 3: Verify prerequisites
+report_step_start "3" "Verifying prerequisites"
 echo -e "${YELLOW}Checking prerequisites...${NC}"
 
 # Check if SPIRE agent socket exists (if using SPIRE)
@@ -133,9 +144,11 @@ if [ ! -f "${SCRIPT_DIR}/get_imei_imsi_huawei.sh" ]; then
 fi
 echo -e "${GREEN}✓ IMEI/IMSI script found${NC}"
 echo ""
+report_step_success "Prerequisites verified"
 
 # Step 4: Execute get_imei_imsi_huawei.sh ONCE at the start and check for specific values
 # Note: This is executed only once, not for each HTTP request
+report_step_start "4" "Checking IMEI/IMSI"
 echo "=========================================="
 echo -e "${YELLOW}Checking IMEI/IMSI (executed once at start)...${NC}"
 echo "=========================================="
@@ -193,9 +206,12 @@ else
 fi
 echo ""
 
+report_step_success "IMEI/IMSI check completed"
+
 # Step 5: Update SPIRE bundle for Envoy before testing
 # Get fresh bundle from agent (which has the current bundle matching client certs)
 # SPIRE agent reattests every 30s, so wait a moment to ensure we get a fresh bundle
+report_step_start "5" "Updating SPIRE bundle for Envoy"
 echo "=========================================="
 echo -e "${YELLOW}Updating SPIRE bundle for Envoy (from agent)...${NC}"
 echo "=========================================="
@@ -291,8 +307,10 @@ elif [ -f "$HOME/AegisSovereignAI/hybrid-cloud-poc/spire/bin/spire-server" ] && 
     fi
 fi
 echo ""
+report_step_success "SPIRE bundle update complete"
 
 # Step 6: Send HTTP request and validate response
+report_step_start "6" "Sending HTTP request"
 echo "=========================================="
 echo -e "${GREEN}Sending HTTP request...${NC}"
 echo "=========================================="
@@ -343,6 +361,7 @@ if [ "$EXPECT_SUCCESS" = true ]; then
     echo "$COMBINED_OUTPUT" | grep -qiE "SERVER ACK: HELLO|📥 Received HTTP response:.*SERVER ACK"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ TEST PASSED: HTTP request succeeded as expected (got SERVER ACK: HELLO)${NC}"
+        report_step_success "mTLS client test passed (SERVER ACK received)"
         exit 0
     fi
 
@@ -350,17 +369,20 @@ if [ "$EXPECT_SUCCESS" = true ]; then
     echo "$COMBINED_OUTPUT" | grep -q "HTTP/1.1 200\|HTTP/1.0 200\|200 OK"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ TEST PASSED: HTTP request succeeded as expected (200 OK)${NC}"
+        report_step_success "mTLS client test passed (200 OK)"
         exit 0
     fi
 
     echo "$COMBINED_OUTPUT" | grep -qi "Geo Claim Missing"
     if [ $? -eq 0 ]; then
         echo -e "${YELLOW}⚠ TEST FAILED: Expected success (SERVER ACK: HELLO) but got 'Geo Claim Missing'${NC}"
+        report_step_failure "Expected success but got Geo Claim Missing"
         exit 1
     fi
 
     echo -e "${YELLOW}⚠ TEST FAILED: Expected success (SERVER ACK: HELLO) but got different response${NC}"
     echo "  Check log file: $CLIENT_LOG_FILE"
+    report_step_failure "Expected success but got different response"
     exit 1
 else
     # Expect "Geo Claim Missing" (typically 403 Forbidden)
@@ -368,6 +390,7 @@ else
     echo "$COMBINED_OUTPUT" | grep -qi "Geo Claim Missing"
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ TEST PASSED: Got 'Geo Claim Missing' as expected${NC}"
+        report_step_success "mTLS client test passed (Geo Claim Missing as expected)"
         exit 0
     fi
 
@@ -377,9 +400,11 @@ else
         # Check if response body contains Geo Claim Missing (might be in body)
         if echo "$COMBINED_OUTPUT" | grep -qi "Geo Claim Missing"; then
             echo -e "${GREEN}✓ TEST PASSED: Got 403 with 'Geo Claim Missing' as expected${NC}"
+            report_step_success "mTLS client test passed (403 Geo Claim Missing)"
             exit 0
         else
             echo -e "${YELLOW}⚠ TEST PARTIAL: Got 403 but 'Geo Claim Missing' text not found in response${NC}"
+            report_step_failure "Got 403 but Geo Claim Missing text not found"
             exit 1
         fi
     fi
@@ -388,17 +413,20 @@ else
     echo "$COMBINED_OUTPUT" | grep -qiE "SERVER ACK: HELLO|📥 Received HTTP response:.*SERVER ACK"
     if [ $? -eq 0 ]; then
         echo -e "${YELLOW}⚠ TEST FAILED: Expected 'Geo Claim Missing' but request succeeded (got SERVER ACK: HELLO)${NC}"
+        report_step_failure "Expected Geo Claim Missing but got SERVER ACK"
         exit 1
     fi
 
     echo "$COMBINED_OUTPUT" | grep -q "HTTP/1.1 200\|HTTP/1.0 200\|200 OK"
     if [ $? -eq 0 ]; then
         echo -e "${YELLOW}⚠ TEST FAILED: Expected 'Geo Claim Missing' but request succeeded (200 OK)${NC}"
+        report_step_failure "Expected Geo Claim Missing but got 200 OK"
         exit 1
     fi
 
     echo -e "${YELLOW}⚠ TEST FAILED: Expected 'Geo Claim Missing' but got different response${NC}"
     echo "  Check log file: $CLIENT_LOG_FILE"
+    report_step_failure "Expected Geo Claim Missing but got different response"
     exit 1
 fi
 set -e
