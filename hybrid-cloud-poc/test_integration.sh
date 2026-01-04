@@ -26,7 +26,7 @@ trap 'pkill -P $$; exit' SIGINT SIGTERM EXIT
 
 # Unified-Identity - Testing: Structured Logging
 # Create a unique log directory for this run
-LOG_DIR="/tmp/unified_identity_test_$(date +%Y%m%d_%H%M%S)"
+export LOG_DIR="/tmp/unified_identity_test_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "${LOG_DIR}"
 echo "Unified-Identity: Logs will be aggregated in ${LOG_DIR}"
 

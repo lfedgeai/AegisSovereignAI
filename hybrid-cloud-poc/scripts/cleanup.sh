@@ -115,6 +115,13 @@ cleanup_tmp_files() {
     # Clean up temporary lock files
     find /tmp -name "*.lock" -type f 2>/dev/null | xargs rm -f 2>/dev/null || true
     find /tmp -name "*.pid" -type f 2>/dev/null | grep -vE "(spire|keylime|tpm|mobile)" | xargs rm -f 2>/dev/null || true
+    
+    # Clean up old unified_identity_test log directories (preserve current LOG_DIR if set)
+    for dir in /tmp/unified_identity_test_*; do
+        if [ -d "$dir" ] && [ "$dir" != "${LOG_DIR:-}" ]; then
+            rm -rf "$dir" 2>/dev/null || true
+        fi
+    done
 }
 
 # Function to stop all existing instances and clean up all data
@@ -159,6 +166,17 @@ stop_all_instances_and_cleanup() {
     pkill -f "service.py.*--port.*9050" >/dev/null 2>&1 || true
     pkill -f "service.py.*--host.*127.0.0.1" >/dev/null 2>&1 || true
     pkill -f "python3.*service.py.*--port" >/dev/null 2>&1 || true
+
+    # Stop Envoy proxy
+    echo "     Stopping Envoy proxy..."
+    pkill -f "envoy" >/dev/null 2>&1 || true
+    sudo pkill -f "envoy" >/dev/null 2>&1 || true
+
+    # Stop mTLS server
+    echo "     Stopping mTLS server..."
+    pkill -f "mtls-server-app" >/dev/null 2>&1 || true
+    pkill -f "mtls_server" >/dev/null 2>&1 || true
+    pkill -f "python.*mtls.*server" >/dev/null 2>&1 || true
 
     # Wait a moment for processes to stop before unmounting
     sleep 1
@@ -254,6 +272,7 @@ stop_all_instances_and_cleanup() {
         lsof -ti:8890 | xargs kill -9 >/dev/null 2>&1 || true
         lsof -ti:8891 | xargs kill -9 >/dev/null 2>&1 || true
         lsof -ti:9050 | xargs kill -9 >/dev/null 2>&1 || true
+        lsof -ti:9443 | xargs kill -9 >/dev/null 2>&1 || true
     fi
     if command -v fuser >/dev/null 2>&1; then
         fuser -k 8881/tcp >/dev/null 2>&1 || true
@@ -263,6 +282,7 @@ stop_all_instances_and_cleanup() {
         fuser -k 8890/tcp >/dev/null 2>&1 || true
         fuser -k 8891/tcp >/dev/null 2>&1 || true
         fuser -k 9050/tcp >/dev/null 2>&1 || true
+        fuser -k 9443/tcp >/dev/null 2>&1 || true
     fi
 
     # Wait for processes to fully stop
@@ -270,8 +290,8 @@ stop_all_instances_and_cleanup() {
 
     # Force kill any remaining processes
     RUNNING_COUNT=0
-    if pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" >/dev/null 2>&1; then
-        RUNNING_COUNT=$(pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" | wc -l)
+    if pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port|envoy|mtls" >/dev/null 2>&1; then
+        RUNNING_COUNT=$(pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port|envoy|mtls" | wc -l)
         if [ "$RUNNING_COUNT" -gt 0 ]; then
             echo "     Force killing $RUNNING_COUNT remaining process(es)..."
             pkill -9 -f "spire-server" >/dev/null 2>&1 || true
@@ -279,6 +299,9 @@ stop_all_instances_and_cleanup() {
             pkill -9 -f "keylime" >/dev/null 2>&1 || true
             pkill -9 -f "tpm_plugin" >/dev/null 2>&1 || true
             pkill -9 -f "service.py.*--port" >/dev/null 2>&1 || true
+            pkill -9 -f "envoy" >/dev/null 2>&1 || true
+            sudo pkill -9 -f "envoy" >/dev/null 2>&1 || true
+            pkill -9 -f "mtls" >/dev/null 2>&1 || true
             sleep 1
         fi
     fi
