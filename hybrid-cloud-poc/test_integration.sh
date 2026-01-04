@@ -119,50 +119,6 @@ if is_on_host "${ONPREM_HOST}"; then
 fi
 
 
-# Function to runscript and show output
-run_script() {
-    local run_func="$1"
-    local script_path="$2"
-    local script_args="${3:-}"
-    local description="$4"
-    local log_file="${LOG_DIR}/$(basename ${script_path} .sh).log"
-
-    echo ""
-    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BOLD}${description}${NC}"
-    echo -e "${BOLD}Script: ${script_path}${NC}"
-    echo -e "${BOLD}Log:    ${log_file}${NC}"
-    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo ""
-
-    # Prepare environment variables to pass to sub-scripts
-    local env_vars="CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} AGENTS_HOST=${AGENTS_HOST} ONPREM_HOST=${ONPREM_HOST}"
-
-    # Unified-Identity - Testing: Fail-Fast & Logging
-    # Run script and capture output to specific log file, while also streaming to master log (via stdout)
-    # We use pipefail (set at top) to catch errors in the pipeline
-    if $run_func "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${env_vars} bash ${script_path} ${script_args}" 2>&1 | tee "${log_file}"; then
-        echo ""
-        echo -e "${GREEN}✓ ${description} completed successfully${NC}"
-        return 0
-    else
-        # Unified-Identity - Testing: Fail-Fast
-        # Immediate error reporting and step failure reporting
-        echo ""
-        echo -e "${RED}✗ ${description} failed${NC}"
-        echo -e "${YELLOW}Last 20 lines of log (${log_file}):${NC}"
-        tail -n 20 "${log_file}" | sed 's/^/    /'
-        # Report step failure for CI test runner (fail-fast)
-        if [ -n "${_CURRENT_STEP:-}" ]; then
-            report_step_failure "${description} failed - check log: ${log_file}"
-        else
-            echo "[STEP:${_STEP_REPORT_SCRIPT}:0:0:FAILURE] ✗ ${description} failed - check log: ${log_file}"
-            exit 1
-        fi
-        # report_step_failure already exits, but just in case:
-        return 1
-    fi
-}
 # Function to run command on control plane host (local or via SSH)
 run_on_control_plane() {
     if [ "${ON_CONTROL_PLANE_HOST}" = "true" ]; then
@@ -427,6 +383,9 @@ run_script() {
 
     # Prepare environment variables to pass to sub-scripts
     local env_vars="CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} AGENTS_HOST=${AGENTS_HOST} ONPREM_HOST=${ONPREM_HOST}"
+
+    # Ensure log directory exists (may have been deleted by cleanup operations)
+    mkdir -p "${LOG_DIR}" 2>/dev/null || true
 
     # Unified-Identity - Testing: Fail-Fast & Logging
     # Run script and capture output to specific log file, while also streaming to master log (via stdout)

@@ -340,9 +340,14 @@ stop_all_instances_and_cleanup() {
         rm -rf /tmp/keylime-agent 2>/dev/null || true
     fi
 
-    # Clean up SVID dump directory
-    echo "     Removing SVID dump directory..."
+    # Clean up SVID dump directories
+    echo "     Removing SVID dump directories..."
     rm -rf /tmp/svid-dump 2>/dev/null || true
+    rm -rf /tmp/agent-svid-dump 2>/dev/null || true
+    
+    # Clean up build and workflow artifacts
+    rm -f /tmp/wasm-build.log 2>/dev/null || true
+    rm -f /tmp/workflow_visualization.html 2>/dev/null || true
 
     # Clean up TLS certificates
     if [ -n "${KEYLIME_DIR:-}" ] && [ -d "${KEYLIME_DIR}" ]; then
@@ -430,6 +435,9 @@ stop_all_instances_and_cleanup() {
     rm -rf /tmp/mobile-sensor-service 2>/dev/null || true
     rm -rf /tmp/keylime-agent 2>/dev/null || true
     rm -rf /tmp/svid-dump 2>/dev/null || true
+    rm -rf /tmp/agent-svid-dump 2>/dev/null || true
+    rm -f /tmp/wasm-build.log 2>/dev/null || true
+    rm -f /tmp/workflow_visualization.html 2>/dev/null || true
 
     # Step 5: Clean up sockets
     echo "  5. Removing socket files..."
