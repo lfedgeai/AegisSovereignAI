@@ -1922,16 +1922,17 @@ The system currently uses **Ed25519 signatures** to simulate the ZKP trust model
 -   **In Future (ZKP) Model**: The Proof $\pi$ is mathematically generated for a specific predicate (e.g., `Statement: Location \in Range_A`).
     -   *Security*: If the Verifier strictly requires `Range_B`, and the Prover offers a proof for `Range_A`, the mathematical verification $Verify(\pi, Range_B)$ returns **FALSE**. The proof is cryptographically bound to the range statement.
 
-### Future Roadmap: Gen 5 Zero-Knowledge Range Proofs
+### Gen 4 Feature: Zero-Knowledge Range Proofs (Roadmap)
 
-While Gen 4 uses signed endorsements (revealing location), **Gen 5** will introduce full privacy using ZK-SNARKs.
+> [!NOTE]
+> This section describes the **Gen 4 ZKP Range Proofs** feature, which is on the roadmap. It uses gnark (Groth16-BN254) for full privacy.
 
 #### The "Circular Geofence" Proof
 Instead of sharing coordinates, the Prover generates a proof $\pi$ for the following statement:
 *"I possess a valid signature $\sigma$ from MNO $K$ on coordinates $(x,y)$ such that distance $((x,y), (C_x, C_y)) \le R$."*
 
-| Component | Gen 4 (Current) | Gen 5 (Future) |
-|-----------|-----------------|----------------|
+| Component | Gen 3 (Current) | Gen 4 (Roadmap) |
+|-----------|-----------------|-----------------|
 | **Data Shared** | Exact Coords (e.g., `40.416, -3.703`) | **Zero Knowledge** (Only "True/False") |
 | **Privacy** | Low (Verifier learns location) | **Perfect** (Verifier learns being in-range) |
 | **Verifier Input** | `Range_Policy` + `Signed_Coords` | `Range_Policy` + `Proof` + `MNO_Key` |
