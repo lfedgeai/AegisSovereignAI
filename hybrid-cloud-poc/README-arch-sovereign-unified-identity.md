@@ -1955,6 +1955,84 @@ This ensures the Envoy knows the workload is valid and within the allowed radius
 *   **Verification**: Envoy verifies $\pi$. Result: **TRUE**.
 *   **Privacy Outcome**: Envoy knows the workload is near Madrid, but does **not** know if it is in Las Rozas, Getafe, or Alcobendas.
 
+### Policy Exchange Mechanism: No Trust Required at Runtime
+
+> [!TIP]
+> **Key Insight**: The Sovereign Cloud Workload (Prover) and On-Prem Gateway (Verifier) do **not** exchange policies dynamically. They independently reference the **same public parameters** baked into the circuit.
+
+#### Trust Model
+
+| Component | Who Sets It | When | Location | Trust Required? |
+|-----------|------------|------|----------|-----------------|
+| **Circuit (VK/PK)** | Compiled once | Build time | Distributed | ✅ Trust circuit author |
+| **Policy (Center, Radius)** | Each party reads from config | Runtime | Local config | ❌ No trust |
+| **Location (x, y)** | Prover provides | Proof gen | Sovereign Cloud | ❌ No trust |
+
+#### How Policy Binding Works
+
+```mermaid
+flowchart LR
+    subgraph SovereignCloud["Sovereign Cloud (Prover)"]
+        P1["Read Policy from<br/>SPIRE Registration Entry"]
+        P2["Generate Proof π<br/>with Public Input: Policy"]
+    end
+
+    subgraph OnPrem["Enterprise On-Prem (Verifier)"]
+        V1["Read Policy from<br/>envoy.yaml or WASM config"]
+        V2["Verify Proof π<br/>with Public Input: Policy"]
+    end
+
+    P1 --> P2
+    P2 -->|"SVID contains π"| V2
+    V1 --> V2
+
+    V2 -->|"Policies Match?"| Result["✅ TRUE / ❌ FALSE"]
+```
+
+#### Why No Trust Relationship Is Needed
+
+1.  **Policy Is Public Input**: The range (Center, Radius) is a **public input** to the verification function, not hidden in the proof.
+
+2.  **Independent Policy Sources**:
+    | Entity | Policy Source |
+    |--------|---------------|
+    | **Sovereign Cloud Workload** | SPIRE registration entry or Keylime Verifier response |
+    | **On-Prem Envoy Gateway** | Local `envoy.yaml` or WASM filter configuration |
+
+3.  **Mathematical Binding**: If the Prover generated a proof for `Range_A` (e.g., 100km radius) but the Verifier checks with `Range_B` (e.g., 50km radius), the verification **fails mathematically**. The Prover cannot forge a proof that passes for a stricter policy.
+
+#### Configuration Example
+
+**Sovereign Cloud (SPIRE Registration Entry)**:
+```bash
+spire-server entry create \
+    --spiffeID spiffe://aegis.local/workload/sensor-processor \
+    --selector unix:uid:1000 \
+    --x509SVIDTtl 3600 \
+    --federatesWith "spiffe://telefonica.mno" \
+    --data '{"policy_center_lat": 40.4168, "policy_center_lon": -3.7038, "policy_radius_km": 50}'
+```
+
+**On-Prem Gateway (Envoy WASM Config)**:
+```yaml
+# envoy.yaml
+typed_config:
+  "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+  config:
+    configuration:
+      "@type": type.googleapis.com/google.protobuf.StringValue
+      value: |
+        {
+          "verification_mode": "zkp",
+          "policy_center_lat": 40.4168,
+          "policy_center_lon": -3.7038,
+          "policy_radius_km": 50
+        }
+```
+
+> [!IMPORTANT]
+> **Policy Consistency**: Both Sovereign Cloud and On-Prem must configure the **same policy values**. If they differ, verification will fail — this is a feature, not a bug. It ensures the Prover cannot claim compliance with a looser policy than the Verifier requires.
+
 ### Detailed Architecture: Circular Range Proof
 
 #### Flow from Each Perspective
