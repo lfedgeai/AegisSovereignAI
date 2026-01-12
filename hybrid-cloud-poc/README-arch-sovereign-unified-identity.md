@@ -1958,31 +1958,31 @@ This ensures the Envoy knows the workload is valid and within the allowed radius
 
 #### Flow from Each Perspective
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           ZKP CIRCULAR RANGE PROOF - FULL FLOW                          │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph MNO["MNO (Location Provider)<br/>Location: MNO Core"]
+        M1["Sign: σ = Sign_MNO(x, y, nonce)"]
+    end
 
-                         ┌──────────────────────┐
-                         │   MNO (Location      │
-                         │     Provider)        │
-                         │  Location: MNO Core  │
-                         └──────────┬───────────┘
-                                    │ (1) Sign: σ = Sign_MNO(x, y, nonce)
-                                    ▼
-┌──────────────────────┐        ┌──────────────────────┐        ┌──────────────────────┐
-│   PROVER             │        │   PROOF π            │        │   VERIFIER           │
-│   (Workload)         │───────►│   (ZK-SNARK)         │───────►│   (Envoy Gateway)    │
-│   Location: Cloud    │        │                      │        │   Location: On-Prem  │
-└──────────────────────┘        └──────────────────────┘        └──────────────────────┘
-        │                               │                               │
-        │ PRIVATE INPUTS:               │ STATEMENT:                    │ PUBLIC INPUTS:
-        │ • x, y (coords)               │ "I know (x,y,σ) such that:    │ • Center (Cx, Cy)
-        │ • σ (MNO signature)           │   1. Verify(MNO_PK, σ) = T    │ • Radius R
-        │                               │   2. (x-Cx)²+(y-Cy)² ≤ R²"   │ • MNO_PubKey
-        │                               │                               │
-        ▼                               ▼                               ▼
-   [Knows exact loc]             [Proves compliance]             [Knows TRUE/FALSE]
+    subgraph Prover["PROVER (Workload)<br/>Location: Sovereign Cloud"]
+        P1["PRIVATE INPUTS:<br/>• x, y (coords)<br/>• σ (MNO signature)"]
+    end
+
+    subgraph Proof["PROOF π (ZK-SNARK)"]
+        PR1["STATEMENT:<br/>I know (x,y,σ) such that:<br/>1. Verify(MNO_PK, σ) = T<br/>2. (x-Cx)²+(y-Cy)² ≤ R²"]
+    end
+
+    subgraph Verifier["VERIFIER (Envoy Gateway)<br/>Location: Enterprise On-Prem"]
+        V1["PUBLIC INPUTS:<br/>• Center (Cx, Cy)<br/>• Radius R<br/>• MNO_PubKey"]
+    end
+
+    MNO -->|"(1) Attestation-Time"| Prover
+    Prover -->|"(2) Generate Proof"| Proof
+    Proof -->|"(3) Verify Proof"| Verifier
+
+    P1 -.->|"Knows exact loc"| Prover
+    PR1 -.->|"Proves compliance"| Proof
+    V1 -.->|"Knows TRUE/FALSE"| Verifier
 ```
 
 #### Prover Perspective (Sovereign Cloud Workload)
@@ -2020,6 +2020,16 @@ This ensures the Envoy knows the workload is valid and within the allowed radius
 
 > [!TIP]
 > **No MNO Required!** For devices with trusted GNSS hardware, we can eliminate the MNO entirely.
+
+#### Location Source Models Comparison
+
+| Model | Trust Anchor | TTP at Attestation? | TTP at Proof Gen/Ver? | Use Case |
+|-------|--------------|---------------------|----------------------|----------|
+| **GPS-Only** | TPM + GNSS | ❌ No TTP | ❌ No TTP | Edge servers, IoT with GPS |
+| **Mobile-Only** | MNO Signature | ✅ MNO (once) | ❌ No TTP | Mobile sensors, USB modems |
+| **GPS + Mobile** | TPM + GNSS + MNO | ✅ MNO (optional) | ❌ No TTP | Hybrid (primary: GPS, fallback: MNO) |
+
+**Key Insight**: In **all** models, proof generation and verification are **fully offline**. The signature (whether from TPM or MNO) is obtained once and cached.
 
 In this variant, the **TPM becomes the trust anchor** instead of the MNO:
 
