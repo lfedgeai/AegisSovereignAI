@@ -1667,7 +1667,7 @@ sequenceDiagram
 
 ### Evolution: Gen 3 → Gen 4
 
-| Aspect | Gen 3 (Current) | Gen 4 (Implemented) |
+| Aspect | Gen 3 (Current) | Gen 4 (Roadmap) |
 |--------|-----------------|-----------------|
 | **SVID Claims** | `grc.geolocation.*` (raw coordinates) | `grc.sovereignty_receipt.*` (ZKP) |
 | **Envoy Verification** | Raw hw-rooted evidence + location | **ZKP verification only** (no raw data) |
@@ -1687,7 +1687,7 @@ Verify via CAMARA API (mobile) or trust GNSS
 Allow/Deny
 ```
 
-**Gen 4 (Implemented):**
+**Gen 4 (Roadmap):**
 ```
 Envoy WASM Filter
     ↓
