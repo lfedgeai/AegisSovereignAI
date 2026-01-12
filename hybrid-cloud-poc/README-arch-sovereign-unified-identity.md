@@ -1591,12 +1591,15 @@ POST http://localhost:9050/verify
 
 ---
 
-## ✅ Gen 4: Zero-Knowledge Proof Layer (Implemented - POC)
+## Gen 4: Zero-Knowledge Proof Layer (Roadmap)
 
 > [!NOTE]
-> Gen 4 builds on the Gen 3 foundation. All TPM attestation, delegated certification, and unified identity infrastructure remains unchanged. Gen 4 adds a **privacy-preserving verification layer** via ZK-SNARKs using gnark (Groth16-BN254).
+> Gen 4 builds on the Gen 3 foundation. All TPM attestation, delegated certification, and unified identity infrastructure remains unchanged. Gen 4 adds a **privacy-preserving verification layer**.
 >
-> **Implementation Status**: Gen 4 is **fully implemented** in the POC with a mock MNO service for lab testing. All components (gnark ZKP prover, WASM Zkp mode, claim inheritance) are operational.
+> **Implementation Status**:
+> - ✅ **Implemented**: Mock MNO Signing Service (EdDSA) for lab testing
+> - ✅ **Implemented**: WASM filter `Zkp` mode (checks for sovereignty_receipt presence)
+> - 🔮 **Future**: Full ZK-SNARK prover (gnark Groth16-BN254)
 >
 > **Related Proposals:**
 > - [Verifiable Policy Enforcement (VPE)](../proposals/verifiable-policy-enforcement.md) — Full Gen 4 workflow, ZKP circuit design, dual-SVID pattern
@@ -1882,11 +1885,16 @@ enum VerificationMode {
 
 ---
 
----
+## Zero-Knowledge Identity Model
 
-## Zero-Knowledge Identity Model (Gen 4)
+> [!IMPORTANT]
+> **Implementation Status:**
+> - ✅ **Implemented**: Signed MNO Endorsements (EdDSA) — Provides cryptographic trust chain but reveals coarse location.
+> - 🔮 **Future (Roadmap)**: ZK-SNARK Range Proofs (gnark Groth16) — Full privacy, only TRUE/FALSE result visible.
+>
+> The documentation below describes **both** the current implementation and the future roadmap.
 
-This architecture implements a "Gen 4" identity model that separates the roles of **Identity Provider**, **Location Provider**, and **Verifier**, paving the way for full Zero-Knowledge Proofs (ZKP). Currently, this is implemented using **Signed MNO Endorsements** (EdDSA), which provide the same cryptographic trust model as ZKP but disclose the coarse location to the verifier (Privacy-preserving, but not Zero-Knowledge).
+This architecture separates the roles of **Identity Provider**, **Location Provider**, and **Verifier**, enabling progressive privacy upgrades.
 
 ### Roles & Responsibilities
 
