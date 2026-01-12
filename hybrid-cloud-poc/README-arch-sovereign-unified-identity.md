@@ -1938,6 +1938,15 @@ Instead of sharing coordinates, the Prover generates a proof $\pi$ for the follo
 
 This ensures the Envoy knows the workload is valid and within the allowed radius, without ever seeing the coordinates.
 
+#### Concrete Example
+*   **Scenario**: Workload running in a sovereign cloud near Madrid.
+*   **Public Policy**: Center = `40.4168, -3.7038` (Madrid), Radius = `50km`.
+*   **Private Fact**: Workload is at `40.45, -3.75` (Las Rozas, ~10km away).
+*   **Proof Generation**: The Workload generates $\pi$ proving it has a valid signature for a location within 50km of Madrid.
+*   **Verification**: Envoy verifies $\pi$. Result: **TRUE**.
+*   **Privacy Outcome**: Envoy knows the workload is near Madrid, but does **not** know if it is in Las Rozas, Getafe, or Alcobendas.
+
+
 ---
 
 ## Production Readiness & Implementation Status
