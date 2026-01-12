@@ -1882,6 +1882,64 @@ enum VerificationMode {
 
 ---
 
+---
+
+## Zero-Knowledge Identity Model (Gen 4)
+
+This architecture implements a "Gen 4" identity model that separates the roles of **Identity Provider**, **Location Provider**, and **Verifier**, paving the way for full Zero-Knowledge Proofs (ZKP). Currently, this is implemented using **Signed MNO Endorsements** (EdDSA), which provide the same cryptographic trust model as ZKP but disclose the coarse location to the verifier (Privacy-preserving, but not Zero-Knowledge).
+
+### Roles & Responsibilities
+
+| Role | Entity | Location | Description |
+|------|--------|----------|-------------|
+| **Prover** | **Sovereign Cloud (SPIRE Workload)** | **Sovereign Cloud** | The entity trying to prove it is running in a specific sovereign jurisdiction. It is the "Subject" of the SVID. |
+| **Location Provider** | **MNO (Mobile Network Operator)** | **MNO Core Network** | The Trusted Third Party (TTP). It issues cryptographically signed endorsements asserting: *"Device X is at Coarse Location Y at Time T"*. |
+| **Verifier** | **On-Prem Gateway (Envoy)** | **Enterprise On-Prem** | aka **Relying Party**. It acts as the gatekeeper for on-prem resources. It verifies the Sovereignty Receipt before allowing access. |
+
+### Security Mechanism: Signed Endorsements vs. ZKP
+
+#### Current Implementation: EdDSA Signed Endorsements
+The system currently uses **Ed25519 signatures** to simulate the ZKP trust model:
+1.  **Issuance**: The MNO signs a JSON payload containing `{device_id_hash, nonce, coarse_location}` using its private key.
+2.  **Transport**: This signed blob is embedded in the SVID as a `grc.sovereignty_receipt`.
+3.  **Verification**: The Envoy WASM filter verifies the MNO's signature using the MNO's public key (distributed via JWKS).
+
+#### Addressing "Range Mismatch" Attacks
+**Question**: *Can a Prover prove they are in Range A, while the Verifier checks for Range B?*
+
+**Answer**: Use of **Cryptographic Binding** and **Data Integrity** prevents this.
+
+-   **In Current (EdDSA) Model**: The MNO signs the **exact coarse coordinates** (e.g., `40.33, -3.77`). The Verifier (Envoy) extracts these signed coordinates and compares them against its *local policy* (the allowed range).
+    -   *Security*: The Prover cannot tamper with the coordinates (signature would break). The Verifier simply rejects any coordinates that fall outside its required range.
+-   **In Future (ZKP) Model**: The Proof $\pi$ is mathematically generated for a specific predicate (e.g., `Statement: Location \in Range_A`).
+    -   *Security*: If the Verifier strictly requires `Range_B`, and the Prover offers a proof for `Range_A`, the mathematical verification $Verify(\pi, Range_B)$ returns **FALSE**. The proof is cryptographically bound to the range statement.
+
+### Future Roadmap: Gen 5 Zero-Knowledge Range Proofs
+
+While Gen 4 uses signed endorsements (revealing location), **Gen 5** will introduce full privacy using ZK-SNARKs.
+
+#### The "Circular Geofence" Proof
+Instead of sharing coordinates, the Prover generates a proof $\pi$ for the following statement:
+*"I possess a valid signature $\sigma$ from MNO $K$ on coordinates $(x,y)$ such that distance $((x,y), (C_x, C_y)) \le R$."*
+
+| Component | Gen 4 (Current) | Gen 5 (Future) |
+|-----------|-----------------|----------------|
+| **Data Shared** | Exact Coords (e.g., `40.416, -3.703`) | **Zero Knowledge** (Only "True/False") |
+| **Privacy** | Low (Verifier learns location) | **Perfect** (Verifier learns being in-range) |
+| **Verifier Input** | `Range_Policy` + `Signed_Coords` | `Range_Policy` + `Proof` + `MNO_Key` |
+| **Logic Location** | Verifier (Envoy) executes `>=` check | **Circuit (Prover)** executes `>=` check |
+
+#### Implementation Architecture (Circular)
+1.  **Circuit Constraints**:
+    *   `Signature_Valid(PubKey, x, y, sig) == True` (Provenance)
+    *   `(x - Center_X)^2 + (y - Center_Y)^2 <= Radius^2` (Geometry)
+2.  **Public Inputs** (Known to Envoy): `Center_X`, `Center_Y`, `Radius`, `MNO_PubKey`
+3.  **Private Inputs** (Held by Workload): `x`, `y`, `signature`
+
+This ensures the Envoy knows the workload is valid and within the allowed radius, without ever seeing the coordinates.
+
+---
+
 ## Production Readiness & Implementation Status
 
 ### Current Implementation State
