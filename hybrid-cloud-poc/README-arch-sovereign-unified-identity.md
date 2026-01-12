@@ -2033,6 +2033,29 @@ typed_config:
 > [!IMPORTANT]
 > **Policy Consistency**: Both Sovereign Cloud and On-Prem must configure the **same policy values**. If they differ, verification will fail — this is a feature, not a bug. It ensures the Prover cannot claim compliance with a looser policy than the Verifier requires.
 
+#### Failure Scenarios (Misconfigured Policies)
+
+| Scenario | Prover Policy | Verifier Policy | Result |
+|----------|---------------|-----------------|--------|
+| ✅ **Happy Path** | 50km radius | 50km radius | Verification **passes** (if location is valid) |
+| ❌ **Prover Misconfigured** | 100km radius | 50km radius | Verification **fails** (proof was for wrong policy) |
+| ❌ **Verifier Misconfigured** | 50km radius | 25km radius | Verification **fails** (verifier expects stricter policy) |
+| ❌ **Both Misconfigured** | 100km radius | 25km radius | Verification **fails** (complete mismatch) |
+
+#### Security Analysis
+
+**Malicious Prover (Sovereign Cloud)**:
+-   If the Prover tries to use a **looser policy** (e.g., 100km instead of 50km) to make it easier to pass, the verification will fail because the Verifier independently applies its own stricter policy.
+-   **Result**: Attack fails. Verifier is protected.
+
+**Malicious Verifier (On-Prem)**:
+-   If the Verifier intentionally uses a **stricter policy** (e.g., 25km instead of 50km), legitimate workloads will fail verification.
+-   **Result**: Denial of service to legitimate workloads, but no security breach. The Verifier is hurting itself.
+
+> [!CAUTION]
+> **Fail-Safe by Design**: The ZKP architecture is **fail-safe**. Any policy misconfiguration (malicious or accidental) results in verification failure, not a false positive. The system errs on the side of **denying access**.
+
+
 ### Detailed Architecture: Circular Range Proof
 
 #### Flow from Each Perspective
