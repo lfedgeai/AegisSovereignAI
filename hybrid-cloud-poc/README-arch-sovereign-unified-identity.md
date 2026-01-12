@@ -1954,8 +1954,149 @@ This ensures the Envoy knows the workload is valid and within the allowed radius
 *   **Verification**: Envoy verifies $\pi$. Result: **TRUE**.
 *   **Privacy Outcome**: Envoy knows the workload is near Madrid, but does **not** know if it is in Las Rozas, Getafe, or Alcobendas.
 
+### Detailed Architecture: Circular Range Proof
+
+#### Flow from Each Perspective
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                           ZKP CIRCULAR RANGE PROOF - FULL FLOW                          │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+
+                         ┌──────────────────────┐
+                         │   MNO (Location      │
+                         │     Provider)        │
+                         │  Location: MNO Core  │
+                         └──────────┬───────────┘
+                                    │ (1) Sign: σ = Sign_MNO(x, y, nonce)
+                                    ▼
+┌──────────────────────┐        ┌──────────────────────┐        ┌──────────────────────┐
+│   PROVER             │        │   PROOF π            │        │   VERIFIER           │
+│   (Workload)         │───────►│   (ZK-SNARK)         │───────►│   (Envoy Gateway)    │
+│   Location: Cloud    │        │                      │        │   Location: On-Prem  │
+└──────────────────────┘        └──────────────────────┘        └──────────────────────┘
+        │                               │                               │
+        │ PRIVATE INPUTS:               │ STATEMENT:                    │ PUBLIC INPUTS:
+        │ • x, y (coords)               │ "I know (x,y,σ) such that:    │ • Center (Cx, Cy)
+        │ • σ (MNO signature)           │   1. Verify(MNO_PK, σ) = T    │ • Radius R
+        │                               │   2. (x-Cx)²+(y-Cy)² ≤ R²"   │ • MNO_PubKey
+        │                               │                               │
+        ▼                               ▼                               ▼
+   [Knows exact loc]             [Proves compliance]             [Knows TRUE/FALSE]
+```
+
+#### Prover Perspective (Sovereign Cloud Workload)
+1.  **Input**: Receives MNO signature $\sigma$ on coordinates $(x, y)$.
+2.  **Circuit**: Loads ZKP circuit with geometry constraint $(x - C_x)^2 + (y - C_y)^2 \le R^2$.
+3.  **Witness**: Provides private witness: $(x, y, \sigma)$.
+4.  **Output**: Generates proof $\pi$ (~1KB for Groth16).
+5.  **Embed**: Proof is embedded in SVID as `grc.sovereignty_receipt.proof`.
+
+#### Verifier Perspective (On-Prem Envoy Gateway)
+1.  **Extract**: Parses `grc.sovereignty_receipt.proof` from incoming SVID.
+2.  **Load**: Loads verification key (VK) for the range circuit (compiled once).
+3.  **Public Inputs**: Provides $(C_x, C_y, R, MNO\_PubKey)$ from its policy.
+4.  **Verify**: Runs $Verify(VK, \pi, PublicInputs)$. Returns TRUE or FALSE.
+5.  **Decision**: If TRUE, allow request. If FALSE, reject with 403.
+
+#### MNO Perspective (Location Provider — TTP at Attestation-Time Only)
+1.  **Receive**: Device IMEI/IMSI over network.
+2.  **Locate**: Determines coarse location from cell tower triangulation.
+3.  **Sign**: Signs $(x, y, nonce, device\_id\_hash)$ with MNO private key.
+4.  **Return**: Returns signed endorsement to Keylime Verifier.
+
+> [!TIP]
+> **No TTP at Proof Gen/Ver Time!**
+> 
+> The MNO is only contacted **once** during attestation to obtain the signature. After that:
+> - **Proof Generation**: Prover uses the *cached* MNO signature as witness input. No network call.
+> - **Proof Verification**: Verifier uses the MNO's *public key* (distributed via JWKS). No network call.
+> 
+> This makes runtime verification **fully offline** and **latency-free**.
 
 ---
+
+### TTP-Free Variant: GNSS + TPM
+
+> [!TIP]
+> **No MNO Required!** For devices with trusted GNSS hardware, we can eliminate the MNO entirely.
+
+In this variant, the **TPM becomes the trust anchor** instead of the MNO:
+
+| Component | Role |
+|-----------|------|
+| **GNSS Receiver** | Provides raw coordinates (latitude, longitude, accuracy) |
+| **TPM** | Signs the coordinates, binding them to PCR state (freshness guarantee) |
+| **Prover** | Generates ZKP using TPM-signed coordinates as the witness |
+| **Verifier** | Verifies ZKP against TPM's public AK (no MNO key needed) |
+
+#### TTP-Free Flow
+```
+┌──────────────────┐   (1) Read GNSS    ┌──────────────────┐
+│  GNSS Receiver   │──────────────────►│  Keylime Agent   │
+│  (Trusted HW)    │                    │  (TPM Access)    │
+└──────────────────┘                    └────────┬─────────┘
+                                                 │
+                                                 │ (2) TPM_Quote(PCR15, coords, nonce)
+                                                 ▼
+                                        ┌──────────────────┐
+                                        │  TPM             │
+                                        │  Signs: σ_TPM    │
+                                        └────────┬─────────┘
+                                                 │
+                                                 │ (3) σ_TPM = AK.sign(H(coords || nonce))
+                                                 ▼
+┌──────────────────┐   (4) Gen Proof    ┌──────────────────┐
+│  SPIRE Agent     │◄───────────────────│  ZKP Circuit     │
+│  (Prover)        │                    │  Witness: (x,y,σ)│
+└────────┬─────────┘                    └──────────────────┘
+         │
+         │ (5) SVID contains proof π
+         ▼
+┌──────────────────┐
+│  Envoy Gateway   │
+│  (Verifier)      │
+│  Verify(π, AK_PK)│ ◄── Uses TPM AK Public Key instead of MNO Key
+└──────────────────┘
+```
+
+#### Why This Is Secure (No Holes)
+1.  **No TTP**: The MNO is replaced by the TPM, which is hardware-rooted and tamper-evident.
+2.  **Freshness**: The nonce in `TPM_Quote` prevents replay attacks.
+3.  **Binding**: PCR15 extension binds the coordinates to a specific attestation cycle.
+4.  **Privacy**: The ZKP hides the exact coordinates; verifier only learns TRUE/FALSE.
+5.  **No Spoofing**: GNSS coordinates are signed by the TPM; attacker cannot inject fake location.
+
+#### Implementation Sketch (Conceptual)
+```go
+// Circuit definition (gnark)
+type CircularGeofence struct {
+    // Private (witness)
+    X, Y      frontend.Variable
+    Signature frontend.Variable // TPM AK signature over H(X||Y||nonce)
+    
+    // Public (statement)
+    CenterX, CenterY frontend.Variable
+    Radius           frontend.Variable
+    AK_PubKey        frontend.Variable
+    Nonce            frontend.Variable
+}
+
+func (c *CircularGeofence) Define(api frontend.API) error {
+    // 1. Verify TPM signature
+    hash := api.Hash(c.X, c.Y, c.Nonce)
+    api.AssertIsEqual(VerifySignature(c.AK_PubKey, hash, c.Signature), 1)
+    
+    // 2. Check circular geometry
+    dx := api.Sub(c.X, c.CenterX)
+    dy := api.Sub(c.Y, c.CenterY)
+    distSq := api.Add(api.Mul(dx, dx), api.Mul(dy, dy))
+    radiusSq := api.Mul(c.Radius, c.Radius)
+    api.AssertIsLessOrEqual(distSq, radiusSq)
+    
+    return nil
+}
+```
 
 ## Production Readiness & Implementation Status
 
