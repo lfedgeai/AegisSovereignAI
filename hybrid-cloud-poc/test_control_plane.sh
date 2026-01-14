@@ -1777,6 +1777,12 @@ if [ -f "${SERVER_CONFIG}" ]; then
         fi
     done
 
+    # Create SPIRE Server data directory (required for SQLite database)
+    # Config file uses data_dir = "/tmp/spire-data/server"
+    echo "    Creating SPIRE Server data directory..."
+    mkdir -p /tmp/spire-data/server
+    rm -rf /tmp/spire-data/server/* 2>/dev/null || true
+
     echo "    Starting SPIRE Server (logs: /tmp/spire-server.log)..."
     # Use setsid + nohup to ensure server continues running after script exits
     # setsid creates a new session, preventing SIGHUP when parent shell exits
