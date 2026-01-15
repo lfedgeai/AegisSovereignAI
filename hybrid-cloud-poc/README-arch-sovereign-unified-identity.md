@@ -2407,3 +2407,9 @@ rate_limit_per_minute = 10 # Conservative limit
 **Production Gaps & Roadmap Status**:
 For a comprehensive view of production readiness, identified security gaps, and the detailed upstreaming strategy, please refer to the project roadmap:
 👉 **[`UPSTREAM_MERGE_ROADMAP.md`](UPSTREAM_MERGE_ROADMAP.md)**
+
+---
+
+### Advanced Threat Research
+
+For a detailed analysis of how this architecture mitigates advanced GPS spoofing and runtime 'gaslighting' attacks on unmanaged devices, see the **[Threat Model: Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
