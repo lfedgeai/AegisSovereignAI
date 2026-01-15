@@ -184,6 +184,19 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 
 AegisSovereignAI treats the JPM Application (Mobile or Desktop) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
 
+### Unified SVID Claim Schema (OIDs & JSON Paths)
+
+To ensure interoperability with the JPMC API Gateway (Envoy) and backend microservices, the Unified SVIDs utilize the following schema for attested hardware and location claims. These are injected into the X.509 SAN extension using the `AegisSovereignAI` OID namespace (`1.3.6.1.4.1.99999.*`).
+
+| SVID Claim (JSON Path) | OID Extension | Value Example | Description |
+| :--- | :--- | :--- | :--- |
+| `grc.tpm-attestation.status` | `...1.1` | `verified` | Hardware integrity confirmation. |
+| `grc.tpm-attestation.tier` | `...1.2` | `tier-2-byod` | Managed vs. Unmanaged classification. |
+| `grc.geolocation.status` | `...2.1` | `compliant` | ZKP-verified geofence status. |
+| `grc.geolocation.region_id` | `...2.2` | `US-EAST-1` | Broad compliance region (Reg-K). |
+
+---
+
 ### 1. The Attester (User Device)
 A managed laptop, mobile device, or edge sensor uses its **Secure Enclave** or **TPM 2.0** to generate an **Entity Attestation Token (EAT)** (RFC 9334). This token serves as a "Hardware Passport" for the user.
 
@@ -206,7 +219,7 @@ The Ingress process is a **Remote Attestation Loop** that mirrors the backend pi
 The JPM App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
 
 #### **B. Workload Identity Issuance ("The SPIRE Role")**
-Once the hardware and app integrity are verified by the **Aegis Verifier**, the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
+Once the hardware and app integrity are verified by the **Aegis Verifier**—acting as the **"Trust Bridge"** between OEM Root CAs (Apple/Google) and the JPMC Internal PKI—the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
 
 #### **C. Access Enforcement ("The Envoy Role")**
 The JPM App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant.
@@ -245,6 +258,9 @@ Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS ker
 AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 - **Mobile Sensor Sidecar**: Instead of trusting the OS's high-level API, raw sensor data (Cell Tower ID, WiFi triangulation, GNSS signal delay) is verified via a hardware-rooted sidecar.
 - **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
+
+> [!IMPORTANT]
+> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated "gaslighting" attacks on unmanaged devices, see the **[Threat Model: The Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
 
 ---
 
