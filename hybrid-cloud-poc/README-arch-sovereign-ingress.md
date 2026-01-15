@@ -30,6 +30,8 @@ The following is a representation of the claims generated at Ingress:
     "secure-enclave": { "measurements": "sha256:..." }
   }
 }
+```
+
 ## The Runtime Perception Gap: "Gaslighting" the OS
 
 Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS kernel. However, **Location** is an input that the OS receives from its environment. A malicious user with administrative access on an unmanaged device can "gaslight" the system after it has successfully booted.
