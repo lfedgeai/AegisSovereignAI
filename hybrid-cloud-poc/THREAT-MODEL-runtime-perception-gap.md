@@ -9,8 +9,9 @@
 
 | Attribute | Detail |
 | :--- | :--- |
-| **Trust Boundary** | Between the **Unmanaged Device OS** and the **Hardware Secure Enclave (TEE)**. |
-| **Primary Threat** | **Runtime Locality Spoofing** via OS-level manipulation. |
+| **Trust Boundary** | Between the **Unmanaged Device OS** and the **Unified Identity Plane** (SVID). |
+| **Primary Threat** | **Runtime Locality Spoofing** via OS-level manipulation ("Gaslighting"). |
+| **Enforcement Mechanism** | Conditional issuance of **Unified SVID** with attested claims. |
 | **Impact** | Violation of **Regulation K (Reg-K)**; unauthorized access to sensitive financial models; potential PII leakage. |
 
 ---
@@ -56,8 +57,8 @@ The Aegis app triggers a **Point-in-Time Attestation** via the **Secure Enclave/
 
 ### Layer 3: ZKP Verification (Privacy-Preserving Proof)
 The device generates a **Zero-Knowledge Proof (ZKP)**:
-- **Statement**: "I have a hardware-signed sensor footprint that correlates with the NY Geofence."
-- **Verification**: The **Aegis Verifier** validates the proof without seeing the raw PII coordinates. If the sensor data was "synthetic" (Missing Cell/WiFi correlation), the mathematical proof fails.
+- **Verification**: The **Aegis Verifier**—acting as the Trust Bridge—validates the proof without seeing raw PII. If the sensor data was synthetic (Missing Cell/WiFi correlation), the mathematical proof fails.
+- **Enforcement (The SVID Grant)**: Upon successful verification, the **Aegis Control Plane** issues a **Unified Workload SVID** containing the `grc.geolocation.status: compliant` claim.
 
 ---
 
@@ -69,4 +70,4 @@ The device generates a **Zero-Knowledge Proof (ZKP)**:
 | **Hardware Compromise** | Out of scope; we assume the **Silicon Root of Trust** (Apple SE/Qualcomm TEE) is intact. |
 | **Zero-Day Hooking** | Mitigated by **Runtime SVID Revocation** triggered by Linux IMA / App Attest signals. |
 
-**Verdict**: By moving the security boundary to the **Hardware Secure Enclave**, AegisSovereignAI makes OS-level "gaslighting" mathematically visible and cryptographically unenforceable.
+**Verdict**: By moving the security boundary from the OS APIs to the **Hardware Secure Enclave** and enforcing it via the **Unified Identity Plane (SVID)**, AegisSovereignAI makes OS-level "gaslighting" mathematically visible and cryptographically unenforceable at the API Gateway.
