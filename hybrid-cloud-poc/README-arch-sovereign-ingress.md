@@ -32,6 +32,38 @@ The following is a representation of the claims generated at Ingress:
 }
 ```
 
+## Unified Ingress: The "JPM App as a Workload" Framework
+
+AegisSovereignAI treats the JPM Application (Mobile or Desktop) as a **First-Class Edge Workload**. By treating the app instance as a workload rather than just a client, we move from "App Security" to **Workload Provenance**.
+
+### 1. Conceptual Mapping to Unified Identity
+
+To align Ingress with the [Unified Identity Model](README-arch-sovereign-unified-identity.md), we "collapse" the architectural distance between the data center and the end-user device:
+
+| Unified Identity Component | Data Center / Edge Server | **Ingress: JPM App (The Workload)** |
+| :--- | :--- | :--- |
+| **Workload Identity** | SPIRE SVID (Server App) | **SPIRE SVID (JPM App Instance)** |
+| **Host Integrity Manager** | Keylime (TPM 2.0) | **Apple App Attest / Windows SGRM** |
+| **Location Provider** | GNSS / Mobile Sidecar | **Location ZKP (Device-side)** |
+| **Unified Credential** | SVID with Geo Claims | **SVID with Ingress Context Claims** |
+
+---
+
+### 2. The Unified Ingress Flow
+
+The Ingress process is a **Remote Attestation Loop** that mirrors the backend pipeline:
+
+#### **A. Boot-time & Runtime Attestation ("The Keylime Role")**
+The JPM App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
+
+#### **B. Workload Identity Issuance ("The SPIRE Role")**
+Once the hardware and app integrity are verified by the **Aegis Verifier**, the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
+
+#### **C. Access Enforcement ("The Envoy Role")**
+The JPM App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant before allowing access to sensitive PII or AI models.
+
+---
+
 ## The Runtime Perception Gap: "Gaslighting" the OS
 
 Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS kernel. However, **Location** is an input that the OS receives from its environment. A malicious user with administrative access on an unmanaged device can "gaslight" the system after it has successfully booted.
