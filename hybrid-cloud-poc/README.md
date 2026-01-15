@@ -32,68 +32,76 @@ The diagram highlights three critical security challenges:
 - **Geolocation-Affinity Realization Challenges**: IP-based geofencing bypass via VPNs/proxies
 - **Static and Isolated Security Challenges**: Non-verifiable monitoring systems
 
-## The Solution
+## The Solution: The Sovereign Trust Loop
 
-Our solution addresses these challenges through hardware-rooted cryptographic proofs that bind workload identity, host integrity, and geolocation into a unified, verifiable credential.
+Our solution provides a **Unified Identity & Trust Framework** that secures the entire AI lifecycle. By binding workload identity, host hardware integrity, and verifiable geolocation into a single cryptographic credential, we satisfy the requirements for Ingress, Processing, and Egress.
 
 ![The Solution: A Zero-Trust, HW-Rooted, Unified, Extensible & Verifiable Identity](images/Slide7.PNG)
 
-The diagram shows the solution architecture with:
-1. **Workload Identity Agent** sending inference data with Proof of Geofencing workload certificate/token to AI Inference Host
-2. **AI Inference Host** (with Spiffe/Spire Agent and Keylime Agent) requesting secrets from Key vault/HSM using Proof of Geofencing tokens
-3. **Key vault** retrieving encrypted models from storage using Proof of Residency tokens
+### The Sovereign Trust Loop
+A "Sovereign" system that only secures the output is a broken chain. For Tier-1 financial institutions, trust must be established at the source, maintained in the cloud, and verified at the edge.
 
-The architecture includes:
+1.  **Verified Ingress**: Hardware-rooted attestation of the originating client device ensuring data provenance and **Regulation K (Reg-K)** geographic compliance via ZKP.
+    *   *Customer Value:* **Radical Privacy**—verify compliance without tracking movement history.
+2.  **Trusted Processing**: Confidential Computing (TEEs) and Platform Integrity (Keylime) ensuring the AI workload is isolated from the cloud infrastructure.
+    *   *Customer Value:* **Absolute Data Sovereignty**—ensuring personal financial data is never exposed to third-party infrastructure.
+3.  **Verifiable Egress**: Hardware-rooted verification ensuring insights are released only to identity-verified and geofenced endpoints.
+    *   *Customer Value:* **Security of Outcome**—guaranteeing that sensitive financial insights are delivered only to the authorized user's verified device.
+
+### Enterprise Personas & Sovereign Use Case Alignment
+
+| Persona | Core Use Case | Primary Benefit | Technical Enabler |
+| :--- | :--- | :--- | :--- |
+| **Enterprise Customer** | **Private Wealth Gen-AI Advisory (Unmanaged Devices)** | **Radical Privacy** | Verified Ingress with ZKP Geolocation |
+| **Enterprise Employee** | **Secure Remote Branch Operations** | **Frictionless Compliance** | Hardware-Rooted Attestation (TPM/Keylime) |
+| **Enterprise Tenant** | **Regulatory Sandboxing for LOBs** | **Multi-Tenant Isolation** | SVID-based Identity Segmentation (SPIFFE) |
+| **Enterprise Stakeholder** | **Automated Regulatory Audit (All Devices & DC Infrastructure)** | **Compliance without Liability** | Continuous "Silicon-to-Audit" Trail |
+
+#### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
+*   **Core Use Case**: **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
+*   **Target Need**: Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
+*   **Sovereign Value**: **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via ZKP, ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
+
+#### 2. The Enterprise Employee (Branch Relationship Manager)
+*   **Core Use Case**: **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
+*   **Target Need**: Frictionless access to sensitive client PII on-site for analysis or loan processing using managed laptops or branch servers.
+*   **Sovereign Value**: **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the **Hardware Integrity** of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
+
+#### 3. The Enterprise Tenant (Line-of-Business Owner)
+*   **Core Use Case**: **Regulatory Sandboxing for Lobs.** Enabling the Mortgage and Credit Card divisions to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective AI models and data.
+*   **Target Need**: Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
+*   **Sovereign Value**: **Multi-Tenant Isolation.** Trust is established via **Cryptographic Identity (SPIFFE/SVID)** rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
+
+#### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
+*   **Core Use Case**: **Automated Regulatory Audit (All End-User Devices & Data Center Infrastructure).** Providing a real-time, mathematical proof-of-compliance for the **Office of the Comptroller of the Currency (OCC)** or **European Central Bank (ECB)**, demonstrating that every AI interaction—across all retail devices, employee hardware, and **Managed Data Center Infrastructure**—was verified by hardware and compliant with data residency laws.
+*   **Target Need**: Deterministic, math-based proof for **Government Regulators** that data residency and sovereignty policies are strictly enforced.
+*   **Sovereign Value**: **Compliance without Liability.** By using ZKP-based location proofs, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
+
+---
+
+## Operational Implementation Details
+The AegisSovereignAI framework implements this loop through:
 - **Workload Identity Manager** (SPIRE Server) and **Host Identity/Policy Manager** (Keylime) for continuous attestation
 - Cryptographic binding of workload identity, host hardware identity (TPM), platform policy, and location hardware identity (GNSS/mobile sensor) into unified SVIDs
-- Replacement of fragile bearer tokens with hardware-rooted **Proof of Residency (PoR)**, **Proof of Geofencing (PoG)**, and **Zero-Knowledge Proofs (ZKP)** (Gen 4)
+- Replacement of fragile bearer tokens with hardware-rooted **Proof of Residency (PoR)**, **Proof of Geofencing (PoG)**, and **Zero-Knowledge Proofs (ZKP)** (Gen 4).
+- **Standardization Alignment**: Explicit alignment with **IETF WIMSE (Workload Identity in Multi-Service Environments)**, specifically **`draft-lkspa-wimse-verifiable-geo-fence`**, and **IETF RATS (Remote Attestation Procedures)**. This ensures interoperability with emerging global standards for hardware-rooted geofencing and verifiable proof of residency.
+- **LOB Multi-Tenancy**: This framework enables cryptographically enforced multi-tenancy, ensuring that a Mortgage AI workload cannot access Credit Card data even when running on shared sovereign hardware.
 
-## Unified Identity Architecture
+> [!NOTE]
+> **Implementation Status**: The Verified Ingress (Stage 1) architecture is defined and the technical implementation is slated for the immediate roadmap. This PoC currently provides the end-to-end implementation for the Trusted Egress (Stage 2).
 
+## Stage 1: Verified Ingress (Roadmap)
+The AegisSovereignAI framework treats the trust chain as a closed loop. For a detailed technical breakdown of the Ingress hardware-rooted provenance, see:
+
+👉 **[README-arch-sovereign-ingress.md](README-arch-sovereign-ingress.md)**
+
+## Stage 2: Trusted Egress & Data Center Infrastructure Attestation (Upstream Ready)
+
+The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
+
+### Unified Identity Architecture
 For detailed information on the unified identity architecture, including the complete end-to-end flow, attestation mechanisms, and component interactions, see:
-
 **[README-arch-sovereign-unified-identity.md](README-arch-sovereign-unified-identity.md)**
-
-This document covers:
-- Complete end-to-end flow for SPIRE Agent Sovereign SVID attestation
-- Workload SVID issuance flow
-- Keylime Verifier on-demand verification
-- Mobile location verification microservice
-- Certificate chain structure
-- Security mechanisms and design points
-
-### Observability
-
-The system provides comprehensive observability via Prometheus metrics across all layers of the stack.
-
-#### SPIRE Server (port 9988)
-Exposes Unified Identity attestation metrics:
-- `agent_manager.unified_identity.reattest.success` - Successful TPM-based re-attestations
-- `agent_manager.unified_identity.reattest.error` - Failed TPM-based re-attestations
-
-#### Envoy WASM Filter (port 9901)
-Exposes metrics for request processing and sidecar interaction:
-- `wasm_filter_request_total` - Total requests processed by the sovereign filter
-- `wasm_filter_sidecar_call_total` - Total calls to the mobile sensor sidecar
-- `wasm_filter_sidecar_latency_ms` (Histogram) - Latency of sidecar verification calls
-- `wasm_filter_verification_success_total` - Successful sidecar verifications
-- `wasm_filter_verification_failure_total` - Failed sidecar verifications (policy violations)
-
-#### Mobile Sensor Microservice (port 9050)
-Exposes metrics for location verification and CAMARA API interaction:
-- `sidecar_request_total` - Total requests received (labels: `result='total'|'error'`)
-- `sidecar_location_verification_success_total` - Successful location verifications
-- `sidecar_location_verification_failure_total` - Failed location verifications
-- `sidecar_camara_api_latency_seconds` (Histogram) - Latency of CAMARA API calls
-
-**Scrape Endpoints:**
-- SPIRE: `http://<spire-server-ip>:9988/metrics`
-- Envoy: `http://<on-prem-ip>:9901/stats/prometheus`
-- Sidecar: `http://<on-prem-ip>:9050/metrics`
-
-## Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture
-
-The current implementation demonstrates a hybrid cloud unified identity system connecting a Sovereign Cloud/Edge Cloud environment with a Customer on-Prem Private Cloud.
 
 ### Architecture Overview
 
@@ -131,8 +139,12 @@ The current implementation demonstrates a hybrid cloud unified identity system c
 - System flow: Envoy verifies unified identity signature using configured SPIRE server public key cert and verifies geolocation through Mobile Geolocation Service
 - Server App flow: Envoy communicates to Server App using standard mTLS
 
-**Inter-Cloud Communication:**
-- Client App connects to Envoy via HTTPS/mTLS using unified identity
+- [Unified Identity Architecture](README-arch-sovereign-unified-identity.md) - Includes detailed **Observability & Metrics** configuration
+
+### Implementation Scope
+
+> [!IMPORTANT]
+> The following Quick Start Guide and the associated code provide the full end-to-end implementation for **Stage 2: Egress Unified Identity**. This includes the hardware-rooted identity bridge between Sovereign and Private clouds. **Stage 1: Ingress Unified Identity** is currently defined as an architectural roadmap.
 
 ## Quick Start Guide
 
@@ -651,8 +663,10 @@ sudo ./test_toggle_huawei_mobile_sensor.sh on
 4. SPIRE Agent attempts to refresh SVID but receives Degraded SVID (valid for network, missing Proof of Residency)
 5. Client retries connection with degraded SVID
 6. Envoy WASM Plugin verifies certificate and detects missing geolocation claim
-7. **Key demonstration**: Envoy returns **403 Forbidden** with error **"Geo Claim Missing"**
-8. System successfully blocks the request, proving protection against insider threats
+8. System successfully blocks the request, proving protection against insider threats.
+
+> [!IMPORTANT]
+> **Degraded SVID Policy**: In a regulated enterprise, "Degraded SVIDs" are strictly policy-enforced. The Envoy API Gateway is configured to return a **403 Forbidden** for all PII-touching or sensitive "Green Zone" endpoints when a degraded SVID is presented, potentially triggering an immediate SOAR (Security Orchestration, Automation, and Response) alert.
 
 **ON PREM API GATEWAY WINDOW:** (e.g., 10.1.0.10)
 ```bash
@@ -710,6 +724,70 @@ cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud
 - Check firewall rules: `sudo iptables -L -n | grep 8080`
 - Verify SPIRE Agent socket: `ls -la /tmp/spire-agent/public/api.sock`
 
+## Governance, Compliance & Standards
+
+To meet the regulatory bar of an "End-to-End Zero Trust" architecture, AegisSovereignAI aligns each stage of the AI pipeline with industry standards and enterprise-grade requirements.
+
+### Sovereign Trust Loop Mapping
+| AI Pipeline Stage | AegisSovereignAI Component | Enterprise/Compliance Requirement | IETF Reference |
+| --- | --- | --- | --- |
+| **Ingress** | **ZKP Location/ID** | Privacy-Preserving KYC / Anti-Fraud | `draft-lkspa-wimse-verifiable-geo-fence` |
+| **Processing** | **Confidential TEE** | Data-in-Use Protection | `draft-ietf-rats-architecture` |
+| **Identity** | **DID + SVID (SPIFFE)**| Immutable Workload Identity | `draft-ni-a2a-ai-agent` |
+| **Egress** | **SPIRE SVID/OPA** | Service-to-Service Auth / DLP | `RFC 9535 (SPIFFE)` |
+
+### IETF Draft Alignment Summary
+| Stage | IETF Draft / Standard | Role in Enterprise Architecture |
+| --- | --- | --- |
+| **Ingress** | `draft-lkspa-wimse-verifiable-geo-fence` | Provides the **"Verifiable Geolocation"** framework for SPIFFE/SPIRE. |
+| **Identity** | `draft-ni-a2a-ai-agent` | Establishes the **Agent Certificate Authority (ACA)** for AI workloads. |
+| **Trust Bridge** | `draft-ietf-rats-architecture` | Defines the **Verifier** and **Relying Party** roles. |
+| **Network** | `RFC 9535 (SPIFFE)` | Ensures **mTLS** between cloud and branch is identity-driven. |
+
+### Silicon-to-Audit Trail
+
+> [!IMPORTANT]
+> **Silicon-to-Audit Compliance**: Regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, Federal Reserve) require verifiable "receipts" for security architecture. AegisSovereignAI provides a continuous **Silicon-to-Audit** trail through:
+- **Keylime Attestation Logs**: Cryptographic proof of host hardware and software integrity over time.
+- **SPIRE SVID Issuance Logs**: Immutable records of every workload identity issued, bound to specific hardware measurements.
+- **WASM Filter Logs**: Granular audit of every access request and the specific hardware-rooted claims that allowed or blocked it.
+
+### Attestation Drift & Day 2 Operations
+Maintaining a global hardware fleet requires managing **Attestation Drift**, where hardware updates (BIOS/Firmware/Kernel) change the "Known Good" state:
+- **Continuous Lifecycle Management**: Integration with the **Keylime Verifier** allows for automated updates to the "Golden State" policy when patches are deployed, preventing false positives during maintenance windows.
+- **Hardware Revocation**: If a physical TPM is retired or compromised, the corresponding **Endorsement Key (EK)** is blacklisted in the registrar. This immediately prevents any further SPIRE attestation for that hardware ID.
+- **Dynamic Policy Enforcement**: BIOS-level tampering or unauthorized hardware swaps trigger an immediate measurement mismatch, revoking the agent's SVID and blocking all traffic in the Sovereign AI loop.
+
+### Compromise Detection & Remediation (Unmanaged Devices)
+For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the bank does not control relies on three cryptographic feedback loops:
+
+1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the banking app's code is untampered.
+2.  **App-Level Integrity Proofs**: The framework uses **ZKP-based circuits** to verify that the AI engagement app is running in a secure, non-debuggable memory space. If an attacker attempts to attach a debugger or intercept the AI prompt, the hardware-rooted "Environment Claim" fails, and the attestation quote is rejected by the Sovereign Cloud.
+3.  **Deterministic SVID Revocation**: Once the **Keylime Verifier** or **Ingress Gateway** detects an integrity mismatch (e.g., a "Golden State" deviation), the device's SVID is immediately and automatically flagged for revocation.
+    *   **Remediation**: The Envoy API Gateway, seeing a revoked or "Hardware-Fail" SVID, returns a **403 Forbidden** for all sensitive PII endpoints. This ensures that a compromised device is cryptographically and instantaneously quarantined from the Sovereign AI Loop, regardless of its management status.
+
+> [!NOTE]
+> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the bank's requirements.
+
+### Security & Trust Model Assumptions (IETF RATS Alignment)
+To provide "Silicon-to-Audit" guarantees, AegisSovereignAI aligns with the **IETF RATS (Remote Attestation Procedures)** architecture:
+
+1.  **The Trust Anchor (Attester Root)**: We assume the **Device Silicon (TPM/Secure Enclave)** and the **Immutable Boot ROM** are uncompromised. This hardware root of trust is the only component that can sign **Evidence** (Quotes/Claims).
+2.  **Verified Integrity (Static Appraisal)**: Any compromise that persists across reboots (e.g., a modified kernel) is caught during the **Evidence Appraisal** stage. The verifier compares the boot-time hardware quote against the **Reference Integrity Manifest (RIM)**—the "Answer Key" signed by the OEM.
+3.  **Runtime Protection (Dynamic Appraisal)**: For volatile "runtime jailbreaks" that occur after boot, the framework uses **Linux IMA (Integrity Measurement Architecture)**. The system continuously measures every binary, script, and kernel module as they are loaded. If an unauthorized rooting tool or exploit payload is executed, the **Evidence** sent to the verifier will deviate from the **Appraisal Policy**, revoking the SVID within seconds.
+4.  **Mathematical Enforcement**: The system moves the security boundary from *Managerial Trust* (MDM) to *Mathematical Trust* (Remote Attestation). A jailbroken device is not "blocked" from existing; it is simply mathematically incapable of producing the cryptographic proof required to access the bank's Sovereign AI Loop.
+
+#### Scaling: Hardware Key Management & OEM Trust
+A common question for Tier-1 institutions is: *"Do we have to manually track every OS update and hash for every customer device?"*
+
+The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests (RIM)**:
+
+1.  **OEM Reference Manifests (RIM)**: This is the **"Answer Key"** provided by the manufacturer (Apple, Google, Microsoft). It contains the *expected* hashes of every official OS and firmware component.
+2.  **The TPM Quote**: This is the **"Actual Snapshot"** produced by the customer's hardware. It reflects the *current* state of the device silicon and kernel.
+3.  **Automated Comparison**: The bank's **Keylime Verifier** ingests the **signed RIM (Answer Key)** and compares it to the **received Quote (Snapshot)**. 
+4.  **Zero-Touch Verification**: The bank doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
+5.  **Scaling**: This allows the bank to support billions of unmanaged devices without ever having to manually manage an OS hash. The bank trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
+
 ## Components
 
 ### SPIRE
@@ -741,6 +819,7 @@ cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud
 ## Documentation
 
 - [Unified Identity Architecture](README-arch-sovereign-unified-identity.md) - Complete end-to-end flow and architecture details
+- [Sovereign Ingress Architecture](README-arch-sovereign-ingress.md) - Technical deep-dive into ZKP Ingress (Roadmap)
 - [Enterprise Private Cloud README](enterprise-private-cloud/README.md) - Detailed setup and architecture
 - [Python App Demo README](python-app-demo/README.md) - Client/server usage
 - [test_agents.sh](test_agents.sh) - Agent services integration test script
