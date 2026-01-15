@@ -814,12 +814,9 @@ The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests 
 - **WASM Filter**: Sensor ID extraction and verification
 - **Mobile Location Service**: CAMARA API integration
 - **Open Source**: [Envoy Proxy](https://www.envoyproxy.io/)
-- Location: `enterprise-private-cloud/`
-
 ## Documentation
 
-- [Unified Identity Architecture](README-arch-sovereign-unified-identity.md) - Complete end-to-end flow and architecture details
-- [Sovereign Ingress Architecture](README-arch-sovereign-ingress.md) - Technical deep-dive into ZKP Ingress (Roadmap)
+- **[End-to-End Sovereign Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**: The core technical spec for Stage 1 (Ingress) and the Unified Identity pipeline.
 - [Enterprise Private Cloud README](enterprise-private-cloud/README.md) - Detailed setup and architecture
 - [Python App Demo README](python-app-demo/README.md) - Client/server usage
 - [test_agents.sh](test_agents.sh) - Agent services integration test script

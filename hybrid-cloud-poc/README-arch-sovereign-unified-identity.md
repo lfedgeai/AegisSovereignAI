@@ -1,5 +1,5 @@
 <!-- Version: 0.1.0 | Last Updated: 2025-12-29 -->
-# Sovereign Unified Identity Architecture - End-to-End Flow
+# End-to-End Sovereign Unified Identity & Trust Framework
 
 ## 🚀 Open Source Upstreaming-Ready Design
 
@@ -25,6 +25,32 @@
 - **No Cross-DB Dependencies**: Keylime calls sidecar API for lookups, not direct DB access
 
 **Result**: Each component can be contributed to its respective open source project independently with zero breaking changes.
+
+---
+
+## Strategic Vision: Silicon-to-Audit
+
+The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "bank's core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
+
+### Edge Workload Integration: Managed vs. BYOD (Unmanaged)
+
+The framework treats both internal infrastructure and external end-user devices as workloads. While the **Unified SVID** is the common identity format, the **Evidence** provided at Ingress varies by device tier.
+
+#### Provenance Tiers
+
+| Feature | Tier 1: Managed (LOB Hardware) | Tier 2: BYOD (Retail/BYOD) |
+| :--- | :--- | :--- |
+| **Integrity Signal** | Continuous (Keylime/IMA/SGRM) | Point-in-Time (App Attest/EAT) |
+| **Trust Anchor** | JPMC Managed Root of Trust | OEM Root of Trust (Apple/Google) |
+| **Session Model** | Persistent Workload Identity | Just-in-Time (JIT) AI Session |
+| **Remediation** | MDM Lockdown + Revocation | Gateway Quarantine (403 Forbidden) |
+
+#### The "Point-in-Time" BYOD Loop
+For unmanaged devices, AegisSovereignAI replaces permanent "Trust" with **Verifiable Evidence per Session**. 
+1. The JPM App instance generates a hardware-rooted **Entity Attestation Token (EAT)**.
+2. The **Aegis Verifier** appraisals the evidence and registers the device as a temporary workload.
+3. **SPIRE** issues a Unified SVID containing attested hardware and geolocation claims.
+4. The App engages the AI Cloud via **mTLS**, satisfying all **Regulation K** and **OCC Audit** requirements through math rather than managerial control.
 
 ---
 
@@ -151,6 +177,108 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 - Each component independently mergeable
 
 *The Keylime Verifier initiates the fetch of location data via a secure mTLS connection from the agent, validating it against a fresh challenge nonce and PCR 15. No microservice call is made during attestation. When no TPM-reported Mobile sensor is present, Sovereign SVIDs omit `grc.geolocation` in that case.*
+
+---
+
+## Technical Details: Verified Ingress (Edge Workloads)
+
+AegisSovereignAI treats the JPM Application (Mobile or Desktop) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
+
+### 1. The Attester (User Device)
+A managed laptop, mobile device, or edge sensor uses its **Secure Enclave** or **TPM 2.0** to generate an **Entity Attestation Token (EAT)** (RFC 9334). This token serves as a "Hardware Passport" for the user.
+
+### 2. Conceptual Mapping to Unified Identity
+
+| Unified Identity Component | Data Center / Edge Server | **Ingress: JPM App (The Workload)** |
+| :--- | :--- | :--- |
+| **Workload Identity** | SPIRE SVID (Server App) | **SPIRE SVID (JPM App Instance)** |
+| **Host Integrity Manager** | Keylime (TPM 2.0) | **Apple App Attest / Windows SGRM** |
+| **Location Provider** | GNSS / Mobile Sidecar | **Location ZKP (Device-side)** |
+| **Unified Credential** | SVID with Geo Claims | **SVID with Ingress Context Claims** |
+
+---
+
+### 3. The Unified Ingress Flow
+
+The Ingress process is a **Remote Attestation Loop** that mirrors the backend pipeline:
+
+#### **A. Boot-time & Runtime Attestation ("The Keylime Role")**
+The JPM App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
+
+#### **B. Workload Identity Issuance ("The SPIRE Role")**
+Once the hardware and app integrity are verified by the **Aegis Verifier**, the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
+
+#### **C. Access Enforcement ("The Envoy Role")**
+The JPM App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant.
+
+---
+
+### 4. Example Ingress Claim (EAT Format)
+```json
+{
+  "eat_nonce": "f3b2a...789",
+  "ueid": "guid:enterprise-arch-001",
+  "oemid": "apple-silicon-m3",
+  "location_zkp": {
+    "proof": "0x7a2...f8e",
+    "circuit": "geo-fence-v1",
+    "region": "US-AUTHORIZED"
+  },
+  "submods": {
+    "secure-enclave": { "measurements": "sha256:..." }
+  }
+}
+```
+
+---
+
+## The Runtime Perception Gap: "Gaslighting" the OS
+
+Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS kernel. However, **Location** is an input that the OS receives from its environment. A malicious user with administrative access on an unmanaged device can "gaslight" the system after it has successfully booted.
+
+### Common Runtime Compromise Vectors
+1.  **API Hooking (Frida/Xposed)**: An attacker intercepts the `Geolocation.getPosition()` call at the app level and returns a pre-programmed "Green Zone" coordinate, bypassing OS-level checks.
+2.  **Virtual Driver Injection**: An attacker installs a signed but malicious virtual GNSS driver. The TPM sees a "clean" driver list, but the driver is feeding synthetic data into the system.
+3.  **Mock Location Services**: Malware or developer tools toggle system-level mock location providers to spoof coordinates without triggering standard "root detection" flags.
+
+### Aegis Mitigation: Multi-Factor Provenance
+AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
+- **Mobile Sensor Sidecar**: Instead of trusting the OS's high-level API, raw sensor data (Cell Tower ID, WiFi triangulation, GNSS signal delay) is verified via a hardware-rooted sidecar.
+- **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
+
+---
+
+## Edge Ecosystems (Apple, Android, Windows, Linux)
+
+Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
+1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For JPMC-managed hardware, **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
+2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the banking app's keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
+
+> [!TIP]
+> **Strategic Alignment (Apple PCC)**: AegisSovereignAI aligns with the architecture of **Apple’s Private Cloud Compute (PCC)**. Both models utilize a "Trusted Loop" where the Secure Enclave is used at both ends—on the user device and in the sovereign data center—to create end-to-end cryptographic proof of software and hardware integrity.
+
+---
+
+### Cross-Platform Attestation Signals
+To support a diverse enterprise fleet, the Aegis Ingress stage interprets different hardware-rooted signals:
+
+| Feature | Windows SGRM | Linux IMA | Apple App Attest | Android Key Attest |
+| :--- | :--- | :--- | :--- | :--- |
+| **Philosophy** | **Assertion-Based** | **Audit-Based** | **App-Bound Integrity** | **Key-Bound Integrity** |
+| **Mechanism** | Violations (VTL-1). | Unified audit log. | Hardware-bound keys. | Hardware-bound certs. |
+| **Agent** | "Octagon" (SGRM). | Kernel IMA. | Secure Enclave. | StrongBox / TEE. |
+| **Call / API** | `GetRuntimeAttestationReport` | `ima_measurement_list` | `DCAppAttestService` | `KeyGenParameterSpec` |
+
+### Regulatory Alignment: OCC 2021-19
+
+This merged architecture specifically satisfies the **OCC 2021-19** guidelines for Risk Management of AI:
+
+| OCC Requirement | AegisSovereignAI Implementation |
+| :--- | :--- |
+| **Robust Verification** | Hardware-rooted attestation (TPM/SE) for all workloads. |
+| **Auditability** | Continuous "Silicon-to-Audit" trail via SVID claims. |
+| **Contextual Identity** | ZKP-verified location ensures Reg-K compliance. |
+| **Resilience** | Deterministic SVID revocation for compromised nodes/devices. |
 
 ---
 
