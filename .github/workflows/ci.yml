@@ -215,3 +215,4 @@ jobs:
                   rm -rf /home/mw/actions-runner/_work/AegisSovereignAI/AegisSovereignAI/* || true
                   rm -rf /home/mw/actions-runner/_work/AegisSovereignAI/AegisSovereignAI/.* 2>/dev/null || true
                   echo "Cleanup complete."
+# Triggering verification run
