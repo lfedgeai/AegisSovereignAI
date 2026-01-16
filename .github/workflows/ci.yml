@@ -57,7 +57,7 @@ jobs:
 
             - name: Debug Information
               run: |
-                  echo "Triggering Ref: ${{ github.ref }}"
+                  echo "Triggering Reference: ${{ github.ref }}"
                   echo "Current Branch: $(git rev-parse --abbrev-ref HEAD)"
                   echo "Commit Hash: $(git rev-parse HEAD)"
 
