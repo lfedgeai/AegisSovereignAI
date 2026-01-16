@@ -28,12 +28,37 @@ Three converging forces make verifiable AI security urgent:
 
 ## Use Cases
 
+### Enterprise Personas & Sovereign Scenarios
+
+| Persona | Use Case | Primary Benefit |
+| --- | --- | --- |
+| **Enterprise Customer** | **Private Wealth AI Advisory** | **Radical Privacy**: Interactions on unmanaged BYOD devices are proven compliant without tracking location history or storing PII. |
+| **Relationship Manager** | **Secure Remote Branch Operations** | **Frictionless Compliance**: Hardware integrity (TPM) automatically grants access to PII on managed laptops—no manual verification. |
+| **LOB Owner** | **Multi-Tenant AI Sandboxing** | **Multi-Tenant Isolation**: SVID-based identity ensures Mortgage AI cannot access Credit Card data on shared silicon. |
+| **Global Risk Officer** | **Automated Regulatory Audit** | **Compliance without Liability**: Proving residency (Reg-K/EU AI Act) without the liability of storing location data that could be subpoenaed. |
+| **OT/IoT Operator** | **Critical Infrastructure Protection** | **Operational Resilience**: Enforcing that SCADA/PLC firmware only runs in authorized physical zones, defeating remote tampering. |
+
+### Industry-Specific Applications
+
 | Industry | Challenge | Aegis Solution |
 | --- | --- | --- |
 | **Financial Services** | Prove AI trading decisions comply with regulations without exposing proprietary strategies | ZK-Proofs of model version and input constraints |
 | **Healthcare AI** | Audit diagnostic AI without exposing patient data (HIPAA) | Audit without Disclosure via ZKP-RAG |
 | **Defense / Sovereign Cloud** | Guarantee AI never executes outside authorized jurisdictions | Hardware-attested geofencing with Autonomous Revocation |
 | **Multi-Agent Systems** | Isolate compromised agents before lateral movement | SPIRE identity revocation triggered by Keylime attestation failure |
+
+---
+
+## The Sovereign Supply Chain: Factory to Foundation
+
+AegisSovereignAI extends trust beyond the data center to the beginning of the hardware and software lifecycle.
+
+| Chain Layer | Protection Mechanism | Strategic Value |
+| --- | --- | --- |
+| **Hardware** | **FIDO Device Onboarding (FDO)** | Prevents credential theft during physical shipping to thousands of global branches |
+| **Software** | **Sigstore + SBOM Signing** | Ensures only approved code with no unauthorized 3rd-party dependencies can execute |
+| **AI Assets** | **Signed Weights & Datasets** | Proves AI insights are derived from untampered, high-provenance training data and RAG sets |
+| **Audit** | **Transparency Ledgers (Rekor)** | Provides a cryptographically immutable "Silicon-to-Audit" record for regulators |
 
 ---
 
