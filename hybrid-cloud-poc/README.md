@@ -83,12 +83,34 @@ A "Sovereign" system that only secures the output is a broken chain. For Tier-1 
 
 AegisSovereignAI extends trust beyond the data center to the beginning of the hardware and software lifecycle.
 
-| Chain Layer | Protection Mechanism | Strategic Value |
-| --- | --- | --- |
-| **Hardware** | **FIDO Device Onboarding (FDO)** | Prevents credential theft during physical shipping to thousands of global branches |
-| **Software** | **Sigstore + SBOM Signing** | Ensures only approved code with no unauthorized 3rd-party dependencies can execute |
-| **AI Assets** | **Signed Weights & Datasets** | Proves AI insights are derived from untampered, high-provenance training data and RAG sets |
-| **Audit** | **Transparency Ledgers (Rekor)** | Provides a cryptographically immutable "Silicon-to-Audit" record for regulators |
+### Supply Chain Personas & Use Cases
+
+| Persona | Core Use Case | Primary Benefit | Technical Enabler |
+| :--- | :--- | :--- | :--- |
+| **Hardware Supply Chain Manager** | **Zero-Trust Device Provisioning** | **Credential Theft Prevention** | FIDO Device Onboarding (FDO) |
+| **Software Security Team** | **Verifiable Build Integrity** | **Supply Chain Attack Mitigation** | Sigstore + SBOM Signing |
+| **AI/ML Operations Team** | **Model & Data Provenance** | **Training Data Integrity** | Signed Weights & Datasets |
+| **Compliance/Audit Team** | **Immutable Audit Trail** | **Regulatory Proof of Security** | Transparency Ledgers (Rekor) |
+
+#### 1. The Hardware Supply Chain Manager (Logistics & Provisioning)
+*   **Core Use Case**: **Zero-Trust Device Provisioning for Global Branch Fleet.** Ensuring that thousands of laptops, edge servers, and IoT devices shipped to global branches cannot be intercepted and loaded with backdoor credentials during transit or at untrusted depots.
+*   **Target Need**: Prevent credential theft or firmware tampering during physical shipping from OEM to branch.
+*   **Sovereign Value**: **Credential Theft Prevention.** Using **FIDO Device Onboarding (FDO)**, devices ship with zero credentials. They only receive their production identity (SPIRE SVID) after proving they've reached the authorized branch location via hardware-attested geofencing. Even if a device is stolen during shipping, it cannot authenticate to the sovereign cloud.
+
+#### 2. The Software Security Team (AppSec & DevSecOps)
+*   **Core Use Case**: **Verifiable Build Integrity for AI Inference Applications.** Ensuring that every container image, Python package, and inference binary running in production is signed by authorized CI/CD pipelines and contains no unauthorized 3rd-party dependencies.
+*   **Target Need**: Detect and block supply chain attacks (e.g., malicious npm packages, compromised Docker images) before they reach production.
+*   **Sovereign Value**: **Supply Chain Attack Mitigation.** Using **Sigstore + SBOM Signing**, every software artifact carries a cryptographic signature proving which CI/CD pipeline built it and an immutable Software Bill of Materials (SBOM) listing all dependencies. The SPIRE server only issues SVIDs to workloads with valid signatures, automatically blocking tampered code.
+
+#### 3. The AI/ML Operations Team (Data Scientists & Model Owners)
+*   **Core Use Case**: **Model & Training Data Provenance for Regulated AI.** Proving to regulators (EU AI Act, NIST AI RMF) that AI model weights and RAG datasets are untampered and derived from approved, high-provenance sources.
+*   **Target Need**: Demonstrate that AI insights are based on authentic, unmodified training data and model versions.
+*   **Sovereign Value**: **Training Data Integrity.** Using **Signed Weights & Datasets**, every model file and RAG dataset is cryptographically signed at creation time. The Envoy WASM filter verifies model signatures before allowing inference requests, ensuring that a compromised "poisoned" model cannot be substituted at runtime.
+
+#### 4. The Compliance/Audit Team (Risk Officers & External Auditors)
+*   **Core Use Case**: **Immutable Audit Trail for Regulatory Compliance.** Providing external auditors (SOC 2, ISO 27001, EU AI Act) with an immutable, cryptographically verifiable ledger of every security-critical event: device provisioning, software deployment, model updates, and SVID issuance.
+*   **Target Need**: Produce tamper-proof evidence of security controls for regulatory audits without maintaining multiple fragmented log systems.
+*   **Sovereign Value**: **Regulatory Proof of Security.** Using **Transparency Ledgers (Rekor)**, every attestation event, software signature, and identity decision is logged to an immutable, append-only ledger. Auditors can cryptographically verify the "Silicon-to-Audit" trail without trusting the bank's internal logging infrastructure.
 
 ---
 
