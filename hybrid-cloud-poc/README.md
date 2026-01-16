@@ -79,6 +79,19 @@ A "Sovereign" system that only secures the output is a broken chain. For Tier-1 
 
 ---
 
+## The Sovereign Supply Chain: Factory to Foundation
+
+AegisSovereignAI extends trust beyond the data center to the beginning of the hardware and software lifecycle.
+
+| Chain Layer | Protection Mechanism | Strategic Value |
+| --- | --- | --- |
+| **Hardware** | **FIDO Device Onboarding (FDO)** | Prevents credential theft during physical shipping to thousands of global branches |
+| **Software** | **Sigstore + SBOM Signing** | Ensures only approved code with no unauthorized 3rd-party dependencies can execute |
+| **AI Assets** | **Signed Weights & Datasets** | Proves AI insights are derived from untampered, high-provenance training data and RAG sets |
+| **Audit** | **Transparency Ledgers (Rekor)** | Provides a cryptographically immutable "Silicon-to-Audit" record for regulators |
+
+---
+
 ## Operational Implementation Details
 The AegisSovereignAI framework implements this loop through:
 - **Workload Identity Manager** (SPIRE Server) and **Host Identity/Policy Manager** (Keylime) for continuous attestation
