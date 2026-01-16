@@ -55,6 +55,23 @@ jobs:
                   submodules: recursive
                   clean: true
 
+            - name: Debug Information
+              run: |
+                  echo "Triggering Ref: ${{ github.ref }}"
+                  echo "Current Branch: $(git rev-parse --abbrev-ref HEAD)"
+                  echo "Commit Hash: $(git rev-parse HEAD)"
+
+            - name: Verify Branch is Synchronized with Main
+              run: |
+                  git fetch origin main
+                  BEHIND_COUNT=$(git rev-list --count HEAD..origin/main)
+                  if [ "$BEHIND_COUNT" -gt 0 ]; then
+                    echo "Error: Your branch is $BEHIND_COUNT commits behind main."
+                    echo "Please merge or rebase the latest changes from main into your branch."
+                    exit 1
+                  fi
+                  echo "Branch is in sync with main."
+
             # Check Initial Package Status
             - name: Check Initial Packages (Pre-Install)
               run: |
