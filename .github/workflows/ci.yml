@@ -54,6 +54,7 @@ jobs:
               with:
                   submodules: recursive
                   clean: true
+                  fetch-depth: 0
 
             - name: Debug Information
               run: |
