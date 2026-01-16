@@ -2,6 +2,8 @@
 
 The recommended approach for a quick setup is to use the `installer.sh` script included in the Keylime source code, which handles dependencies and the installation of the core components (Verifier, Registrar, Agent, Tenant).
 
+Have fun!
+
 ### Step 1: Install Git and the Rust Toolchain
 
 Keylime's latest Agent component requires the **Rust** language toolchain.
