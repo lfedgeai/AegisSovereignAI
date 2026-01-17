@@ -52,6 +52,32 @@ Current security architectures for AI face critical gaps. AegisSovereignAI addre
 
 ---
 
+## Technical Root Causes: Six Dimensions of Failure
+
+To address the enterprise scenarios above, we must solve for the specific technical failures that traditional IT security cannot mitigate.
+
+### 1. The Fragility of Identity & Geofencing
+Traditional security relies on **bearer tokens** and **IP-based geofencing**, which are fundamentally non-binding and easily spoofed.
+* **Replay Attacks:** Standard tokens function like a physical key; if a malicious actor intercepts a token, they can replay it to impersonate a legitimate workload (e.g., an AI agent).
+* **VPN-based Spoofing:** IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
+
+### 2. The Residency vs. Privacy Deadlock
+Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution GPS data, creating massive PII liability under GDPR. Banks are often forced to choose between non-compliance or privacy violation.
+
+### 3. Infrastructure Blind Spots & Administrative "Gaslighting"
+Modern AI workloads are vulnerable to **"Gaslighting"**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
+
+### 4. The "Silicon Lottery": Hardware-Induced Drift
+AI drift is physically anchored to hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. Without **Physical Provenance**, there is no way to verify if a decision diverted due to unauthorized hardware migration.
+
+### 5. The Black-Box Governance Gap
+AI models are non-deterministic, making them difficult to audit. Governance today is mostly "AI-Washing"—static policy documents that do not actually control the model. There is no mathematical proof that a specific decision was made by an untampered model.
+
+### 6. The Multi-Agent Chain Reaction & Capability Bleed
+If one agent is compromised (e.g., via indirect prompt injection), it can "bleed" its capabilities into the next in an autonomous chain reaction. Traditional security monitors Human-to-Machine traffic but is blind to internal Agent-to-Agent logic drifts.
+
+---
+
 ## Identifying the 2026 Standard & Open Source Gaps
 
 To make the **AegisSovereignAI** solution more obvious, it is critical to highlight the specific architectural "blind spots" in existing industry standards and open-source tools. In 2026, while the **CSA**, **NIST**, and **OWASP** provide the policy foundation, they often fall short at the execution layer—particularly regarding the non-deterministic nature of AI and the machine-speed requirements of autonomous agents.
