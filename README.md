@@ -107,8 +107,8 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 | AI Lifecycle Stage | Layer 1: Infrastructure | Layer 2: Identity | Layer 3: Governance |
 | --- | --- | --- | --- |
 | **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **FDO** ensures sensor hardware is genuine. | **ZKP-RAG** ensures data provenance without disclosure. |
-| **Model Training** | **Intel TDX** prevents admin snooping of weights. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
-| **Model Inference** | **NVIDIA H100 TEEs** encrypt prompts and weights. | **Unified SVID** binds inference to verified silicon. | **ZKP Compliance Receipts** prove execution matched policy. |
+| **Model Training** | **Intel TDX / AMD SEV** prevents admin snooping of weights. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
+| **Model Inference** | **NVIDIA H100 / AMD MI300 TEEs** encrypt prompts and weights. | **Unified SVID** binds inference to verified silicon. | **ZKP Compliance Receipts** prove execution matched policy. |
 
 ---
 
