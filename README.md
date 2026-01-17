@@ -16,8 +16,6 @@ In the Agentic AI era, traditional "wrapper-based" security—firewalls, static 
 
 ---
 
----
-
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges & Value
 
 Current security architectures for AI face critical gaps. AegisSovereignAI addresses these by securing the entire AI lifecycle through persona-driven verification.
@@ -205,7 +203,7 @@ Aegis turns high-level frameworks into **executable, verifiable code**.
 Aegis provides the first measurement engine for AI security:
 
 > **The Immutable Triad**
-> `Audit Log = Hash(Input) + Hash(Context) + Hash(Model Config)`
+> $$Audit\ Log = Hash(Input) + Hash(Context) + Hash(Model\ Config) + Hash(Hardware\ Quote)$$ + Hash(Hardware\ Quote)$$
 > Every AI decision carries cryptographic proof of exactly what input, context, and model version produced the output—enabling **Verifiable AI Audit Logs**.
 
 ---
