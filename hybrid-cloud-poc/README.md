@@ -24,7 +24,6 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 
 * **Replay Attacks:** Standard tokens function like a physical key; if a malicious actor intercepts a token, they can replay it to impersonate a legitimate workload.
 * **VPN-based Spoofing:** IP-based location checks are trivial to bypass using VPNs, allowing a remote attacker to appear within a "Green Zone" (e.g., a physical bank branch).
-* **The Residency vs. Privacy Deadlock:** Banks must prove residency (**Reg-K**) to regulators, but storing GPS data creates a massive **PII Liability** under GDPR/CCPA. There is no existing way to prove a user is in a zone without tracking exactly where they are.
 * **Impacted Persona:** **CISO & Head of Fraud**
 * **Enterprise Context:** **Treasury & AML Operations** requiring physical verification for high-value transfers.
 
