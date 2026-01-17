@@ -60,6 +60,7 @@ AI models are non-deterministic, making them difficult to audit. Governance toda
 * **Enterprise Context:** **Mortgage & Credit Approval Audits** where non-deterministic logic creates legal liability.
 
 ### 6. The Multi-Agent Chain Reaction & Capability Bleed
+
 Autonomous Escalation: Unlike traditional software, AI agents often have the privilege to call other agents (e.g., a "Travel Agent" calling a "Payment Agent"). If one agent is compromised via indirect prompt injection, it can "bleed" its capabilities into the next, executing a chain reaction of unauthorized financial transactions or data exfiltration.
 
 Context Contamination: Malicious or toxic data written by one agent into a shared "Enterprise Memory" or Vector DB can contaminate the reasoning of every other agent that reads it. This leads to a systemic logic failure that is nearly impossible to trace back to the source.
