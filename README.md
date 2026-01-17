@@ -154,7 +154,7 @@ Current frameworks provide the "What" (the objective) but fail to provide the "H
 
 ---
 
-## How Aegis Operationalizes the Gaps
+## How AegisSovereignAI Operationalizes the Gaps
 
 AegisSovereignAI serves as the **Execution Engine** for these frameworks, transforming static policies into hardware-enforced circuits.
 
