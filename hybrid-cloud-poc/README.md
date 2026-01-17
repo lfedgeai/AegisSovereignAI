@@ -26,12 +26,14 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 * **VPN-based Spoofing:** IP-based location checks are trivial to bypass using VPNs, allowing a remote attacker to appear within a "Green Zone" (e.g., a physical bank branch).
 * **The Residency vs. Privacy Deadlock:** Banks must prove residency (**Reg-K**) to regulators, but storing GPS data creates a massive **PII Liability** under GDPR/CCPA. There is no existing way to prove a user is in a zone without tracking exactly where they are.
 * **Impacted Persona:** **CISO & Head of Fraud**
+* **Enterprise Context:** **Treasury & AML Operations** requiring physical verification for high-value transfers.
 
 ### 2. The Residency vs. Privacy Deadlock
 
 Financial institutions must prove data residency (Reg-K) to regulators. However, traditional geofencing relies on ingesting high-resolution GPS data, creating a massive PII Liability under GDPR and CCPA. Banks are forced to choose between Non-Compliance (no residency proof) or Privacy Violation (storing customer movement history).
 
 * **Impacted Persona:** **Data Privacy Officer (DPO) & General Counsel**
+* **Enterprise Context:** **EU Retail Banking** audit trails for cross-border data sovereignty (GDPR/Reg-K).
 
 ### 3. Infrastructure Blind Spots & Administrative "Gaslighting"
 
@@ -40,6 +42,7 @@ Modern AI workloads are vulnerable to **"Gaslighting"**—where a compromised OS
 * **Fake Realities:** A compromised OS can hook into location APIs (e.g., via Frida) to feed "mock locations" to an application, tricking compliance logic while the device is in an unauthorized jurisdiction.
 * **Privileged Insider Risk:** A malicious Cloud Admin can silently snapshot memory enclaves or intercept a workload's identity without triggering a standard OS-level audit log.
 * **Impacted Persona:** **VP of Engineering & Cloud Architect**
+* **Enterprise Context:** **Managed Service Providers (MSP)** implementing "Trust-but-Verify" for sovereign clouds.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift
 
@@ -48,12 +51,14 @@ AI drift is physically anchored to hardware. Even at `temperature=0`, a model ru
 * **Numerical Stochasticity:** Non-associative math and thread-timing variations across different GPU architectures cause subtle numerical divergence.
 * **The Risk:** In regulated banking, an AI decision that "drifts" due to silent hardware migration is a compliance failure. Without Aegis, there is no **Physical Provenance** for AI decisions.
 * **Impacted Persona:** **Head of AI & Model Risk Management (MRM)**
+* **Enterprise Context:** **Quantitative Risk Models** where precision divergence impacts regulatory capital requirements.
 
 ### 5. The Black-Box Governance Gap
 
 AI models are non-deterministic, making them difficult to audit. Governance today is mostly "AI-Washing"—static policy documents that do not actually control the model. There is no mathematical proof that a specific decision was made by an untampered model.
 
 * **Impacted Persona:** **Chief Risk Officer & AI Auditor**
+* **Enterprise Context:** **Mortgage & Credit Approval Audits** where non-deterministic logic creates legal liability.
 
 ### 6. The Multi-Agent Chain Reaction & Capability Bleed
 Autonomous Escalation: Unlike traditional software, AI agents often have the privilege to call other agents (e.g., a "Travel Agent" calling a "Payment Agent"). If one agent is compromised via indirect prompt injection, it can "bleed" its capabilities into the next, executing a chain reaction of unauthorized financial transactions or data exfiltration.
@@ -63,6 +68,7 @@ Context Contamination: Malicious or toxic data written by one agent into a share
 The Risk: Traditional security monitors "Human-to-Machine" traffic. It is blind to "Agent-to-Agent" internal logic drifts, allowing a system to stay "Green" while it autonomously dismantles its own safety boundaries.
 
 * **Impacted Persona:** **Product Manager & AI Security Engineer**
+* **Enterprise Context:** **ERP & HR Integrations** where agent capability bleed leads to unauthorized data exfiltration.
 
 ---
 
