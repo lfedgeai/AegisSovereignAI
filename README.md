@@ -168,6 +168,44 @@ A common concern with ZKP is the computational "tax." Aegis addresses this throu
 | **Data Privacy** | Redaction / Masking | **Mathematical Privacy (Zero-Disclosure)** |
 | **Auditability** | Forensic Logs (Post-Facto) | **Deterministic Proofs (Real-Time)** |
 | **Hardware** | Unprotected / Cloud-only | **Hybrid (Confidential + Standard TPM)** |
+
+---
+
+## Competitive Landscape
+
+Aegis provides **AI-specific orchestration** on top of foundational security primitives:
+
+| Project | What They Provide | Aegis Differentiator |
+| --- | --- | --- |
+| **Confidential Computing (CCC)** | The *plumbing* (enclaves) | **AI-Specific Orchestration**—binding enclaves to AI identities and OPA governance. |
+| **Agentic Frameworks (AAIF / MCP)** | Capabilities (how agents communicate) | **Identity-First**—verifying *who* is talking and if they are on verified silicon. |
+| **Skyflow / Protecto** | SaaS Data Privacy Vaults | **Infrastructure-Intrinsic**—ensuring the vault logic itself runs on verified silicon. |
+| **Guardrails AI / NeMo** | Filter-Based Protection | **Structural Security**—hardware-isolated agents via Intent-Generation Separation. |
+| **Policy Engines (OPA / Permit)** | "Can this happen?" | **"Proof it DID happen"**—ZK-Receipts prove execution matched policy exactly. |
+
+---
+
+## Driving AI Security Standards
+
+Aegis turns high-level frameworks into **executable, verifiable code**.
+
+### OWASP Top 10 for LLMs
+
+* **LLM01 (Prompt Injection):** **Hardware-Verified Intent Tunnels**—LLMs only accept input signed by a hardware-attested classifier.
+* **LLM06 (Sensitive Data Disclosure):** Our **ZKP-RAG** implementation serves as a reference guardrail for privacy-preserving retrieval.
+
+### Cloud Security Alliance (CSA) - AI Security Stack
+
+* **Hardware-Rooted AI Workload Identity:** Leveraging our **IETF WIMSE** work to move the industry from "Bearer Tokens" toward **Attested Identities**.
+
+### NIST AI Risk Management Framework (AI RMF)
+
+Aegis provides the first measurement engine for AI security:
+
+> **The Immutable Triad**
+> $$Audit\ Log = Hash(Input) + Hash(Context) + Hash(Model\ Config) + Hash(Hardware\ Quote)$$
+> Every AI decision carries cryptographic proof of exactly what input, context, and model version produced the output—enabling **Verifiable AI Audit Logs**.
+
 ---
 
 ## Implementation & Quick Start
