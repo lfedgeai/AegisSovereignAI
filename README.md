@@ -76,44 +76,6 @@ If one agent is compromised (e.g., via indirect prompt injection), it can "bleed
 
 ---
 
-## Identifying the 2026 Standard & Open Source Gaps
-
-Current frameworks provide the "What" (the objective) but fail to provide the "How" (the executable code) for high-stakes AI environments.
-
-### 1. CSA AI Controls Matrix (AICM) Gaps
-* **The Remediation Gap:** While the AICM (v1.1) provides 243 controls for visibility, it is primarily an audit framework. It lacks a native **Remediation Layer**. In 2026, the differentiator is no longer just "seeing" the risk, but the ability to translate insight into automated action (e.g., revoking a non-human identity in milliseconds).
-* **Static Identity Limitation:** CSA identity controls still lean heavily on OAuth and API-key-based models. These do not account for **Blended Identities**, where an agent and a human share permissions. Aegis fills this by moving from "Bearer Tokens" to **Hardware-Attested Identities**.
-
-### 2. NIST AI RMF (Measure & Govern) Gaps
-* **The "Measurement" Bottleneck:** The NIST AI RMF (1.0/2.0) defines the *Measure* function but lacks standardized, executable code for measuring **Hardware-Induced Drift**. Most NIST-aligned tools monitor software drift but are blind to the "Silicon Lottery" effect where identical prompts diverge due to GPU-level non-associative math.
-* **The Legal-Engineering Handoff:** NIST focuses on "Explainability," yet there is a massive gap in **Policy-to-Practice Traceability**. Legal teams write policies, but engineering teams lack a mechanism to prove that those policies were enforced at the exact moment of inference.
-
-### 3. Open Source Fragmentation Gaps
-* **The Point-Solution Trap:** Most open-source AI security projects (e.g., specific LLM guardrails or scanners) are **"Point-Specific."** They secure the prompt (Layer 3) or the container (Layer 1), but they do not bridge them. This fragmentation allows for **Context Contamination**, where toxic data is injected into an agent's memory via an unverified infrastructure channel.
-* **The Production Gap:** Existing tools lack a unified **"Silicon-to-Audit" Ledger**. When an incident occurs, an analyst must manually correlate logs from the GPU, the SPIRE server, and the AI framework. Aegis provides the **Immutable Triad** as a single, verifiable proof.
-
----
-
-## How Aegis Operationalizes the Gaps
-
-AegisSovereignAI serves as the **Execution Engine** for these frameworks, transforming static policies into hardware-enforced circuits.
-
-> **The Immutable Triad**
-> $$Audit\ Log = Hash(Input) + Hash(Context) + Hash(Model\ Config) + Hash(Hardware\ Quote)$$
-
-* **For CSA:** We provide the **Remediation Loop** via the **Autonomous Revocation** of SPIRE SVIDs, moving from audit to active defense.
-* **For NIST:** We operationalize the **MEASURE** function by binding the **Hardware Quote** to the decision, ensuring that drift can be traced back to its physical origin.
-* **For Open Source:** We provide **AI-Specific Orchestration** that bridges the "Plumbing" (CCC enclaves) with the "Policy" (OPA/Permit.io).
-
-### Comparison Summary: Framework vs. Execution
-
-| Need | CSA/NIST Guidance | Aegis Execution |
-| --- | --- | --- |
-| **Residency Proof** | "Use geofencing for data residency." | **ZKP-Geofence** (Provable, no PII leak). |
-| **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
-| **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
-
----
 
 ## The Three-Layer Trust Architecture
 
@@ -171,48 +133,53 @@ A common concern with ZKP is the computational "tax." Aegis addresses this throu
 
 ---
 
-## Competitive Landscape
+## Identifying the 2026 Standard & Open Source Gaps
 
-Aegis provides **AI-specific orchestration** on top of foundational security primitives:
+Current frameworks provide the "What" (the objective) but fail to provide the "How" (the executable code) for high-stakes AI environments.
 
-| Project | What They Provide | Aegis Differentiator |
-| --- | --- | --- |
-| **Confidential Computing (CCC)** | The *plumbing* (enclaves) | **AI-Specific Orchestration**—binding enclaves to AI identities and OPA governance. |
-| **Agentic Frameworks (AAIF / MCP)** | Capabilities (how agents communicate) | **Identity-First**—verifying *who* is talking and if they are on verified silicon. |
-| **Skyflow / Protecto** | SaaS Data Privacy Vaults | **Infrastructure-Intrinsic**—ensuring the vault logic itself runs on verified silicon. |
-| **Guardrails AI / NeMo** | Filter-Based Protection | **Structural Security**—hardware-isolated agents via Intent-Generation Separation. |
-| **Policy Engines (OPA / Permit)** | "Can this happen?" | **"Proof it DID happen"**—ZK-Receipts prove execution matched policy exactly. |
+### 1. CSA AI Controls Matrix (AICM) Gaps
+
+*   **The Remediation Gap:** While the AICM (v1.1) provides 243 controls for visibility, it is primarily an audit framework. It lacks a native **Remediation Layer**. In 2026, the differentiator is no longer just "seeing" the risk, but the ability to translate insight into automated action (e.g., revoking a non-human identity in milliseconds).
+*   **Static Identity Limitation:** CSA identity controls still lean heavily on OAuth and API-key-based models. These do not account for **Blended Identities**, where an agent and a human share permissions. Aegis fills this by moving from "Bearer Tokens" to **Hardware-Attested Identities**.
+
+### 2. NIST AI RMF (Measure & Govern) Gaps
+
+*   **The "Measurement" Bottleneck:** The NIST AI RMF (1.0/2.0) defines the *Measure* function but lacks standardized, executable code for measuring **Hardware-Induced Drift**. Most NIST-aligned tools monitor software drift but are blind to the "Silicon Lottery" effect where identical prompts diverge due to GPU-level non-associative math.
+*   **The Legal-Engineering Handoff:** NIST focuses on "Explainability," yet there is a massive gap in **Policy-to-Practice Traceability**. Legal teams write policies, but engineering teams lack a mechanism to prove that those policies were enforced at the exact moment of inference.
+
+### 3. Open Source Fragmentation Gaps
+
+*   **The Point-Solution Trap:** Most open-source AI security projects (e.g., specific LLM guardrails or scanners) are **"Point-Specific."** They secure the prompt (Layer 3) or the container (Layer 1), but they do not bridge them. This fragmentation allows for **Context Contamination**, where toxic data is injected into an agent's memory via an unverified infrastructure channel.
+*   **The Production Gap:** Existing tools lack a unified **"Silicon-to-Audit" Ledger**. When an incident occurs, an analyst must manually correlate logs from the GPU, the SPIRE server, and the AI framework. Aegis provides the **Immutable Triad** as a single, verifiable proof.
 
 ---
 
-## Driving AI Security Standards
+## How Aegis Operationalizes the Gaps
 
-Aegis turns high-level frameworks into **executable, verifiable code**.
-
-### OWASP Top 10 for LLMs
-
-* **LLM01 (Prompt Injection):** **Hardware-Verified Intent Tunnels**—LLMs only accept input signed by a hardware-attested classifier.
-* **LLM06 (Sensitive Data Disclosure):** Our **ZKP-RAG** implementation serves as a reference guardrail for privacy-preserving retrieval.
-
-### Cloud Security Alliance (CSA) - AI Security Stack
-
-* **Hardware-Rooted AI Workload Identity:** Leveraging our **IETF WIMSE** work to move the industry from "Bearer Tokens" toward **Attested Identities**.
-
-### NIST AI Risk Management Framework (AI RMF)
-
-Aegis provides the first measurement engine for AI security:
+AegisSovereignAI serves as the **Execution Engine** for these frameworks, transforming static policies into hardware-enforced circuits.
 
 > **The Immutable Triad**
 > $$Audit\ Log = Hash(Input) + Hash(Context) + Hash(Model\ Config) + Hash(Hardware\ Quote)$$
-> Every AI decision carries cryptographic proof of exactly what input, context, and model version produced the output—enabling **Verifiable AI Audit Logs**.
+
+*   **For CSA:** We provide the **Remediation Loop** via the **Autonomous Revocation** of SPIRE SVIDs, moving from audit to active defense.
+*   **For NIST:** We operationalize the **MEASURE** function by binding the **Hardware Quote** to the decision, ensuring that drift can be traced back to its physical origin.
+*   **For Open Source:** We provide **AI-Specific Orchestration** that bridges the "Plumbing" (CCC enclaves) with the "Policy" (OPA/Permit.io).
+
+### Comparison Summary: Framework vs. Execution
+
+| Need | CSA/NIST Guidance | Aegis Execution |
+| --- | --- | --- |
+| **Residency Proof** | "Use geofencing for data residency." | **ZKP-Geofence** (Provable, no PII leak). |
+| **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
+| **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
 
 ---
 
 ## Implementation & Quick Start
 
-* **Hybrid Cloud PoC:** Full integration of **SPIRE** and **Keylime** for [Real-Time Node Revocation](./hybrid-cloud-poc/README.md).
-* **Unified Identity Architecture:** Technical deep-dive into [Managed vs. BYOD Workload Provenance](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md).
-* **Threat Model:** Analysis of the [Runtime Perception Gap and Sensor Fusion](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md).
+*   **Hybrid Cloud PoC:** Full integration of **SPIRE** and **Keylime** for [Real-Time Node Revocation](./hybrid-cloud-poc/README.md).
+*   **Unified Identity Architecture:** Technical deep-dive into [Managed vs. BYOD Workload Provenance](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md).
+*   **Threat Model:** Analysis of the [Runtime Perception Gap and Sensor Fusion](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md).
 
 ---
 
