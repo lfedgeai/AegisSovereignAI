@@ -50,7 +50,22 @@ Using the **Keylime-to-SPIRE** loop, Aegis acts as a physical kill-switch for th
 
 ---
 
-## 💻 Reference Implementation: Aegis-Aware Checkpointer
+## � Scalability & Multi-Tenancy: "One Workload, Many Identities"
+
+A common question is whether this model requires a separate physical agent instance per end-user. **The answer is no.** 
+
+AegisSovereignAI enables a high-density **Multi-Tenant Architecture** through the following mechanisms:
+
+1.  **Request-Level Blended SVIDs:** A single physical agent (e.g., a "Wealth Advisor Agent" running in a TDX enclave) can handle thousands of users concurrently. Each incoming request from a user is accompanied by a unique **Blended SVID**. The agent uses the SDK to verify the specific (User + Hardware) pair for that specific transaction.
+2.  **Cryptographic Context Isolation:** Instead of physical isolation (separate containers), Aegis provides **Logical Isolation**. Because every state update to the LangGraph checkpointer requires a valid Blended Identity, Agent A cannot accidentally or maliciously write to the state of User B, even if they share the same memory space.
+3.  **Granular Revocation:** If one human user logs out or their device is compromised, Aegis revokes that specific **Blended SVID** token. The shared agent workload continues to serve other users uninterrupted.
+4.  **Hardware-Enforced Multi-Tenancy:** On modern silicon like **NVIDIA H100** or **Intel TDX**, the hardware ensures that even if the OS is compromised, the memory within the enclave remains encrypted. Aegis ensures that the "intent" of which user is being served is bound to that encryption.
+
+This approach provides the **Resource Efficiency** of a shared cloud model with the **Security Guarantees** of a single-tenant air-gapped system.
+
+---
+
+## �💻 Reference Implementation: Aegis-Aware Checkpointer
 
 Below is a conceptual Python snippet showing how a LangGraph `BaseCheckpointSaver` can be extended to verify an Aegis SVID before persisting state.
 
