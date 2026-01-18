@@ -89,6 +89,7 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 ### Layer 2: Workload Identity (The Provable Bridge)
 
 * **Unified Identity (SPIRE):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine.
+* **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
@@ -97,6 +98,18 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 * **Audit without Disclosure:** Prove the AI used a specific audited model version and benchmarked hardware profile without revealing proprietary weights or sensitive PII.
 
 ![AegisSovereignAI Architecture](images/readme-arch-new.svg)
+
+---
+
+## Blended Identity: Human-to-Agent Provenance
+
+AegisSovereignAI closes the accountability gap in multi-agent systems (e.g., **LangGraph**) by cryptographically fusing **User Identity** with **Workload Identity**.
+
+*   **Just-in-Time Agency:** Agents operate using composite identities valid only for the duration of a verified human session.
+*   **Hardware-Anchored Attribution:** Every autonomous action in a multi-agent node is bi-directionally traceable—from the human intent to the physical silicon execution.
+*   **Safe Harbor for BYOD:** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** instead of **Device Ownership**.
+
+For a deep-dive into multi-agent accountability, see the [LangGraph Integration Guide](./docs/langgraph-integration.md).
 
 ---
 
