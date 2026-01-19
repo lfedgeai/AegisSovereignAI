@@ -1,7 +1,7 @@
 # AegisSovereignAI: Trusted AI for the Distributed Enterprise
 
 ## Executive Summary
-Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are loosely coupled. This fragmentation results in a dangerous **"Accountability Gap"** where identities are easily spoofed, compliance creates massive PII liability, and compromised infrastructure can feed fake data to applications undetected. 
+Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are loosely coupled. This fragmentation results in a dangerous **"Accountability Gap"** where identities are easily spoofed, compliance creates massive **Personally Identifiable Information (PII)** liability, and compromised infrastructure can feed fake data to applications undetected. 
 
 **AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Layer 2 Unified and Extensible Identity** framework, we cryptographically fuse silicon-level attestation with application-level governance—binding hardware integrity to both workloads and end-users while preserving privacy to create a single, cohesive architecture.
 
@@ -10,9 +10,9 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 
 ### Quick Links for Architects & PMs
-*   **[Hybrid Cloud PoC](./hybrid-cloud-poc/README.md):** Real-time Revocation & SVID binding logic.
+*   **[Hybrid Cloud PoC](./hybrid-cloud-poc/README.md):** Real-time Revocation & **SPIFFE Verifiable Identity Document (SVID)** binding logic.
 *   **[Threat Model](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md):** Analysis of Runtime Localitary Spoofing.
-*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md):** Blended Identity & WIMSE integration.
+*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md):** Blended Identity & **Workload Identity in Multi-System Environments (WIMSE)** integration.
 
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges (Focus: Financial Services)
 
@@ -29,7 +29,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 *   **Target Requirement:** Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
-*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (OCC/ECB), demonstrating that every AI interaction—across all retail devices, employee hardware, and Data Center Infrastructure—was verified by hardware, uses trusted/untampered AI models and system prompts, and compliant with data residency laws.
+*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (**Office of the Comptroller of the Currency (OCC)** and **European Central Bank (ECB)**), demonstrating that every AI interaction—across all retail devices, employee hardware, and Data Center Infrastructure—was verified by hardware, uses trusted/untampered AI models and system prompts, and compliant with data residency laws.
 *   **Target Requirement:** Compliance without disclosing sensitive data such as location history or sensitive AI model system prompts.
 
 ## The Accountability Gap: Five Dimensions of Failure
@@ -42,7 +42,7 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 * **VPN-based Spoofing:** Commonly used IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
 
 ### 2. The Residency vs. Privacy Deadlock
-Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under GDPR. Enterprises are often forced to choose between non-compliance or privacy violation.
+Regulators require proof of data residency (**Regulation K / Reg-K**), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under the **General Data Protection Regulation (GDPR)**. Enterprises are often forced to choose between non-compliance or privacy violation.
 
 ### 3. Infrastructure Compromise
 Modern AI workloads are vulnerable to **infrastructure compromise**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
@@ -59,13 +59,13 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
-* **Confidential Computing (CC) & TEEs:** Integrates with **Intel TDX** and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
-* **Integrity for Legacy/Edge:** On commodity hardware, AegisSovereignAI uses **Keylime** and **TPM 2.0** to verify the software stack's **Integrity** (via IMA/EVM). 
+* **Confidential Computing (CC) & Trusted Execution Environments (TEEs):** Integrates with **Intel TDX** and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
+* **Integrity for Legacy/Edge:** On commodity hardware, AegisSovereignAI uses **Keylime** and **Trusted Platform Module (TPM 2.0)** to verify the software stack's **Integrity** (via **Integrity Measurement Architecture (IMA)** and **Extended Verification Module (EVM)**). 
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
 * **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation location boundary. Privacy-preserving location proofs (e.g. Zero-Knowledge Proofs aka ZKPs) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
-* **Safe Harbor for BYOD:** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** instead of **Enterprise Device Ownership**.
+* **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** instead of **Enterprise Device Ownership**.
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
 See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
@@ -105,7 +105,7 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
 
-| Need | CSA/NIST Guidance | AegisSovereignAI Execution |
+| Need | **Cloud Security Alliance (CSA)** / **National Institute of Standards and Technology (NIST)** Guidance | AegisSovereignAI Execution |
 | --- | --- | --- |
 | **Residency Proof** | "Use geofencing for data residency." | **Privacy-Preserving (ZKP etc.) Geofence** (Provable, no PII leak). |
 | **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
