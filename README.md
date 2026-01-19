@@ -3,7 +3,7 @@
 ## Executive Summary
 Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are loosely coupled. This fragmentation results in a dangerous **"Accountability Gap"** where identities are easily spoofed, compliance creates massive PII liability, and compromised infrastructure can feed fake data to applications undetected. 
 
-**AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Layer 2 Unified and Extensible Identity** framework, we cryptographically fuse silicon-level attestation with application-level governance—binding hardware integrity to both workloads and end-users to create a single, cohesive architecture.
+**AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Layer 2 Unified and Extensible Identity** framework, we cryptographically fuse silicon-level attestation with application-level governance—binding hardware integrity to both workloads and end-users while preserving privacy to create a single, cohesive architecture.
 
 This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**.
 
@@ -85,7 +85,7 @@ The following scenarios demonstrate the business value delivered by our three-la
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
 
 ### 4. The Enterprise Stakeholder
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and privacy-preserving AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and privacy-preserving AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data or disclose PII in system prompts.
 
 ## The Sovereign Supply Chain: End-to-End Trust
 
@@ -97,14 +97,6 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 | **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—protects weights from privileged admin snooping. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
 | **Model Inference** | **Silicon-Enforced Privacy (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts and results in-use. | **Unified SVID** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures execution matched policy. |
 
-## Addressing Complexity: The ZKP Performance Reality
-
-A common concern with ZKP is the computational "tax." Aegis addresses this through a **Hybrid Performance Model**:
-
-1. **Succinctness:** We utilize **zk-SNARKs**, where the resulting proof is tiny (**<1 KB**) and verified in **milliseconds**.
-2. **Asynchronous Proving:** Proof generation happens in parallel to AI inference. The AI responds instantly, while the "Compliance Receipt" is attached moments later.
-3. **Tiered Verification:** Use ZKP for high-value governance (legal/financial) while using lightweight **Hardware Attestation** (TPM) for routine operations.
-
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
 
@@ -113,6 +105,13 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 | **Residency Proof** | "Use geofencing for data residency." | **ZKP-Geofence** (Provable, no PII leak). |
 | **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
 | **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
+
+## Addressing Complexity: The ZKP Performance Reality
+A common concern with ZKP is the computational "tax." Aegis addresses this through a **Hybrid Performance Model**:
+
+1. **Succinctness:** We utilize **zk-SNARKs**, where the resulting proof is tiny (**<1 KB**) and verified in **milliseconds**.
+2. **Asynchronous Proving:** Proof generation happens in parallel to AI inference. The AI responds instantly, while the "Compliance Receipt" is attached moments later.
+3. **Tiered Verification:** Use ZKP for high-value governance (legal/financial) while using lightweight **Hardware Attestation** (TPM) for routine operations.
 
 ## Implementation & Quick Start
 
