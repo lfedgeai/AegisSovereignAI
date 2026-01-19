@@ -1,99 +1,109 @@
 <svg width="850" height="520" viewBox="0 0 850 520" xmlns="http://www.w3.org/2000/svg">
-  <!-- CONTROL PLANE LABEL -->
-  <text x="300" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#78909C" text-anchor="middle">AEGIS SOVEREIGN CONTROL PLANE (GOVERNANCE &amp; TRUST)</text>
+  <!-- 
+    AegisSovereignAI Detailed Architecture Map
+    Designed for clarity, precision, and alignment.
+  -->
   
-  <!-- LAYER 3: GOVERNANCE -->
-  <rect x="50" y="25" width="500" height="135" rx="8" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" />
-  <text x="70" y="50" font-family="Arial" font-size="14" font-weight="bold" fill="#0D47A1">LAYER 3: VERIFIABLE GOVERNANCE</text>
-  <g transform="translate(80, 70)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#1976D2" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Audit without Disclosure</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Privacy-preserving Proofs (ZKP)</text>
+  <!-- CONTROL PLANE SECTION -->
+  <rect x="20" y="20" width="560" height="480" rx="10" fill="#FAFAFA" stroke="#CFD8DC" stroke-width="1" stroke-dasharray="4,4" />
+  <text x="300" y="15" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#78909C" text-anchor="middle">AEGIS SOVEREIGN CONTROL PLANE</text>
+  
+  <!-- LAYER 3: GOVERNANCE (Y: 40-160) -->
+  <rect x="50" y="40" width="500" height="120" rx="8" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" />
+  <text x="70" y="65" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#0D47A1">LAYER 3: VERIFIABLE GOVERNANCE</text>
+  <g transform="translate(80, 85)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#1976D2" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Audit without Disclosure</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Privacy-preserving Proofs</text>
   </g>
-  <g transform="translate(320, 70)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#1976D2" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Policy-as-Circuit</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">ZKP / Noir Compilation</text>
-  </g>
-
-  <!-- LAYER 2: IDENTITY -->
-  <rect x="50" y="185" width="500" height="135" rx="8" fill="#FFF3E0" stroke="#FB8C00" stroke-width="2" />
-  <text x="70" y="210" font-family="Arial" font-size="14" font-weight="bold" fill="#E65100">LAYER 2: UNIFIED IDENTITY &amp; RESIDENCY</text>
-  <g transform="translate(80, 230)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#FB8C00" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Blended Identity (SPIRE)</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Fuses Human + Workload ID</text>
-  </g>
-  <g transform="translate(320, 230)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#D32F2F" stroke-width="2" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="#D32F2F">AUTONOMOUS KILL-SWITCH</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Real-time SVID Revocation</text>
+  <g transform="translate(320, 85)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#1976D2" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Policy-as-Circuit</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">ZKP / Noir Compilation</text>
   </g>
 
-  <!-- LAYER 1: INFRASTRUCTURE -->
-  <rect x="50" y="345" width="500" height="135" rx="8" fill="#F1F8E9" stroke="#43A047" stroke-width="2" />
-  <text x="70" y="370" font-family="Arial" font-size="14" font-weight="bold" fill="#1B5E20">LAYER 1: CONFIDENTIAL FOUNDATION</text>
-  <g transform="translate(80, 390)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#43A047" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Confidential Computing</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Intel TDX / NVIDIA H100</text>
+  <!-- LAYER 2: IDENTITY (Y: 200-320) -->
+  <rect x="50" y="200" width="500" height="120" rx="8" fill="#FFF3E0" stroke="#FB8C00" stroke-width="2" />
+  <text x="70" y="225" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#E65100">LAYER 2: UNIFIED IDENTITY &amp; RESIDENCY</text>
+  <g transform="translate(80, 245)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#FB8C00" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Blended Identity (SPIRE)</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Human + Workload ID</text>
   </g>
-  <g transform="translate(320, 390)">
-    <rect width="200" height="60" rx="4" fill="#fff" stroke="#43A047" />
-    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Integrity Monitoring</text>
-    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Keylime / TPM 2.0 Attestation</text>
+  <g transform="translate(320, 245)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#D32F2F" stroke-width="2" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="#D32F2F">AUTONOMOUS KILL-SWITCH</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Real-time Revocation</text>
+  </g>
+
+  <!-- LAYER 1: INFRASTRUCTURE (Y: 360-480) -->
+  <rect x="50" y="360" width="500" height="120" rx="8" fill="#F1F8E9" stroke="#43A047" stroke-width="2" />
+  <text x="70" y="385" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1B5E20">LAYER 1: CONFIDENTIAL FOUNDATION</text>
+  <g transform="translate(80, 405)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#43A047" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Confidential Computing</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Intel TDX / NVIDIA H100</text>
+  </g>
+  <g transform="translate(320, 405)">
+    <rect width="200" height="55" rx="4" fill="#fff" stroke="#43A047" />
+    <text x="100" y="22" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Integrity Monitoring</text>
+    <text x="100" y="40" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Keylime / TPM Attestation</text>
   </g>
 
   <!-- DATA PLANE (AI WORKLOAD) -->
-  <rect x="620" y="100" width="180" height="300" rx="8" fill="#ECEFF1" stroke="#455A64" stroke-width="2" stroke-dasharray="5,5" />
-  <text x="710" y="130" font-family="Arial" font-size="14" font-weight="bold" fill="#263238" text-anchor="middle">AI DATA PLANE</text>
-  <text x="710" y="150" font-family="Arial" font-size="10" fill="#455A64" text-anchor="middle">(Workloads &amp; Inference)</text>
+  <rect x="620" y="40" width="210" height="440" rx="10" fill="#F8F9FA" stroke="#455A64" stroke-width="2" stroke-dasharray="5,5" />
+  <text x="725" y="65" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#263238" text-anchor="middle">AI DATA PLANE</text>
   
-  <!-- Neural Network Icon inside Data Plane -->
-  <g transform="translate(670, 200)" opacity="0.4">
-    <circle cx="20" cy="20" r="5" fill="#455A64" />
-    <circle cx="20" cy="50" r="5" fill="#455A64" />
-    <circle cx="20" cy="80" r="5" fill="#455A64" />
-    <circle cx="50" cy="10" r="5" fill="#455A64" />
-    <circle cx="50" cy="35" r="5" fill="#455A64" />
-    <circle cx="50" cy="65" r="5" fill="#455A64" />
-    <circle cx="50" cy="90" r="5" fill="#455A64" />
-    <circle cx="80" cy="35" r="5" fill="#455A64" />
-    <circle cx="80" cy="65" r="5" fill="#455A64" />
-    <line x1="20" y1="20" x2="50" y2="10" stroke="#455A64" stroke-width="1" />
-    <line x1="20" y1="20" x2="50" y2="35" stroke="#455A64" stroke-width="1" />
-    <line x1="20" y1="50" x2="50" y2="35" stroke="#455A64" stroke-width="1" />
-    <line x1="20" y1="50" x2="50" y2="65" stroke="#455A64" stroke-width="1" />
-    <line x1="20" y1="80" x2="50" y2="65" stroke="#455A64" stroke-width="1" />
-    <line x1="20" y1="80" x2="50" y2="90" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="10" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="35" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="35" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="65" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="65" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
-    <line x1="50" y1="90" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
+  <!-- Neural Network Visual -->
+  <g transform="translate(670, 150)">
+    <!-- Layer 1 -->
+    <circle cx="20" cy="40" r="5" fill="#607D8B" />
+    <circle cx="20" cy="90" r="5" fill="#607D8B" />
+    <circle cx="20" cy="140" r="5" fill="#607D8B" />
+    <!-- Layer 2 -->
+    <circle cx="55" cy="20" r="5" fill="#90A4AE" />
+    <circle cx="55" cy="65" r="5" fill="#90A4AE" />
+    <circle cx="55" cy="115" r="5" fill="#90A4AE" />
+    <circle cx="55" cy="160" r="5" fill="#90A4AE" />
+    <!-- Layer 3 -->
+    <circle cx="90" cy="65" r="5" fill="#607D8B" />
+    <circle cx="90" cy="115" r="5" fill="#607D8B" />
+    
+    <!-- Lines -->
+    <g stroke="#B0BEC5" stroke-width="1" opacity="0.6">
+      <line x1="20" y1="40" x2="55" y2="20" /><line x1="20" y1="40" x2="55" y2="65" />
+      <line x1="20" y1="90" x2="55" y2="65" /><line x1="20" y1="90" x2="55" y2="115" />
+      <line x1="20" y1="140" x2="55" y2="115" /><line x1="20" y1="140" x2="55" y2="160" />
+      <line x1="55" y1="20" x2="90" y2="65" /><line x1="55" y1="65" x2="90" y2="65" />
+      <line x1="55" y1="65" x2="90" y2="115" /><line x1="55" y1="115" x2="90" y2="65" />
+      <line x1="55" y1="115" x2="90" y2="115" /><line x1="55" y1="160" x2="90" y2="115" />
+    </g>
   </g>
+  <text x="725" y="380" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#455A64" text-anchor="middle">Private Workload</text>
+  <text x="725" y="400" font-family="Arial, sans-serif" font-size="10" fill="#78909C" text-anchor="middle">(Shielded AI Model/Prompt)</text>
 
-  <!-- INTERACTION LINES -->
-  <path d="M 550 160 C 600 160 580 250 620 250" stroke="#1976D2" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-blue)" />
-  <text x="585" y="185" font-family="Arial" font-size="9" fill="#1976D2" transform="rotate(-45 585 185)" font-weight="bold">Governs Logic</text>
+  <!-- INTERACTION LINES (Straight for perfect text alignment) -->
+  <!-- L3 -> Data Plane -->
+  <line x1="550" y1="100" x2="620" y2="100" stroke="#1976D2" stroke-width="2" stroke-dasharray="4,2" />
+  <text x="585" y="93" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#0D47A1" text-anchor="middle">Governs Logic</text>
   
-  <path d="M 550 250 L 620 250" stroke="#FB8C00" stroke-width="2" fill="none" marker-end="url(#arrowhead-orange)" />
-  <text x="565" y="240" font-family="Arial" font-size="9" fill="#E65100" font-weight="bold">Binds ID</text>
+  <!-- L2 -> Data Plane -->
+  <line x1="550" y1="260" x2="620" y2="260" stroke="#FB8C00" stroke-width="2" />
+  <text x="585" y="253" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#E65100" text-anchor="middle">Binds ID</text>
+  
+  <!-- L1 -> Data Plane -->
+  <line x1="550" y1="420" x2="620" y2="420" stroke="#43A047" stroke-width="2" stroke-dasharray="4,2" />
+  <text x="585" y="413" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#1B5E20" text-anchor="middle">Secures Runtime</text>
 
-  <path d="M 550 410 C 600 410 580 250 620 250" stroke="#43A047" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-green)" />
-  <text x="595" y="325" font-family="Arial" font-size="9" fill="#1B5E20" transform="rotate(45 595 325)" font-weight="bold">Secures Runtime</text>
-
-  <!-- MARKERS -->
+  <!-- Arrowheads -->
   <defs>
-    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#1976D2" />
-    </marker>
-    <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#FB8C00" />
-    </marker>
-    <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#43A047" />
-    </marker>
+    <marker id="arrB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1976D2" /></marker>
+    <marker id="arrO" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#FB8C00" /></marker>
+    <marker id="arrG" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#43A047" /></marker>
   </defs>
+  <!-- Apply markers -->
+  <line x1="615" y1="100" x2="620" y2="100" stroke="#1976D2" stroke-width="1" marker-end="url(#arrB)" />
+  <line x1="615" y1="260" x2="620" y2="260" stroke="#FB8C00" stroke-width="1" marker-end="url(#arrO)" />
+  <line x1="615" y1="420" x2="620" y2="420" stroke="#43A047" stroke-width="1" marker-end="url(#arrG)" />
+
 </svg>
