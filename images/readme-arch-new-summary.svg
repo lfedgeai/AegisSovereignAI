@@ -1,28 +1,22 @@
 <svg width="800" height="420" viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg">
-  <!-- LAYER 3 -->
   <g transform="translate(100, 30)">
     <rect width="600" height="100" rx="12" fill="#E3F2FD" stroke="#1976D2" stroke-width="2.5" />
-    <path d="M 50 40 L 80 40 L 80 70 L 50 70 Z M 55 45 L 75 45 L 75 65 L 55 65 Z" fill="#0D47A1" /> <!-- Simple Prompt Icon -->
     <text x="300" y="45" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#0D47A1">LAYER 3: VERIFIABLE GOVERNANCE</text>
-    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#1565C0">Mathematically provable compliance without data exposure</text>
+    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#1565C0">Privacy-preserving &amp; verifiable disclosure of sensitive information</text>
   </g>
 
-  <!-- LAYER 2 (THE BRIDGE) -->
   <g transform="translate(100, 160)">
-    <rect width="600" height="100" rx="12" fill="#FFF3E0" stroke="#FB8C00" stroke-width="3" />
-    <text x="300" y="45" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#E65100">LAYER 2: THE PROVABLE IDENTITY BRIDGE</text>
-    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#EF6C00">Fuses hardware integrity with human intent across all locations</text>
+    <rect width="600" height="100" rx="12" fill="#FFF3E0" stroke="#FB8C00" stroke-width="2.5" />
+    <text x="300" y="45" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#E65100">LAYER 2: PROVABLE UNIFIED IDENTITY &amp; RESIDENCY</text>
+    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#EF6C00">Cryptographically binds 'Who' is running to 'Where' they are physically located.</text>
   </g>
 
-  <!-- LAYER 1 -->
   <g transform="translate(100, 290)">
     <rect width="600" height="100" rx="12" fill="#F1F8E9" stroke="#43A047" stroke-width="2.5" />
-    <path d="M 50 330 L 80 330 L 80 360 L 50 360 Z M 65 330 L 65 320 M 65 360 L 65 370 M 50 345 L 40 345 M 80 345 L 90 345" stroke="#1B5E20" stroke-width="2" /> <!-- Simple Silicon Icon -->
-    <text x="300" y="45" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#1B5E20">LAYER 1: CONFIDENTIAL SILICON</text>
-    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#2E7D32">Intel TDX, NVIDIA H100, and TPM 2.0 hardware roots of trust</text>
+    <text x="300" y="45" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#1B5E20">LAYER 1: CONFIDENTIAL FOUNDATION</text>
+    <text x="300" y="75" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#2E7D32">Silicon-level protection (TEEs) and integrity monitoring for standard hardware.</text>
   </g>
 
-  <!-- CONNECTORS -->
-  <line x1="400" y1="130" x2="400" y2="160" stroke="#FB8C00" stroke-width="3" />
-  <line x1="400" y1="260" x2="400" y2="290" stroke="#FB8C00" stroke-width="3" />
+  <line x1="400" y1="130" x2="400" y2="160" stroke="#90A4AE" stroke-width="2" stroke-dasharray="5,5" />
+  <line x1="400" y1="260" x2="400" y2="290" stroke="#90A4AE" stroke-width="2" stroke-dasharray="5,5" />
 </svg>
