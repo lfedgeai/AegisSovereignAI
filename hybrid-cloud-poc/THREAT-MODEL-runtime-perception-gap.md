@@ -1,7 +1,7 @@
 # Threat Model: The Runtime Perception Gap (AegisSovereignAI)
 
 **Scenario**: A JPMC CCB Retail Banking user is accessing a "Geofenced AI Portfolio Advisor" from an unmanaged, personal Android/iOS device.
-**Objective**: The user (or malware on the device) seeks to "gaslight" the Aegis Ingress Gateway into believing they are in a "Green Zone" (e.g., within the US/NY) while physically located in a prohibited or high-risk jurisdiction.
+**Objective**: The user (or malware on the device) seeks to exploit an **infrastructure blind spot** to believe they are in a "Green Zone" (e.g., within the US/NY) while physically located in a prohibited or high-risk jurisdiction.
 
 ---
 
@@ -10,13 +10,13 @@
 | Attribute | Detail |
 | :--- | :--- |
 | **Trust Boundary** | Between the **Unmanaged Device OS** and the **Unified Identity Plane** (SVID). |
-| **Primary Threat** | **Runtime Locality Spoofing** via OS-level manipulation ("Gaslighting"). |
+| **Primary Threat** | **Runtime Locality Spoofing** via OS-level manipulation (exploiting an Infrastructure Blind Spot). |
 | **Enforcement Mechanism** | Conditional issuance of **Unified SVID** with attested claims. |
 | **Impact** | Violation of **Regulation K (Reg-K)**; unauthorized access to sensitive financial models; potential PII leakage. |
 
 ---
 
-## 2. Attack Vectors (The Gaslighting Scenario)
+## 2. Attack Vectors (Exploiting Infrastructure Blind Spots)
 
 Despite a "Clean" Boot-time Attestation, the following runtime vectors are active:
 
@@ -70,4 +70,4 @@ The device generates a **Zero-Knowledge Proof (ZKP)**:
 | **Hardware Compromise** | Out of scope; we assume the **Silicon Root of Trust** (Apple SE/Qualcomm TEE) is intact. |
 | **Zero-Day Hooking** | Mitigated by **Runtime SVID Revocation** triggered by Linux IMA / App Attest signals. |
 
-**Verdict**: By moving the security boundary from the OS APIs to the **Hardware Secure Enclave** and enforcing it via the **Unified Identity Plane (SVID)**, AegisSovereignAI makes OS-level "gaslighting" mathematically visible and cryptographically unenforceable at the API Gateway.
+**Verdict**: By moving the security boundary from the OS APIs to the **Hardware Secure Enclave** and enforcing it via the **Unified Identity Plane (SVID)**, AegisSovereignAI makes infrastructure blind spots mathematically visible and cryptographically unenforceable at the API Gateway.

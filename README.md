@@ -1,12 +1,8 @@
-# AegisSovereignAI: Verifiable Trust from Silicon to Prompt
+# AegisSovereignAI: Trusted AI for the Distributed Enterprise
 
-**Securing the Agentic Enterprise through Physical Determinism and Radical Privacy.**
+## Executive Summary: From "Best-Effort" Zero-trust to Verifiable Intelligence
 
-## Executive Summary: From "Best-Effort" to Verifiable Intelligence
-
-In the Agentic AI era, traditional "wrapper-based" security—firewalls, static tokens, and text filters—is no longer sufficient. These methods are bypassable, add latency, and fail to provide the mathematical proof required by global regulators.
-
-**AegisSovereignAI** transforms AI security from "Best-Effort" to **Verifiable Intelligence**. We provide a contiguous **Sovereign Trust Loop** that ensures:
+**AegisSovereignAI** transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. We provide a contiguous **Sovereign Trust Loop** that ensures:
 
 * **Physical Determinism:** Binds AI responses to benchmarked hardware to mitigate **Hardware-Induced Drift**.
 * **Compliance without Liability:** Utilizes **Zero-Knowledge Proofs (ZKP)** to provide mathematical evidence of residency (**Regulation K**) and integrity without ingesting or storing sensitive PII.
@@ -18,41 +14,37 @@ In the Agentic AI era, traditional "wrapper-based" security—firewalls, static 
 
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges & Value
 
-Current security architectures for AI face critical gaps. AegisSovereignAI addresses these by securing the entire AI lifecycle through persona-driven verification.
+The following describing various enterprise use cases and requirements.
 
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
 
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
-*   **Target Need:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via ZKP, ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
-*   **Impacted Persona:** **CISO & Head of Fraud**
+*   **Target Requirement:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (e.g. Zero-Knowledge Proofs), ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
 
 ### 2. The Enterprise Employee (Branch Relationship Manager)
 
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
-*   **Target Need:** Frictionless access to sensitive client PII on-site for analysis or loan processing using managed laptops or branch servers.
+*   **Target Requirement:** Frictionless access to sensitive client PII on-site for analysis or loan processing using managed laptops or branch servers.
 *   **Sovereign Value:** **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
-*   **Impacted Persona:** **VP of Engineering & Cloud Architect**
 
 ### 3. The Enterprise Tenant (Line-of-Business Owner)
 
 *   **Core Use Case:** **Regulatory Sandboxing for LOBs.** Enabling the Mortgage and Credit Card divisions to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective AI models and data.
-*   **Target Need:** Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
-*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via Cryptographic Identity (SPIFFE/SVID) rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
-*   **Impacted Persona:** **Head of AI & Model Risk Management (MRM)**
+*   **Target Requirement:** Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
+*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
 
-*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (OCC/ECB), demonstrating that every AI interaction—across all retail devices, employee hardware, and Managed Data Center Infrastructure—was verified by hardware and compliant with data residency laws.
-*   **Target Need:** Deterministic, math-based proof that data residency and sovereignty policies are strictly enforced.
-*   **Sovereign Value:** **Compliance without Liability.** By using ZKP-based location proofs, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
-*   **Impacted Persona:** **Chief Risk Officer & AI Auditor**
+*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (OCC/ECB), demonstrating that every AI interaction—across all retail devices, employee hardware, and Data Center Infrastructure—was verified by hardware, uses trusted AI models and system prompts, and compliant with data residency laws.
+*   **Target Requirement:** Compliance without disclosing sensitive data such as location history or sensitive AI model system prompts.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
 
 ---
 
-## Technical Root Causes: Six Dimensions of Failure
+## Technical Problems: Six Dimensions of Failure
 
-To address the enterprise scenarios above, we must solve for the specific technical failures that traditional IT security cannot mitigate.
+To address the enterprise scenarios above, we must solve for the specific technical problems that traditional IT security cannot mitigate.
 
 ### 1. The Fragility of Identity & Geofencing
 Traditional security relies on **bearer tokens** and **IP-based geofencing**, which are fundamentally non-binding and easily spoofed.
@@ -62,8 +54,8 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 ### 2. The Residency vs. Privacy Deadlock
 Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution GPS data, creating massive PII liability under GDPR. Banks are often forced to choose between non-compliance or privacy violation.
 
-### 3. Infrastructure Blind Spots & Administrative "Gaslighting"
-Modern AI workloads are vulnerable to **"Gaslighting"**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
+### 3. Infrastructure Blind Spots
+Modern AI workloads are vulnerable to **infrastructure blind spots**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift
 AI drift is physically anchored to hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. Without **Physical Provenance**, there is no way to verify if a decision diverted due to unauthorized hardware migration.
