@@ -245,7 +245,7 @@ The JPM App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). En
 
 ---
 
-## The Runtime Perception Gap: "Gaslighting" the OS
+## The Runtime Perception Gap: Infrastructure Blind Spots
 
 Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS kernel. However, **Location** is an input that the OS receives from its environment. A malicious user with administrative access on an unmanaged device can "gaslight" the system after it has successfully booted.
 
@@ -260,7 +260,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 - **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
 
 > [!IMPORTANT]
-> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated "gaslighting" attacks on unmanaged devices, see the **[Threat Model: The Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
+> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated infrastructure blind spot exploits on unmanaged devices, see the **[Threat Model: The Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
 
 ---
 
