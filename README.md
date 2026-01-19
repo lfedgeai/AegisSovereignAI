@@ -5,9 +5,16 @@ Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are 
 
 **AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Layer 2 Unified and Extensible Identity** framework, we cryptographically fuse silicon-level attestation with application-level governance—binding hardware integrity to both workloads and end-users while preserving privacy to create a single, cohesive architecture.
 
-This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. **This ensures that sensitive financial data only moves when the hardware, the location, and the user identity are simultaneously verified.**
+This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. **This ensures that sensitive financial data (financial advice, PII, etc.) only moves when the hardware, the location, and the user identity are simultaneously verified.**
 
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
+
+### Quick Links for Architects & PMs
+*   **[Hybrid Cloud PoC](./hybrid-cloud-poc/README.md):** Real-time Revocation & SVID binding logic.
+*   **[Threat Model](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md):** Analysis of Runtime Localitary Spoofing.
+*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md):** Blended Identity & WIMSE integration.
+
+---
 
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges (Focus: Financial Services)
 
