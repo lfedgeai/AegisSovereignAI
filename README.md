@@ -9,7 +9,8 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 
-## Enterprise Sovereign Scenarios: High-Stakes Challenges
+## Enterprise Sovereign Scenarios: High-Stakes Challenges (Focus: Financial Services)
+
 
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
@@ -37,7 +38,7 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 * **VPN-based Spoofing:** Commonly used IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
 
 ### 2. The Residency vs. Privacy Deadlock
-Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under GDPR. Banks are often forced to choose between non-compliance or privacy violation.
+Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under GDPR. Enterprises are often forced to choose between non-compliance or privacy violation.
 
 ### 3. Infrastructure Compromise
 Modern AI workloads are vulnerable to **infrastructure compromise**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
@@ -55,19 +56,19 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
 * **Confidential Computing (CC) & TEEs:** Integrates with **Intel TDX** and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
-* **Integrity for Legacy/Edge:** On commodity hardware, Aegis uses **Keylime** and **TPM 2.0** to verify the software stack's **Integrity** (via IMA/EVM). 
+* **Integrity for Legacy/Edge:** On commodity hardware, AegisSovereignAI uses **Keylime** and **TPM 2.0** to verify the software stack's **Integrity** (via IMA/EVM). 
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
-* **Hardware-rooted workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine.
-* **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
+* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation location boundary. Privacy-preserving location proofs (e.g. Zero-Knowledge Proofs aka ZKPs) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
 * **Safe Harbor for BYOD:** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** instead of **Enterprise Device Ownership**.
+* **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
 See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
 
-* **Audit without Disclosure:** By using privacy-preserving proofs of AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove compliance with regulations without the bank ever having to ingest or store sensitive data.
+* **Audit without Disclosure:** By using privacy-preserving proofs of AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
 
 ![AegisSovereignAI Architecture](images/readme-arch-new.svg)
 
@@ -76,7 +77,7 @@ See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
 The following scenarios demonstrate the business value delivered by our three-layer trust model.
 
 ### 1. The Enterprise Customer
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (e.g. Zero-Knowledge Proofs aka ZKPs), ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (ZKP etc.), ensuring the Enterprise meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
 
 ### 2. The Enterprise Employee
 *   **Sovereign Value:** **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
@@ -85,7 +86,7 @@ The following scenarios demonstrate the business value delivered by our three-la
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
 
 ### 4. The Enterprise Stakeholder
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and privacy-preserving AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data or disclose PII in system prompts.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and privacy-preserving AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the Enterprise ever having to ingest or store high-resolution, high-liability customer location data or disclose PII in system prompts.
 
 ## The Sovereign Supply Chain: End-to-End Trust
 
@@ -102,16 +103,9 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 
 | Need | CSA/NIST Guidance | AegisSovereignAI Execution |
 | --- | --- | --- |
-| **Residency Proof** | "Use geofencing for data residency." | **ZKP-Geofence** (Provable, no PII leak). |
+| **Residency Proof** | "Use geofencing for data residency." | **Privacy-Preserving (ZKP etc.) Geofence** (Provable, no PII leak). |
 | **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
 | **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
-
-## Addressing Complexity: The ZKP Performance Reality
-A common concern with ZKP is the computational "tax." Aegis addresses this through a **Hybrid Performance Model**:
-
-1. **Succinctness:** We utilize **zk-SNARKs**, where the resulting proof is tiny (**<1 KB**) and verified in **milliseconds**.
-2. **Asynchronous Proving:** Proof generation happens in parallel to AI inference. The AI responds instantly, while the "Compliance Receipt" is attached moments later.
-3. **Tiered Verification:** Use ZKP for high-value governance (legal/financial) while using lightweight **Hardware Attestation** (TPM) for routine operations.
 
 ## Implementation & Quick Start
 
@@ -119,6 +113,7 @@ A common concern with ZKP is the computational "tax." Aegis addresses this throu
 *   **Unified Identity Architecture:** Technical deep-dive into [Managed vs. BYOD Workload Provenance](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md).
 *   **Threat Model:** Analysis of the [Runtime Perception Gap and Sensor Fusion](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md).
 
+
 ---
 
-[Auditor Guide](./docs/auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/) | [ZKP Deep Dive](./docs/zkp.md)
+[Auditor Guide](./docs/auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
