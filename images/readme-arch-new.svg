@@ -49,15 +49,40 @@
   <text x="710" y="130" font-family="Arial" font-size="14" font-weight="bold" fill="#263238" text-anchor="middle">AI DATA PLANE</text>
   <text x="710" y="150" font-family="Arial" font-size="10" fill="#455A64" text-anchor="middle">(Workloads &amp; Inference)</text>
   
+  <!-- Neural Network Icon inside Data Plane -->
+  <g transform="translate(670, 200)" opacity="0.4">
+    <circle cx="20" cy="20" r="5" fill="#455A64" />
+    <circle cx="20" cy="50" r="5" fill="#455A64" />
+    <circle cx="20" cy="80" r="5" fill="#455A64" />
+    <circle cx="50" cy="10" r="5" fill="#455A64" />
+    <circle cx="50" cy="35" r="5" fill="#455A64" />
+    <circle cx="50" cy="65" r="5" fill="#455A64" />
+    <circle cx="50" cy="90" r="5" fill="#455A64" />
+    <circle cx="80" cy="35" r="5" fill="#455A64" />
+    <circle cx="80" cy="65" r="5" fill="#455A64" />
+    <line x1="20" y1="20" x2="50" y2="10" stroke="#455A64" stroke-width="1" />
+    <line x1="20" y1="20" x2="50" y2="35" stroke="#455A64" stroke-width="1" />
+    <line x1="20" y1="50" x2="50" y2="35" stroke="#455A64" stroke-width="1" />
+    <line x1="20" y1="50" x2="50" y2="65" stroke="#455A64" stroke-width="1" />
+    <line x1="20" y1="80" x2="50" y2="65" stroke="#455A64" stroke-width="1" />
+    <line x1="20" y1="80" x2="50" y2="90" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="10" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="35" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="35" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="65" x2="80" y2="35" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="65" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
+    <line x1="50" y1="90" x2="80" y2="65" stroke="#455A64" stroke-width="1" />
+  </g>
+
   <!-- INTERACTION LINES -->
   <path d="M 550 160 C 600 160 580 250 620 250" stroke="#1976D2" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-blue)" />
-  <text x="590" y="195" font-family="Arial" font-size="9" fill="#1976D2" transform="rotate(-45 590 195)">Governs Logic</text>
+  <text x="585" y="185" font-family="Arial" font-size="9" fill="#1976D2" transform="rotate(-45 585 185)" font-weight="bold">Governs Logic</text>
   
   <path d="M 550 250 L 620 250" stroke="#FB8C00" stroke-width="2" fill="none" marker-end="url(#arrowhead-orange)" />
-  <text x="585" y="240" font-family="Arial" font-size="9" fill="#E65100">Binds ID</text>
+  <text x="565" y="240" font-family="Arial" font-size="9" fill="#E65100" font-weight="bold">Binds ID</text>
 
   <path d="M 550 410 C 600 410 580 250 620 250" stroke="#43A047" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-green)" />
-  <text x="590" y="340" font-family="Arial" font-size="9" fill="#1B5E20" transform="rotate(45 590 340)">Secures Runtime</text>
+  <text x="595" y="325" font-family="Arial" font-size="9" fill="#1B5E20" transform="rotate(45 595 325)" font-weight="bold">Secures Runtime</text>
 
   <!-- MARKERS -->
   <defs>
