@@ -55,7 +55,7 @@ AI models are non-deterministic, making them difficult to audit. There is no cry
 
 ## The Three-Layer Trust Architecture
 
-AegisSovereignAI acts as the unifying control plane that cryptographically binds silicon-level attestation to application-level governance. Traditionally Layer 1 and Layer 3 are loosely coupled.  AegisSovereignAI unifies these layers into a single, cohesive architecture through the use of Layer 2 unified and extensible identity which binds the silicon-level attestation to workloads and end users and thus to the application-level governance.
+AegisSovereignAI acts as the unifying control plane that cryptographically binds silicon-level attestation to application-level governance. Traditionally Layer 1 and Layer 3 are loosely coupled. AegisSovereignAI unifies these layers into a single, cohesive architecture through the use of **Layer 2 Unified and Extensible Identity** which binds the silicon-level attestation to workloads and end users and thus to the application-level governance.
 
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
@@ -64,7 +64,7 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
-* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation location boundary. Privacy-preserving location proofs (e.g. Zero-Knowledge Proofs aka ZKPs) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
+* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation location boundary. Privacy-preserving location proofs (**Zero-Knowledge Proofs (ZKPs)**) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
 * **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** instead of **Enterprise Device Ownership**.
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
@@ -81,7 +81,7 @@ See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
 The following scenarios demonstrate the business value delivered by our three-layer trust model.
 
 ### 1. The Enterprise Customer
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (ZKP etc.), ensuring the Enterprise meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (ZKP etc.), ensuring the Enterprise meets regulatory metrics (**Regulation K / Reg-K**) without the privacy liability of storing raw customer movement data.
 
 ### 2. The Enterprise Employee
 *   **Sovereign Value:** **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
@@ -100,7 +100,7 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 | --- | --- | --- | --- |
 | **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Privacy-preserving techniques (ZKP etc.)** ensures data provenance without disclosure. |
 | **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
-| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SVID** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures execution matched policy. |
+| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures execution matched policy. |
 
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
