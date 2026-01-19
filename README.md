@@ -5,7 +5,7 @@ Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are 
 
 **AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Layer 2 Unified and Extensible Identity** framework, we cryptographically fuse silicon-level attestation with application-level governance—binding hardware integrity to both workloads and end-users to create a single, cohesive architecture.
 
-This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. We provide a contiguous **Sovereign Trust Loop** that ensures:
+This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**.
 
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 
