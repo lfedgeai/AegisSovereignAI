@@ -69,8 +69,6 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
 
-See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
-
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
 
 * **Audit without Disclosure:** By using privacy-preserving proofs of AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
