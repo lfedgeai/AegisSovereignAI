@@ -111,13 +111,6 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 | **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Parity Binding** (Physical provenance). |
 | **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
 
-## Implementation & Quick Start
-
-*   **Hybrid Cloud PoC:** Full integration of **SPIRE** and **Keylime** for [Real-Time Node Revocation](./hybrid-cloud-poc/README.md).
-*   **Unified Identity Architecture:** Technical deep-dive into [Managed vs. BYOD Workload Provenance](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md).
-*   **Threat Model:** Analysis of the [Runtime Perception Gap and Sensor Fusion](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md).
-
-
 ---
 
 [Auditor Guide](./docs/auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
