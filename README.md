@@ -18,7 +18,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
-*   **Target Requirement:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
+*   **Target Requirement:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history. AegisSovereignAI verifies the **Silicon Integrity** of the unmanaged device (hardware attestation) to establish trust without requiring enterprise device enrollment or taking control of the user's personal hardware.
 
 ### 2. The Enterprise Employee (Branch Relationship Manager)
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
@@ -92,6 +92,15 @@ The following scenarios demonstrate the business value delivered by our three-la
 ### 4. The Enterprise Stakeholder
 *   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving proofs, the Risk Officer can prove regional residency and model integrity to regulators without ingesting high-liability customer location data. These proofs are **exportable and compatible with standard SIEM/GRC (Security Information and Event Management / Governance, Risk, and Compliance) tools**, allowing for automated, continuous auditing within existing enterprise workflows.
 
+### Regulatory & Standards Mapping
+The AegisSovereignAI architecture provides a direct implementation path for global AI safety and governance frameworks:
+
+| Feature Layer | EU AI Act Alignment | NIST AI RMF Alignment |
+| --- | --- | --- |
+| **Layer 3: Governance** | **Article 10 (Data & Governance):** Ensures training data/prompt integrity via verifiable circuits. | **Governance (GOVERN):** Transparent, documented policy enforcement as a circuit. |
+| **Layer 2: Identity** | **Transparency Obligations:** Cryptographic proof of "Who" and "Where" without PII exposure. | **Accountability (MANAGE):** Precise workload/human identity mapping. |
+| **Layer 1: Infrastructure** | **Cybersecurity Standards:** hardware-enforced isolation and TEE-based confidentiality. | **Secure (RESILIENT):** TEE-based model/context shielding from privileged admins. |
+
 ## The Sovereign Supply Chain: End-to-End Trust
 
 AegisSovereignAI applies its three-layer architecture across the entire AI lifecycle.
@@ -113,4 +122,7 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 
 ---
 
-[Auditor Guide](./docs/auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
+## Technical & Auditor Resources
+
+*   **[Auditor Guide](./docs/auditor.md)** - Detailed walkthrough of the attestation logic and cryptographic verification for risk assessments.
+*   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.
