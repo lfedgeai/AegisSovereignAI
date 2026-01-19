@@ -90,7 +90,7 @@ The following scenarios demonstrate the business value delivered by our three-la
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
 
 ### 4. The Enterprise Stakeholder
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and privacy-preserving AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the Enterprise ever having to ingest or store high-resolution, high-liability customer location data or disclose PII in system prompts.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving proofs, the Risk Officer can prove regional residency and model integrity to regulators without ingesting high-liability customer location data. These proofs are **exportable and compatible with standard SIEM/GRC (Security Information and Event Management / Governance, Risk, and Compliance) tools**, allowing for automated, continuous auditing within existing enterprise workflows.
 
 ## The Sovereign Supply Chain: End-to-End Trust
 
@@ -99,8 +99,8 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 | AI Lifecycle Stage | Layer 1: Infrastructure | Layer 2: Identity | Layer 3: Governance |
 | --- | --- | --- | --- |
 | **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Privacy-preserving techniques (ZKP etc.)** ensures data provenance without disclosure. |
-| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—protects weights from privileged admin snooping. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
-| **Model Inference** | **Silicon-Enforced Privacy (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts and results in-use. | **Unified SVID** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures execution matched policy. |
+| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
+| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SVID** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures execution matched policy. |
 
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
