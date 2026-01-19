@@ -1,73 +1,57 @@
 # AegisSovereignAI: Trusted AI for the Distributed Enterprise
 
-## Executive Summary: From "Best-Effort" Zero-trust to Verifiable Intelligence
+## Executive Summary
 
 **AegisSovereignAI** transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. We provide a contiguous **Sovereign Trust Loop** that ensures:
-
-* **Physical Determinism:** Binds AI responses to benchmarked hardware to mitigate **Hardware-Induced Drift**.
-* **Compliance without Liability:** Utilizes **Zero-Knowledge Proofs (ZKP)** to provide mathematical evidence of residency (**Regulation K**) and integrity without ingesting or storing sensitive PII.
-* **Autonomous Resilience:** A hardware-rooted **Autonomous Revocation Loop** that "ghosts" compromised agents from the fabric in real-time.
 
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 
 ---
 
-## Enterprise Sovereign Scenarios: High-Stakes Challenges & Value
+---
 
-The following describing various enterprise use cases and requirements.
+## Enterprise Sovereign Scenarios: High-Stakes Challenges
 
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
-
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
 *   **Target Requirement:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (e.g. Zero-Knowledge Proofs), ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
 
 ### 2. The Enterprise Employee (Branch Relationship Manager)
-
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
 *   **Target Requirement:** Frictionless access to sensitive client PII on-site for analysis or loan processing using managed laptops or branch servers.
-*   **Sovereign Value:** **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
 
 ### 3. The Enterprise Tenant (Line-of-Business Owner)
-
 *   **Core Use Case:** **Regulatory Sandboxing for LOBs.** Enabling the Mortgage and Credit Card divisions to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective AI models and data.
 *   **Target Requirement:** Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
-*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
-
-*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (OCC/ECB), demonstrating that every AI interaction—across all retail devices, employee hardware, and Data Center Infrastructure—was verified by hardware, uses trusted AI models and system prompts, and compliant with data residency laws.
+*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, mathematical proof-of-compliance for regulators (OCC/ECB), demonstrating that every AI interaction—across all retail devices, employee hardware, and Data Center Infrastructure—was verified by hardware, uses trusted/untampered AI models and system prompts, and compliant with data residency laws.
 *   **Target Requirement:** Compliance without disclosing sensitive data such as location history or sensitive AI model system prompts.
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
 
 ---
 
-## Technical Problems: Six Dimensions of Failure
+## The Accountability Gap: Five Dimensions of Failure
 
-To address the enterprise scenarios above, we must solve for the specific technical problems that traditional IT security cannot mitigate.
+To achieve a contiguous Sovereign Trust Loop, we must solve for the specific technical problems that traditional IT security cannot mitigate.
 
 ### 1. The Fragility of Identity & Geofencing
 Traditional security relies on **bearer tokens** and **IP-based geofencing**, which are fundamentally non-binding and easily spoofed.
 * **Replay Attacks:** Standard tokens function like a physical key; if a malicious actor intercepts a token, they can replay it to impersonate a legitimate workload (e.g., an AI agent).
-* **VPN-based Spoofing:** IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
+* **VPN-based Spoofing:** Commonly used IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
 
 ### 2. The Residency vs. Privacy Deadlock
-Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution GPS data, creating massive PII liability under GDPR. Banks are often forced to choose between non-compliance or privacy violation.
+Regulators require proof of data residency (Reg-K), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under GDPR. Banks are often forced to choose between non-compliance or privacy violation.
 
-### 3. Infrastructure Blind Spots
-Modern AI workloads are vulnerable to **infrastructure blind spots**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
+### 3. Infrastructure Compromise
+Modern AI workloads are vulnerable to **infrastructure compromise**—where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift
-AI drift is physically anchored to hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. Without **Physical Provenance**, there is no way to verify if a decision diverted due to unauthorized hardware migration.
+AI prompt response drift is physically anchored to hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. Without **Physical Provenance**, there is no way to verify if a decision diverted due to unauthorized hardware migration.
 
 ### 5. The Black-Box Governance Gap
-AI models are non-deterministic, making them difficult to audit. Governance today is mostly "AI-Washing"—static policy documents that do not actually control the model. There is no mathematical proof that a specific decision was made by an untampered model.
-
-### 6. The Multi-Agent Chain Reaction & Capability Bleed
-If one agent is compromised (e.g., via indirect prompt injection), it can "bleed" its capabilities into the next in an autonomous chain reaction. Traditional security monitors Human-to-Machine traffic but is blind to internal Agent-to-Agent logic drifts.
+AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using trusted/untampered AI models/system prompts without disclosing sensitive data such as AI model system prompts.
 
 ---
-
 
 ## The Three-Layer Trust Architecture
 
@@ -76,20 +60,42 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
 * **Confidential Computing (CC) & TEEs:** Integrates with **Intel TDX** and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
-* **Integrity for Legacy/Edge:** On commodity hardware, Aegis uses **Keylime** and **TPM 2.0** to verify the software stack's **Integrity** (via IMA/EVM). See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
+* **Integrity for Legacy/Edge:** On commodity hardware, Aegis uses **Keylime** and **TPM 2.0** to verify the software stack's **Integrity** (via IMA/EVM). 
 
 ### Layer 2: Workload Identity (The Provable Bridge)
 
 * **Unified Identity (SPIRE):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine.
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
+See the [Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
 
-* **Policy-as-Circuit:** Rules are compiled into **zk-SNARK circuits**, providing an immutable **Certificate of Compliance** for every AI decision.
-* **Audit without Disclosure:** Prove the AI used a specific audited model version and benchmarked hardware profile without revealing proprietary weights or sensitive PII.
+* **Audit without Disclosure:** By using privacy-preserving proofs of AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove compliance with regulations without the bank ever having to ingest or store sensitive data.
 
 ![AegisSovereignAI Architecture](images/readme-arch-new.svg)
+
+---
+
+![AegisSovereignAI Architecture](images/readme-arch-new.svg)
+
+---
+
+## Sovereign Value Realization: The Outcome of the Architecture
+
+The following scenarios demonstrate the business value delivered by our three-layer trust model.
+
+### 1. The Enterprise Customer
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (e.g. Zero-Knowledge Proofs), ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
+
+### 2. The Enterprise Employee
+*   **Sovereign Value:** **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
+
+### 3. The Enterprise Tenant
+*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable Workload Identity rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
+
+### 4. The Enterprise Stakeholder
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving location proofs and AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
 
 ---
 
