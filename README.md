@@ -10,9 +10,9 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ![AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 
 ### Quick Links for Architects & PMs
-*   **[Hybrid Cloud PoC](./hybrid-cloud-poc/README.md):** Real-time Revocation & **SPIFFE Verifiable Identity Document (SVID)** binding logic.
-*   **[Threat Model](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md):** Analysis of Runtime Localitary Spoofing.
-*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md):** Blended Identity & **Workload Identity in Multi-System Environments (WIMSE)** integration.
+*   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)**
+*   **[Threat Model Highlights](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)**
+*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)**
 
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges (Focus: Financial Services)
 
