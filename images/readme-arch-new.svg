@@ -1,59 +1,74 @@
-<svg width="800" height="520" viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg">
+<svg width="850" height="520" viewBox="0 0 850 520" xmlns="http://www.w3.org/2000/svg">
+  <!-- CONTROL PLANE LABEL -->
+  <text x="300" y="15" font-family="Arial" font-size="12" font-weight="bold" fill="#78909C" text-anchor="middle">AEGIS SOVEREIGN CONTROL PLANE (GOVERNANCE &amp; TRUST)</text>
+  
   <!-- LAYER 3: GOVERNANCE -->
-  <rect x="50" y="20" width="700" height="140" rx="8" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" />
-  <text x="70" y="50" font-family="Arial" font-size="16" font-weight="bold" fill="#0D47A1">LAYER 3: VERIFIABLE GOVERNANCE &amp; PRIVACY</text>
+  <rect x="50" y="25" width="500" height="135" rx="8" fill="#E3F2FD" stroke="#1976D2" stroke-width="2" />
+  <text x="70" y="50" font-family="Arial" font-size="14" font-weight="bold" fill="#0D47A1">LAYER 3: VERIFIABLE GOVERNANCE</text>
   <g transform="translate(80, 70)">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#1976D2" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle">Audit without Disclosure</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">Privacy-preserving Proofs (ZKP)</text>
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#1976D2" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Audit without Disclosure</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Privacy-preserving Proofs (ZKP)</text>
   </g>
-  <g transform="translate(420, 70)">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#1976D2" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle">Policy-as-Circuit</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">ZKP / Noir / OPA Compilation</text>
+  <g transform="translate(320, 70)">
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#1976D2" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Policy-as-Circuit</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">ZKP / Noir Compilation</text>
   </g>
 
   <!-- LAYER 2: IDENTITY -->
-  <rect x="50" y="180" width="700" height="140" rx="8" fill="#FFF3E0" stroke="#FB8C00" stroke-width="2" />
-  <text x="70" y="210" font-family="Arial" font-size="16" font-weight="bold" fill="#E65100">LAYER 2: UNIFIED IDENTITY &amp; RESIDENCY</text>
+  <rect x="50" y="185" width="500" height="135" rx="8" fill="#FFF3E0" stroke="#FB8C00" stroke-width="2" />
+  <text x="70" y="210" font-family="Arial" font-size="14" font-weight="bold" fill="#E65100">LAYER 2: UNIFIED IDENTITY &amp; RESIDENCY</text>
   <g transform="translate(80, 230)">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#FB8C00" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle">Blended Identity (SPIRE)</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">Fuses Human session + Workload ID</text>
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#FB8C00" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Blended Identity (SPIRE)</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Fuses Human + Workload ID</text>
   </g>
-  <g transform="translate(420, 230)" id="kill-switch-node">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#D32F2F" stroke-width="2" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle" fill="#D32F2F">AUTONOMOUS KILL-SWITCH</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">Real-time SVID Revocation</text>
+  <g transform="translate(320, 230)">
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#D32F2F" stroke-width="2" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle" fill="#D32F2F">AUTONOMOUS KILL-SWITCH</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Real-time SVID Revocation</text>
   </g>
 
   <!-- LAYER 1: INFRASTRUCTURE -->
-  <rect x="50" y="340" width="700" height="140" rx="8" fill="#F1F8E9" stroke="#43A047" stroke-width="2" />
-  <text x="70" y="370" font-family="Arial" font-size="16" font-weight="bold" fill="#1B5E20">LAYER 1: CONFIDENTIAL FOUNDATION</text>
-  <g transform="translate(80, 400)">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#43A047" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle">Confidential Computing</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">Intel TDX / NVIDIA H100 TEEs</text>
+  <rect x="50" y="345" width="500" height="135" rx="8" fill="#F1F8E9" stroke="#43A047" stroke-width="2" />
+  <text x="70" y="370" font-family="Arial" font-size="14" font-weight="bold" fill="#1B5E20">LAYER 1: CONFIDENTIAL FOUNDATION</text>
+  <g transform="translate(80, 390)">
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#43A047" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Confidential Computing</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Intel TDX / NVIDIA H100</text>
   </g>
-  <g transform="translate(420, 400)">
-    <rect width="250" height="70" rx="4" fill="#fff" stroke="#43A047" />
-    <text x="125" y="30" font-family="Arial" font-size="13" font-weight="bold" text-anchor="middle">Integrity Monitoring</text>
-    <text x="125" y="50" font-family="Arial" font-size="10" text-anchor="middle">Keylime / TPM 2.0 Attestation</text>
+  <g transform="translate(320, 390)">
+    <rect width="200" height="60" rx="4" fill="#fff" stroke="#43A047" />
+    <text x="100" y="25" font-family="Arial" font-size="12" font-weight="bold" text-anchor="middle">Integrity Monitoring</text>
+    <text x="100" y="45" font-family="Arial" font-size="10" text-anchor="middle">Keylime / TPM 2.0 Attestation</text>
   </g>
 
-  <!-- ATTESTATION FLOW & KILL-SWITCH PATH -->
-  <path d="M 545 400 L 545 300" stroke="#43A047" stroke-width="2" stroke-dasharray="4,2" fill="none" marker-end="url(#arrowhead-green)" />
-  <path d="M 545 230 L 545 140" stroke="#D32F2F" stroke-width="2" marker-end="url(#arrowhead-red)" />
-  <text x="555" y="170" font-family="Arial" font-size="10" fill="#D32F2F" font-weight="bold">REVOKE on Drift</text>
-  <text x="555" y="320" font-family="Arial" font-size="10" fill="#43A047" font-weight="bold">Attestation Path</text>
+  <!-- DATA PLANE (AI WORKLOAD) -->
+  <rect x="620" y="100" width="180" height="300" rx="8" fill="#ECEFF1" stroke="#455A64" stroke-width="2" stroke-dasharray="5,5" />
+  <text x="710" y="130" font-family="Arial" font-size="14" font-weight="bold" fill="#263238" text-anchor="middle">AI DATA PLANE</text>
+  <text x="710" y="150" font-family="Arial" font-size="10" fill="#455A64" text-anchor="middle">(Workloads &amp; Inference)</text>
+  
+  <!-- INTERACTION LINES -->
+  <path d="M 550 160 C 600 160 580 250 620 250" stroke="#1976D2" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-blue)" />
+  <text x="590" y="195" font-family="Arial" font-size="9" fill="#1976D2" transform="rotate(-45 590 195)">Governs Logic</text>
+  
+  <path d="M 550 250 L 620 250" stroke="#FB8C00" stroke-width="2" fill="none" marker-end="url(#arrowhead-orange)" />
+  <text x="585" y="240" font-family="Arial" font-size="9" fill="#E65100">Binds ID</text>
+
+  <path d="M 550 410 C 600 410 580 250 620 250" stroke="#43A047" stroke-width="2" stroke-dasharray="3,2" fill="none" marker-end="url(#arrowhead-green)" />
+  <text x="590" y="340" font-family="Arial" font-size="9" fill="#1B5E20" transform="rotate(45 590 340)">Secures Runtime</text>
 
   <!-- MARKERS -->
   <defs>
-    <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#43A047" />
+    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1976D2" />
     </marker>
-    <marker id="arrowhead-red" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
-      <polygon points="10 3.5, 0 0, 0 7" fill="#D32F2F" />
+    <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FB8C00" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#43A047" />
     </marker>
   </defs>
 </svg>
