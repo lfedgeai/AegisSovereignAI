@@ -1,7 +1,7 @@
 # AegisSovereignAI: Trusted AI for the Distributed Enterprise
 
 ## Executive Summary
-Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are loosely coupled resulting in challenges such as **identity spoofing**, **PII liability**, **infrastructure blind spots**, **unverifiable hardware drift**, and **opaque AI governance**.
+Traditionally Layer 1 (Infrastructure Security) and Layer 3 (AI Governance) are loosely coupled. This fragmentation results in a dangerous "Accountability Gap" where **identities are easily spoofed** via replay attacks, **compliance creates massive PII liability** through high-resolution location tracking, and **compromised infrastructure** can feed fake sensor data to applications undetected. Furthermore, **hardware-induced drift** makes AI decisions physically unverifiable, while **opaque governance** leaves models as un-auditable black boxes without cryptographic proof of integrity.
 
 AegisSovereignAI acts as the unifying control plane that cryptographically binds silicon-level attestation to application-level governance. AegisSovereignAI unifies these layers into a single, cohesive architecture through the use of Layer 2 unified and extensible identity which binds the silicon-level attestation to workloads and end users and thus to the application-level governance.
 
