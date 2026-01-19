@@ -11,7 +11,6 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 ## Enterprise Sovereign Scenarios: High-Stakes Challenges (Focus: Financial Services)
 
-
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
 *   **Target Requirement:** Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
@@ -30,7 +29,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 ## The Accountability Gap: Five Dimensions of Failure
 
-To achieve a contiguous Sovereign Trust Loop, we must solve for the specific technical problems that traditional IT security cannot mitigate.
+To address the above use cases, we must solve for the specific technical problems that traditional IT security cannot mitigate. Note that the below technical problems are not unique to AI or Financial Services. 
 
 ### 1. The Fragility of Identity & Geofencing
 Traditional security relies on **bearer tokens** and **IP-based geofencing**, which are fundamentally non-binding and easily spoofed.
