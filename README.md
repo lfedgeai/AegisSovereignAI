@@ -59,7 +59,7 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
-* **Confidential Computing (CC) & Trusted Execution Environments (TEEs):** Integrates with **Intel TDX** and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
+* **Confidential Computing (CC) & Trusted Execution Environments (TEEs):** Integrates with **Intel TDX**, **AMD SEV**, and **NVIDIA H100 TEEs** to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
 * **Integrity for Legacy/Edge:** On commodity hardware, AegisSovereignAI uses **Keylime** and **Trusted Platform Module (TPM 2.0)** to verify the software stack's **Integrity** (via **Integrity Measurement Architecture (IMA)** and **Extended Verification Module (EVM)**). 
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
