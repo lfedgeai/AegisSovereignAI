@@ -11,9 +11,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 *Figure 1: AegisSovereignAI Architecture Summary - Bridging Infrastructure, Identity, and Governance.*
 
 ### Quick Links for Architects & PMs
-*   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)**
-*   **[Threat Model Highlights](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)**
-*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)**
+*   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)** - Live demonstration of the three-layer architecture with concrete use cases.
 
 ## Enterprise Sovereign Use Cases (Focus: Financial Services)
 
@@ -134,4 +132,6 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 
 *   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering hardware integrity, location proofs, identity binding, and prompt compliance. Includes regulatory mapping (OCC/ECB/Reg-K) and the complete Evidence Bundle structure.
 *   **[ZKP Deep-Dive for Technical Auditors](./docs/auditor-zkp-deep-dive.md)** - Technical walkthrough of Zero-Knowledge Proof circuits, Batch & Purge architecture, Merkle Tree construction, and incident response workflow for prompt integrity verification.
+*   **[Threat Model: Runtime Perception Gap](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)** - Analysis of infrastructure compromise scenarios and the kill-switch architecture.
+*   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** - Detailed technical architecture of the SPIRE/Keylime identity fusion model.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.
