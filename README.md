@@ -70,7 +70,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 * **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. Privacy-preserving location proofs (e.g., **Zero-Knowledge Proofs (ZKPs)**) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive location data.
 * **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** on the fly instead of **Enterprise Device Ownership**.
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
-* **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in real-time, isolating the agent before lateral movement.
+* **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in **real-time**, isolating the agent before lateral movement.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
 
