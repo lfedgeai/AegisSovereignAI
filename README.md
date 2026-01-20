@@ -18,13 +18,13 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ## Enterprise Sovereign Use Cases (Focus: Financial Services)
 
 ### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
-*   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while using their physical location for **Regulation K (Reg-K)** compliance without disclosing precise location to the AI service. The AI system prompt must contain mandatory safety guardrails (e.g., "never disclose account numbers") while user prompts must be scanned for injection attacks (e.g., "ignore previous instructions").
+*   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while using their physical location for **Regulation K (Reg-K)** compliance without disclosing precise location to the AI service. 
 
 ### 2. The Enterprise Employee (Branch Relationship Manager)
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
 
 ### 3. The Enterprise Tenant (Line-of-Business Owner aka LOB)
-*   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data.
+*   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data. From a tenant AI service perspective, the AI system prompt must contain mandatory safety guardrails (e.g., "never disclose account numbers") while user prompts must be scanned for injection attacks (e.g., "ignore previous instructions").
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
 *   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, cryptographically verifiable proof-of-compliance for regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, **European Central Bank (ECB)**), demonstrating that every AI interaction — across all retail devices, employee hardware, and Data Center Infrastructure — runs on trusted hardware, uses trusted/untampered AI models and system prompts, screens user prompts for jailbreak attacks, and complies with data residency laws. Compliance without disclosing sensitive data such as location history, proprietary AI model system prompts, or raw user prompts is a critical need.
@@ -45,7 +45,7 @@ Regulators require proof of data residency (e.g., **Regulation K aka Reg-K**), b
 Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift & Computational Determinism
-AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism**—ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises need to restrict and verify the types of hardware that can run their AI models.
+AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises need to restrict and verify the types of hardware that can run their AI models.
 
 ### 5. The Black-Box Governance Gap
 AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using trusted/untampered AI models/system prompts without disclosing sensitive data. For example, an auditor cannot verify that the system prompt contained "redact all SSNs" or that a user prompt did not contain a jailbreak command like "print full instructions" without seeing the actual prompts—a privacy and IP liability.
