@@ -141,7 +141,22 @@ Even if the system prompt prohibits disclosure and the user prompt was benign, *
 
 ---
 
-## 3. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
+## 3. Why Privacy-Preserving Techniques (e.g. **ZKP**)? A Technical Comparison
+
+While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the unique combination of **mathematical certainty** and **data minimization** required for high-stakes AI governance.
+
+| Technology | Trust Basis | Perf. Overhead | Data Retention | Suitability for AI Lifecycle Audit |
+| :--- | :--- | :--- | :--- | :--- |
+| **TEEs (Enclaves)** | Hardware Silicon Vendor | Low (1-5%) | **High** | TEEs protect data *in-flight* (Layer 1). However, they don't provide a verifiable statement to external auditors without granting access to internal logs, recreating PII liability. |
+| **Homomorphic Encryption (FHE)** | Cryptographic Hard Problems | **Extreme** (1000x+) | Managed | FHE allows computation on encrypted data but is currently too slow for real-time LLM inference and does not provide an explicit "Statement of Compliance." |
+| **Multi-Party Computation (MPC)** | Distributed Trust Nodes | High (Latency) | Distributed | Suitable for collaborative computing, but operational complexity and network round-trips make it inefficient for rapid, batch-based prompt auditing. |
+| **Zero-Knowledge Proofs (ZKP)** | Mathematical Proof | **Medium (Batched)** | **Zero (Purged)** | **Optimal.** Allows for the **Batch & Purge** model. The auditor verifies the *statement of compliance* while the Enterprise deletes the high-liability raw PII immediately. |
+
+**The Aegis Decision:** By combining **TEEs** (for secure real-time execution) with **ZKPs** (for verifiable audit and data purging), AegisSovereignAI achieves both performance and radical privacy, satisfying the most stringent regulatory requirements without the liability of data persistence.
+
+---
+
+## 4. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
 
 ### Scenario
 
@@ -183,7 +198,7 @@ This ZKP addresses the **Excessive Agency Risk**—the danger that the AI model 
 
 ---
 
-## 4. The Noir Circuit (Technical Implementation)
+## 5. The Noir Circuit (Technical Implementation)
 
 The core logic uses a ZK-friendly string search algorithm.
 
@@ -215,7 +230,7 @@ fn main(
 
 ---
 
-## 5. Incident Response & Escalation Workflow
+## 6. Incident Response & Escalation Workflow
 
 In a cryptographic audit model, a **"Failure to Generate a Proof"** is the primary signal of a policy violation.
 
@@ -231,7 +246,7 @@ If the ZKP circuit encounters a prompt that violates an **Exclusion Rule** (e.g.
 
 ---
 
-## 6. The Evidence Bundle for Auditors
+## 7. The Evidence Bundle for Auditors
 
 When an auditor requests compliance evidence, they receive an **Evidence Bundle**:
 
@@ -277,7 +292,7 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 
 ---
 
-## 7. Regulatory Value Proposition
+## 8. Regulatory Value Proposition
 
 | Regulatory Need | AegisSovereignAI Execution |
 | --- | --- |
