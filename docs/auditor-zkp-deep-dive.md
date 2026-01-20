@@ -18,7 +18,9 @@ Enterprises in regulated industries face a fundamental conflict when auditing AI
 
 ---
 
-## 2. The Two-Track Proof Strategy
+## 2. The Three-Track Proof Strategy
+
+AegisSovereignAI provides **end-to-end cryptographic verification** across the complete AI inference lifecycle: **Input → Model → Output**.
 
 ### Track A: System Prompt Integrity (Pre-Computed)
 
@@ -104,6 +106,38 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
      permanently deleted. The Enterprise retains ZERO high-liability 
      PII while maintaining full cryptographic auditability.
 ```
+
+### Track C: AI Output Compliance (Real-Time Filtering & Batch Proof)
+
+AI model outputs pose unique compliance risks that require verification even when inputs are safe:
+- **PII Leakage:** AI can hallucinate or inadvertently expose SSNs, account numbers, or other sensitive data
+- **Content Policy Violations:** Outputs may contain harmful, biased, or regulated content
+- **Redaction Failures:** DLP filters may fail to mask sensitive information before delivery
+
+**Process:**
+1.  **Real-Time Output Filtering:** Before delivering the AI response to the user, each output passes through a multi-stage filter:
+    *   **DLP Scanner:** Detects and redacts PII patterns (SSNs, account numbers, addresses)
+    *   **Content Safety Classifier:** Flags harmful, toxic, or policy-violating content
+    *   **Regulatory Compliance Check:** Ensures outputs comply with sector-specific rules (e.g., financial advice disclaimers)
+2.  **Ephemeral Output Buffer:** Filtered outputs are temporarily stored in the same TEE-protected buffer as user prompts
+3.  **Batch Window:** Outputs are batched alongside their corresponding user prompts
+4.  **Merkle Tree Construction:** Outputs are organized into a Merkle Tree with their associated prompts to create a verifiable audit trail
+5.  **Combined ZKP Generation:** A single ZKP proves:
+    *   *"All outputs in Merkle Root R were successfully filtered for PII"*
+    *   *"All outputs passed content safety checks"*
+    *   *"No redaction failures occurred"*
+6.  **Anchor & Purge:** Once the output compliance proof is anchored, raw AI outputs are purged alongside the prompts
+
+**Outcome:** Regulators receive proof that AI outputs were compliant and properly filtered, without the Enterprise retaining high-risk AI-generated text that could contain PII.
+
+#### Why Output Verification Matters: The Hallucination Risk
+
+**Concrete Example:** A Private Wealth Advisory AI is asked: *"What investments does John Smith have?"*
+
+- **Compliant Output:** "I don't have access to individual client portfolios. Please contact your relationship manager."
+- **Non-Compliant Hallucination:** "John Smith (SSN: 123-45-6789) has $2.3M in equities and $800K in bonds."
+
+Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track C ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
 
 ---
 
