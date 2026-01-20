@@ -27,7 +27,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 *   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data.
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
-*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, cryptographically verifiable proof-of-compliance for regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, **European Central Bank (ECB)**), demonstrating that every AI interaction — across all retail devices, employee hardware, and Data Center Infrastructure — runs on trusted hardware, uses trusted/untampered AI models and system prompts, and complies with data residency laws. Compliance without disclosing sensitive data such as location history or sensitive AI model system prompts is a critical need.
+*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, cryptographically verifiable proof-of-compliance for regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, **European Central Bank (ECB)**), demonstrating that every AI interaction — across all retail devices, employee hardware, and Data Center Infrastructure — runs on trusted hardware, uses trusted/untampered AI models and system prompts, screens user prompts for jailbreak attacks, and complies with data residency laws. Compliance without disclosing sensitive data such as location history, proprietary AI model system prompts, or raw user prompts is a critical need.
 
 ## Technical Challenges for Addressing Use Cases
 
