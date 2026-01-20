@@ -45,7 +45,7 @@ Regulators require proof of data residency (e.g., **Regulation K aka Reg-K**), b
 Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift & Computational Determinism
-AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism**—ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
+AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
 
 ### 5. The Black-Box Governance Gap
 AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using trusted/untampered AI models/system prompts without disclosing sensitive data. For example, an auditor cannot verify that the system prompt contained "redact all SSNs" or that a user prompt did not contain a jailbreak command like "print full instructions" without seeing the actual prompts—a privacy and IP liability.
@@ -133,5 +133,5 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 ## Technical & Auditor Resources
 
 *   **[Auditor Guide](./docs/auditor.md)** - Detailed walkthrough of the attestation logic and cryptographic verification for risk assessments.
-*   **[ZKP Example](./docs/zkp.md)** - Detailed walkthrough of privacy-preserving proofs for model system/user prompt integrity.
+*   **[ZKP Audit Walkthrough](./docs/audit-zkp.md)** - Detailed walkthrough of privacy-preserving proofs for model system/user prompt integrity.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.
