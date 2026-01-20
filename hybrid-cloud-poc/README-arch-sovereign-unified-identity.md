@@ -260,7 +260,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 - **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
 
 > [!IMPORTANT]
-> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated infrastructure blind spot exploits on unmanaged devices, see the **[Threat Model: The Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
+> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated infrastructure blind spot exploits on unmanaged devices, see the **[Threat Model: Unmanaged Device Perception Gap](THREAT-MODEL-unmanaged-device-perception-gap.md)**.
 
 ---
 
@@ -2412,4 +2412,4 @@ For a comprehensive view of production readiness, identified security gaps, and 
 
 ### Advanced Threat Research
 
-For a detailed analysis of how this architecture mitigates advanced GPS spoofing and runtime 'gaslighting' attacks on unmanaged devices, see the **[Threat Model: Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
+For a detailed analysis of how this architecture mitigates advanced GPS spoofing and runtime 'gaslighting' attacks on unmanaged devices, see the **[Threat Model: Unmanaged Device Perception Gap](THREAT-MODEL-unmanaged-device-perception-gap.md)**.
