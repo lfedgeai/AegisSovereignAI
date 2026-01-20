@@ -18,7 +18,22 @@ Enterprises in regulated industries face a fundamental conflict when auditing AI
 
 ---
 
-## 2. The Three-Track Proof Strategy
+## 2. Why Privacy-Preserving Techniques (e.g. **ZKP**)? A Technical Comparison
+
+While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the unique combination of **mathematical certainty** and **data minimization** required for high-stakes AI governance.
+
+| Technology | Trust Basis | Perf. Overhead | Data Retention | Suitability for AI Lifecycle Audit |
+| :--- | :--- | :--- | :--- | :--- |
+| **TEEs (Enclaves)** | Hardware Silicon Vendor | Low (1-5%) | **High** | TEEs protect data *in-flight* (Layer 1). However, they don't provide a verifiable statement to external auditors without granting access to internal logs, recreating PII liability. |
+| **Homomorphic Encryption (FHE)** | Cryptographic Hard Problems | **Extreme** (1000x+) | Managed | FHE allows computation on encrypted data but is currently too slow for real-time LLM inference and does not provide an explicit "Statement of Compliance." |
+| **Multi-Party Computation (MPC)** | Distributed Trust Nodes | High (Latency) | Distributed | Suitable for collaborative computing, but operational complexity and network round-trips make it inefficient for rapid, batch-based prompt auditing. |
+| **Zero-Knowledge Proofs (ZKP)** | Mathematical Proof | **Medium (Batched)** | **Zero (Purged)** | **Optimal.** Allows for the **Batch & Purge** model. The auditor verifies the *statement of compliance* while the Enterprise deletes the high-liability raw PII immediately. |
+
+**The Aegis Decision:** By combining **TEEs** (for secure real-time execution) with **ZKPs** (for verifiable audit and data purging), AegisSovereignAI achieves both performance and radical privacy, satisfying the most stringent regulatory requirements without the liability of data persistence.
+
+---
+
+## 3. The Three-Track Proof Strategy
 
 AegisSovereignAI provides **end-to-end cryptographic verification** across the complete AI inference lifecycle: **Input → Model → Output**.
 
@@ -138,21 +153,6 @@ AI model outputs pose unique compliance risks that require verification even whe
 - **Non-Compliant Hallucination:** "John Smith (SSN: 123-45-6789) has $2.3M in equities and $800K in bonds."
 
 Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track C ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
-
----
-
-## 3. Why Privacy-Preserving Techniques (e.g. **ZKP**)? A Technical Comparison
-
-While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the unique combination of **mathematical certainty** and **data minimization** required for high-stakes AI governance.
-
-| Technology | Trust Basis | Perf. Overhead | Data Retention | Suitability for AI Lifecycle Audit |
-| :--- | :--- | :--- | :--- | :--- |
-| **TEEs (Enclaves)** | Hardware Silicon Vendor | Low (1-5%) | **High** | TEEs protect data *in-flight* (Layer 1). However, they don't provide a verifiable statement to external auditors without granting access to internal logs, recreating PII liability. |
-| **Homomorphic Encryption (FHE)** | Cryptographic Hard Problems | **Extreme** (1000x+) | Managed | FHE allows computation on encrypted data but is currently too slow for real-time LLM inference and does not provide an explicit "Statement of Compliance." |
-| **Multi-Party Computation (MPC)** | Distributed Trust Nodes | High (Latency) | Distributed | Suitable for collaborative computing, but operational complexity and network round-trips make it inefficient for rapid, batch-based prompt auditing. |
-| **Zero-Knowledge Proofs (ZKP)** | Mathematical Proof | **Medium (Batched)** | **Zero (Purged)** | **Optimal.** Allows for the **Batch & Purge** model. The auditor verifies the *statement of compliance* while the Enterprise deletes the high-liability raw PII immediately. |
-
-**The Aegis Decision:** By combining **TEEs** (for secure real-time execution) with **ZKPs** (for verifiable audit and data purging), AegisSovereignAI achieves both performance and radical privacy, satisfying the most stringent regulatory requirements without the liability of data persistence.
 
 ---
 
