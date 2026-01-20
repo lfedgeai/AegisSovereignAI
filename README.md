@@ -114,9 +114,9 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 
 | AI Lifecycle Stage | Layer 1: Infrastructure | Layer 2: Identity | Layer 3: Governance |
 | --- | --- | --- | --- |
-| **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Privacy-preserving techniques (e.g. **ZKP**)** ensure data provenance without disclosure. |
-| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Data Lineage Attestation** via **privacy-preserving techniques (e.g. **ZKP**)**. |
-| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **Privacy-preserving techniques (e.g. **ZKP**)** ensure model system/user prompt integrity without disclosing proprietary logic |
+| **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Hardware-Rooted Provenance** via **privacy-preserving techniques (e.g. **ZKP**)** (Prove origin, hide device ID). |
+| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Redaction Policy Verification** via **privacy-preserving techniques (e.g. **ZKP**)** (Prove PII was excluded from training). |
+| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **Prompt & Output Integrity** via **privacy-preserving techniques (e.g. **ZKP**)** (Verifiable "Batch & Purge"). |
 
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
