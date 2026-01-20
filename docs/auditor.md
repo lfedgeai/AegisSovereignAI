@@ -107,4 +107,4 @@ To fit into existing bank workflows, the **Evidence Bundle** is designed to be i
 
 ---
 
-[Root README](../README.md) | [Threat Model](../hybrid-cloud-poc/THREAT-MODEL-unmanaged-device-perception-gap.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
+[Root README](../README.md) | [Threat Model](../hybrid-cloud-poc/THREAT-MODEL-unmanaged-device.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
