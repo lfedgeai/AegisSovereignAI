@@ -3,7 +3,7 @@
 ## Executive Summary
 In a Distributed Enterprise, Infrastructure Security (Layer 1 in Figure 1) and AI Governance (Layer 3 in Figure 1) are often loosely coupled across the spectrum from **centralized clouds to the far edge**. This fragmentation results in a dangerous **"Accountability Gap"** where workload/user identities are easily spoofed, compliance creates massive **Personally Identifiable Information (PII)** liability, and compromised infrastructure — whether in a hyperscale data center or a remote branch office — can feed fake data to applications undetected. 
 
-**AegisSovereignAI** bridges this gap by serving as a unifying control plane for the absolute distributed footprint. Through a **Unified and Extensible Identity (Layer 2 in Figure 1)** framework, it cryptographically fuses workloads/user identities using silicon-level attestation with application-level governance while preserving privacy to create a single, cohesive identity architecture that extends from the **Cloud Core to the Far Edge**.
+**AegisSovereignAI** bridges this gap by serving as a unifying control plane for the comprehensive distributed footprint. Through a **Unified and Extensible Identity (Layer 2 in Figure 1)** framework, it cryptographically fuses workloads/user identities using silicon-level attestation with application-level governance while preserving privacy to create a single, cohesive identity architecture that extends from the **Cloud Core to the Far Edge**.
 
 This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. **This ensures that sensitive data (financial, medical, etc.) is processed only when the hardware, the location, and the workload/user identity are simultaneously verified, providing end-to-end sovereignty across the entire enterprise estate.**
 
@@ -64,6 +64,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 
 * **Confidential Computing (CC) & Trusted Execution Environments (TEEs):** Integrates with multi-vendor hardware (e.g., **Intel TDX**, **AMD SEV**, and **NVIDIA H100 TEEs**) to ensure model weights and context remain encrypted in-use, shielding them from privileged admins.
 * **Integrity for Legacy/Edge:** On commodity hardware, AegisSovereignAI uses **Keylime** and **Trusted Platform Module (TPM 2.0)** to verify the software stack's **Integrity** (via **Integrity Measurement Architecture (IMA)** and **Extended Verification Module (EVM)**). 
+* **Hardware-Type Binding for Computational Determinism:** Restricts model execution to verified silicon types (e.g., NVIDIA H100 vs. A100). This ensures that regulated AI workloads produce consistent, non-drifted outputs by mathematically guaranteeing the specific execution hardware, addressing the "Silicon Lottery" risk.
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
@@ -93,7 +94,7 @@ The following demonstrates the business value delivered by our three-layer trust
 *   **Sovereign Value:** **Frictionless Security.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant for workload execution on the employee's device.
 
 ### 3. The Enterprise Tenant
-*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable hardware-rooted Workload Identity rather than ip-based network location.
+*   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable hardware-rooted Workload Identity rather than IP-based location.
 
 ### 4. The Enterprise Stakeholder
 *   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving techniques (e.g. **ZKP**), the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., that system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard SIEM/GRC tools**, allowing for automated, continuous auditing within existing enterprise workflows.
@@ -114,7 +115,7 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 | AI Lifecycle Stage | Layer 1: Infrastructure | Layer 2: Identity | Layer 3: Governance |
 | --- | --- | --- | --- |
 | **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Privacy-preserving techniques (e.g. **ZKP**)** ensure data provenance without disclosure. |
-| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving techniques (e.g. **ZKP**). |
+| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via **privacy-preserving techniques (e.g. **ZKP**)**. |
 | **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **Privacy-preserving techniques (e.g. **ZKP**)** ensure model system/user prompt integrity without disclosing proprietary logic |
 
 ## Addressing AI Security Standards Gaps
