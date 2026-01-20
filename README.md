@@ -67,7 +67,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
-* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. Privacy-preserving location proofs (e.g., e.g. ZKP)**) are used to prove compliance with regulations without the Enterprise ever having to ingest or store sensitive location data.
+* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. Privacy-preserving techniques (e.g. **Zero-Knowledge Proofs (ZKPs)**) are used to prove location compliance with regulations without the Enterprise ever having to ingest or store sensitive precise location data.
 * **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** on the fly instead of **Enterprise Device Ownership**.
 * **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in **real-time**, isolating the agent before lateral movement.
@@ -77,7 +77,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 *   **Audit without Disclosure:** Privacy-Preserving Compliance. AegisSovereignAI closes the **Sovereign Trust Loop** by solving the "Black Box" audit problem using **privacy-preserving techniques (e.g. ZKP)** across the complete AI lifecycle: **Input → Model → Output**. The Enterprise can provide cryptographically verifiable proof of compliance to regulators (OCC/ECB) without revealing proprietary prompt logic or sensitive PII.
     *   **System Prompt Integrity (Pre-Computed):** At deployment, we generate a permanent cryptographic proof that the AI System Prompt includes mandatory safety guardrails (e.g., SSN redaction) and excludes unauthorized directives. This ensures "Compliance-by-Design" without exposing the proprietary prompt text.
     *   **User Prompt Compliance (Batch & Purge):** User interactions are processed in real-time while a background process generates aggregated batch proofs. These proofs verify that no user prompts in a given window contained "jailbreak" commands or PII. Once the batch proof is successfully anchored to the enterprise audit log, the raw, high-liability prompts are purged from the system, permanently eliminating PII storage risk.
-    *   **AI Output Filtering (Batch & Purge):** AI model outputs are verified through real-time DLP scanning and content safety checks before delivery. Batch proofs demonstrate that all outputs were properly filtered to prevent hallucinated PII leakage (e.g., fabricated SSNs). Raw outputs are purged after proof generation, ensuring zero retention of AI-generated sensitive data. See the [ZKP Deep-Dive](./docs/auditor-zkp-deep-dive.md) for the complete three-track verification model.
+    *   **AI Output Filtering (Batch & Purge):** AI model outputs are verified through real-time DLP scanning and content safety checks before delivery. Batch proofs demonstrate that all outputs were properly filtered to prevent hallucinated PII leakage (e.g., fabricated SSNs). Raw outputs are purged after proof generation, ensuring zero retention of AI-generated sensitive data. See the [Privacy-Preserving Deep-Dive](./docs/auditor-privacy-preserving-deep-dive.md) for the complete three-track verification model.
 
 ![Figure 2: AegisSovereignAI Detailed Three-Layer Architecture](images/readme-arch-new.svg)
 *Figure 2: AegisSovereignAI Detailed Three-Layer Architecture - The Sovereign Trust Loop.*
@@ -87,7 +87,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 The following demonstrates the business value delivered by our three-layer trust model for each of the above-mentioned Enterprise Use Cases.
 
 ### 1. The Enterprise Customer
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via **privacy-preserving techniques (e.g. ZKP)**, ensuring the Enterprise meets regulatory metrics (**Reg-K**) without the privacy liability of storing raw customer location data. Additionally, every interaction is cryptographically proven to have mandatory PII redaction active on both the system prompt before any customer interaction occurs and the AI output before delivery.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (**ZKP** etc.), ensuring the Enterprise meets regulatory metrics (**Reg-K**) without the privacy liability of storing raw customer location data. Additionally, every interaction is cryptographically proven to have mandatory PII redaction active on both the system prompt before any customer interaction occurs and the AI output before delivery.
 
 ### 2. The Enterprise Employee
 *   **Sovereign Value:** **Frictionless Security.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant for workload execution on the employee's device.
@@ -96,7 +96,7 @@ The following demonstrates the business value delivered by our three-layer trust
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable hardware-rooted Workload Identity rather than ip-based network location.
 
 ### 4. The Enterprise Stakeholder
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving proofs, the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., that system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard SIEM/GRC tools**, allowing for automated, continuous auditing within existing enterprise workflows.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving techniques (e.g. **ZKP**), the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., that system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard SIEM/GRC tools**, allowing for automated, continuous auditing within existing enterprise workflows.
 
 ## Regulatory & Standards Mapping
 The AegisSovereignAI architecture provides a direct implementation path for global AI safety and governance frameworks:
@@ -113,16 +113,16 @@ AegisSovereignAI applies its three-layer architecture across the entire AI lifec
 
 | AI Lifecycle Stage | Layer 1: Infrastructure | Layer 2: Identity | Layer 3: Governance |
 | --- | --- | --- | --- |
-| **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **Privacy-preserving techniques (ZKP etc.)** ensures data provenance without disclosure. |
-| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving circuits. |
-| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **Privacy-preserving techniques (ZKP etc.)** ensures model system/user prompt integrity without disclosing proprietary logic |
+| **Data Ingestion** | Secure enclaves protect raw PII during ingestion. | **Fast Identity Online (FIDO)** ensures sensor hardware is genuine. | **privacy-preserving techniques (e.g. **ZKP**)** ensure data provenance without disclosure. |
+| **Model Training** | **Multi-Vendor TEEs (Intel TDX, AMD SEV, NVIDIA H100)**—ensures no single-vendor lock-in. | Sigstore-signed datasets ensure data integrity. | **Fairness Auditing** via privacy-preserving techniques (e.g. **ZKP**). |
+| **Model Inference** | **Heterogeneous Silicon (NVIDIA H100, AMD MI300, ARM Realm)**—encrypts prompts in-use. | **Unified SPIFFE Verifiable Identity Document (SVID)** binds inference to verified silicon. | **privacy-preserving techniques (e.g. **ZKP**)** ensure model system/user prompt integrity without disclosing proprietary logic |
 
 ## Addressing AI Security Standards Gaps
 Current AI security standards frameworks provide the "What" (the objective) but fail to provide the "How" (architecture and implementation) for high-stakes AI environments.
 
 | Need | **Cloud Security Alliance (CSA)** / **National Institute of Standards and Technology (NIST)** Guidance | AegisSovereignAI Execution |
 | --- | --- | --- |
-| **Residency Proof** | "Use geofencing for data residency." | **Privacy-Preserving (ZKP etc.) Geofence** (Provable, no PII leak). |
+| **Residency Proof** | "Use geofencing for data residency." | **privacy-preserving techniques (e.g. **ZKP**)** Geofence (Provable, no PII leak). |
 | **Drift Detection** | "Monitor for output inconsistencies." | **Hardware-Type Binding** (Physical provenance). |
 | **Incident Response** | "Revoke access for compromised entities." | **Autonomous Kill-Switch** (Hardware-triggered). |
 
@@ -131,7 +131,7 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 ## Technical & Auditor Resources
 
 *   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering hardware integrity, location proofs, identity binding, and prompt compliance. Includes regulatory mapping (OCC/ECB/Reg-K) and the complete Evidence Bundle structure.
-*   **[ZKP Deep-Dive for Technical Auditors](./docs/auditor-zkp-deep-dive.md)** - Technical walkthrough of Zero-Knowledge Proof circuits, Batch & Purge architecture, Merkle Tree construction, and incident response workflow for prompt integrity verification.
+*   **[Privacy-Preserving Deep-Dive for Technical Auditors](./docs/auditor-privacy-preserving-deep-dive.md)** - Technical walkthrough of Zero-Knowledge Proof circuits, Batch & Purge architecture, Merkle Tree construction, and incident response workflow for prompt integrity verification.
 *   **[Threat Model: Runtime Perception Gap](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)** - Analysis of infrastructure compromise scenarios and the kill-switch architecture.
 *   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** - Detailed technical architecture of the SPIRE/Keylime identity fusion model.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.

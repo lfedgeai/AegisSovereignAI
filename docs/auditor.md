@@ -1,6 +1,6 @@
 # Auditor Guide: Verifying the Sovereign Trust Loop
 
-> **For Auditors & Risk Officers:** This is the high-level guide to understanding AegisSovereignAI's attestation-linked evidence model. For a deep technical dive into **privacy-preserving techniques (e.g. ZKP)** circuits and the Batch & Purge architecture for prompt integrity, see the **[ZKP Deep-Dive for Technical Auditors](./auditor-zkp-deep-dive.md)**.
+> **For Auditors & Risk Officers:** This is the high-level guide to understanding AegisSovereignAI's attestation-linked evidence model. For a deep technical dive into **privacy-preserving techniques (e.g. ZKP)** circuits and the Batch & Purge architecture for prompt integrity, see the **[Privacy-Preserving Deep-Dive for Technical Auditors](./auditor-privacy-preserving-deep-dive.md)**.
 
 AegisSovereignAI provides a cryptographically verifiable solution to the **"Accountability Gap"** in modern AI infrastructure. This guide provides auditors and risk officers with the technical framework required to prove compliance with global standards, including the **EU AI Act**, **NIST AI RMF**, and **Regulation K (Reg-K)**.
 
@@ -22,7 +22,7 @@ For a Chief Risk Officer or a Regulatory Auditor, the value of AegisSovereignAI 
 
 | Regulatory Control Objective | AegisSovereignAI Technical Proof | Cryptographic Artifact / Output |
 | --- | --- | --- |
-| **Data Residency (Reg-K / GDPR):** Proof that PII processing is geographically restricted. | **Verifiable Geofence:** A hardware-rooted proof of location. | **Privacy-Preserving Proofs (e.g. ZKP):** A "True/False" result validating the node is within a boundary without exposing GPS coordinates. |
+| **Data Residency (Reg-K / GDPR):** Proof that PII processing is geographically restricted. | **Verifiable Geofence:** A hardware-rooted proof of location. | **privacy-preserving techniques (e.g. **ZKP**):** A "True/False" result validating the node is within a boundary without exposing precise location data. |
 | **Workload Integrity (OCC 2021-12):** Proof that AI models and logic have not been tampered with. | **IMA/EVM Runtime Attestation:** Continuous measurement of the software stack. | **TPM Quote:** A signed SHA-256 hash of the software state, verified against a "Golden Manifest" by Keylime. |
 | **Access Control (Least Privilege):** Proof that only authorized users on verified hardware can access AI. | **Blended SVID Identity:** Fuses user session (OIDC) with hardware state (TPM). | **SPIFFE SVID:** A short-lived X.509 certificate that is only issued if hardware integrity passes. |
 | **Model Confidentiality (DORA):** Proof that weights/prompts are protected from infrastructure admins. | **TEE Evidence:** Proof of execution within a Trusted Execution Environment. | **Attestation Report (Intel TDX / NVIDIA H100):** Hardware-signed report proving the workload is isolated in encrypted memory. |
