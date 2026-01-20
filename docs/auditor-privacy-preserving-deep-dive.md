@@ -1,4 +1,4 @@
-# Privacy-Preserving Techniques (e.g. **ZKP**) for Prompt Integrity
+# Privacy-Preserving Techniques (e.g. **ZKP**) for the Full AI Lifecycle
 
 > **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **privacy-preserving (e.g. **ZKP**-based)** prompt integrity verification system. For a high-level overview of the complete attestation model (hardware, location, identity, and prompts), see the **[Auditor Guide](./auditor.md)**.
 
@@ -34,11 +34,46 @@ While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the
 
 ---
 
-## 3. The Three-Track Proof Strategy
+## 3. Foundational Primitive: Verifiable Geofencing (Reg-K)
 
-AegisSovereignAI provides **end-to-end cryptographic verification** across the complete AI inference lifecycle: **Input → Model → Output**.
+Before auditing AI logic, auditors must often verify **where** the data is being processed to comply with residency laws like **Regulation K** or **GDPR**.
 
-### Track A: System Prompt Integrity (Pre-Computed)
+**The Challenge:** Traditional GPS/IP-based geofencing creates PII liability by storing the user's precise location.
+
+**The ZKP Solution:** A "Coordinate-in-Polygon" circuit.
+1. **Private Input:** The node's precise GPS/cellular coordinates (verified by TPM-signed sensor data).
+2. **Public Input:** The permitted geographic boundary (the "Green Zone" polygon).
+3. **Proof:** The circuit mathematically proves the private coordinate is inside the public polygon without ever revealing the coordinate itself.
+
+**Outcome:** The auditor sees a "Pass/Fail" cryptographic result tied to a hardware-rooted identity, satisfying residency requirements with zero privacy leakage.
+
+---
+
+## 4. The Five-Track Sovereign AI Lifecycle Strategy
+
+AegisSovereignAI provides **end-to-end cryptographic verification** across every stage of the AI lifecycle: **Ingestion → Training → Inference → Output**.
+
+### Track A: Data Ingestion (Hardware-Rooted Provenance)
+
+Proving the integrity and origin of raw data before it enters the AI pipeline.
+
+**Process:**
+1. **Hardware Attestation:** Data is ingested through a FIDO/TPM-verified node.
+2. **Provenance ZKP:** A circuit proves that the data was signed by a genuine hardware-rooted key associated with a specific authorized region, while **hiding the specific device UUID** or MSISDN.
+
+**Outcome:** Proof of Data Integrity and Regional Provenance without creating a "Device Tracking" database.
+
+### Track B: Model Training (Redaction Policy)
+
+Proving that sensitive information was excluded from the model's weights during the training phase.
+
+**Process:**
+1. **Redaction Check:** A circuit scans the training dataset for forbidden patterns (SSNs, Account Numbers, CCs).
+2. **Training Proof:** A ZKP is generated proving: *"Model Weights M resulted from Dataset D, which strictly followed the Redaction Policy P."*
+
+**Outcome:** Mathematical proof that the model is "Clean-by-Design," mitigating the risk of future PII leakage via model inversion.
+
+### Track C: System Prompt Integrity (Pre-Computed)
 
 System prompts are the "Law" of the AI. Because they are static, we pre-compute proofs at deployment.
 
@@ -52,7 +87,7 @@ System prompts are the "Law" of the AI. Because they are static, we pre-compute 
 
 **Outcome:** "Compliance-by-Design." The proof is valid for the lifetime of that system prompt version.
 
-### Track B: User Prompt Compliance (Batch & Purge)
+### Track D: User Prompt Compliance (Batch & Purge)
 
 User prompts are dynamic and high-volume. To maintain performance, we use an **Aggregated Batching** model.
 
@@ -123,7 +158,7 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
      PII while maintaining full cryptographic auditability.
 ```
 
-### Track C: AI Output Compliance (Real-Time Filtering & Batch Proof)
+### Track E: AI Output Compliance (Real-Time Filtering & Batch Proof)
 
 AI model outputs pose unique compliance risks that require verification even when inputs are safe:
 - **PII Leakage:** AI can hallucinate or inadvertently expose SSNs, account numbers, or other sensitive data
@@ -157,7 +192,7 @@ Even if the system prompt prohibits disclosure and the user prompt was benign, *
 
 ---
 
-## 4. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
+## 5. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
 
 ### Scenario
 
@@ -199,7 +234,7 @@ This ZKP addresses the **Excessive Agency Risk**—the danger that the AI model 
 
 ---
 
-## 5. The Noir Circuit (Technical Implementation)
+## 6. The Noir Circuit (Technical Implementation)
 
 The core logic uses a ZK-friendly string search algorithm.
 
@@ -231,7 +266,7 @@ fn main(
 
 ---
 
-## 6. Incident Response & Escalation Workflow
+## 7. Incident Response & Escalation Workflow
 
 In a cryptographic audit model, a **"Failure to Generate a Proof"** is the primary signal of a policy violation.
 
@@ -247,7 +282,7 @@ If the ZKP circuit encounters a prompt that violates an **Exclusion Rule** (e.g.
 
 ---
 
-## 7. The Evidence Bundle for Auditors
+## 8. The Evidence Bundle for Auditors
 
 When an auditor requests compliance evidence, they receive an **Evidence Bundle**:
 
@@ -293,7 +328,7 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 
 ---
 
-## 8. Regulatory Value Proposition
+## 9. Regulatory Value Proposition
 
 | Regulatory Need | AegisSovereignAI Execution |
 | --- | --- |
