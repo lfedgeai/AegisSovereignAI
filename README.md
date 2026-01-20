@@ -132,6 +132,6 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 
 ## Technical & Auditor Resources
 
-*   **[Auditor Guide](./docs/auditor.md)** - Detailed walkthrough of the attestation logic and cryptographic verification for risk assessments.
-*   **[ZKP Audit Walkthrough](./docs/audit-zkp.md)** - Detailed walkthrough of privacy-preserving proofs for model system/user prompt integrity.
+*   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering hardware integrity, location proofs, identity binding, and prompt compliance. Includes regulatory mapping (OCC/ECB/Reg-K) and the complete Evidence Bundle structure.
+*   **[ZKP Deep-Dive for Technical Auditors](./docs/auditor-zkp-deep-dive.md)** - Technical walkthrough of Zero-Knowledge Proof circuits, Batch & Purge architecture, Merkle Tree construction, and incident response workflow for prompt integrity verification.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.

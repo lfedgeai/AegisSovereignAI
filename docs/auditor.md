@@ -1,5 +1,7 @@
 # Auditor Guide: Verifying the Sovereign Trust Loop
 
+> **For Auditors & Risk Officers:** This is the high-level guide to understanding AegisSovereignAI's attestation-linked evidence model. For a deep technical dive into Zero-Knowledge Proof circuits and the Batch & Purge architecture for prompt integrity, see the **[ZKP Deep-Dive for Technical Auditors](./auditor-zkp-deep-dive.md)**.
+
 AegisSovereignAI provides a cryptographically verifiable solution to the **"Accountability Gap"** in modern AI infrastructure. This guide provides auditors and risk officers with the technical framework required to prove compliance with global standards, including the **EU AI Act**, **NIST AI RMF**, and **Regulation K (Reg-K)**.
 
 ## 1. Why Auditors Need Attestation-Linked Proofs
