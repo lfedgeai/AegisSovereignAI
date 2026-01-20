@@ -11,7 +11,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 *Figure 1: AegisSovereignAI Architecture Summary - Bridging Infrastructure, Identity, and Governance.*
 
 ### Quick Links for Architects & PMs
-*   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)** - Live demonstration of the three-layer architecture with concrete use cases.
+*   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)** - Try it out with concrete use cases.
 
 ## Enterprise Sovereign Use Cases (Focus: Financial Services)
 
