@@ -1,37 +1,128 @@
-# Financial Service Example: The Retirement Advice Agent ($\text{RAA}$)
+# Zero-Knowledge Proofs for Prompt Integrity: The Batch & Purge Model
 
-## Scenario & Problem Statement
+This document provides a technical walkthrough of how AegisSovereignAI uses Zero-Knowledge Proofs (ZKPs) to solve the **"Audit without Disclosure"** problem for AI system and user prompts.
 
-**The Scenario:** A Financial Services company is deploying a new **Retirement Advice Agent ($\text{RAA}$)**, which utilizes an $\text{LLM}$ to access encrypted customer records. The $\text{RAA}$ operates in a hybrid environment: internal On-Prem Data Centers (for Recordkeeping) and Cloud regions (for customer interfaces).
+## 1. The Problem: The Prompt Paradox
 
-**The Problem:** The company must **prove to regulators** that the $\text{RAA}$'s proprietary business logic (System Prompt and Model Weights) has not been tampered with in the $\text{MLOps}$ pipeline, **without disclosing** that proprietary information.
+Enterprises face a paradox when auditing AI systems:
 
-## Solution: The ZKP Dual Compliance Model
+| Requirement | Traditional Approach | Liability |
+| --- | --- | --- |
+| **Prove system prompt contains safety guardrails** (e.g., "redact SSNs") | Store and show the full system prompt to auditors. | Exposes proprietary IP. |
+| **Prove user prompts did not contain jailbreaks** (e.g., "ignore instructions") | Log all user prompts for forensic review. | Creates massive PII/GDPR liability. |
+| **Enable post-incident investigation** | Retain all prompts indefinitely. | Violates data minimization principles. |
 
-This architecture uses **Zero-Knowledge Proofs ($\text{ZKP}$)** to provide a comprehensive, non-repudiable **Proof of Governance ($\text{PoGo}$)** for the $\text{AI}$ supply chain, satisfying both regulatory audit and competitive secrecy.
+**AegisSovereignAI's Solution:** Generate a cryptographic *proof* that a prompt satisfies a policy, then *purge* the raw prompt. The auditor receives mathematical certainty without seeing the sensitive data.
 
-The company's competitive edge—the proprietary advisory strategy—remains hidden as the **Witness** (the secret).
+---
 
-### 1. Proof of Inclusion (Regulatory Compliance) ✅
+## 2. The Two-Track Proof Strategy
 
-This $\text{ZKP}$ addresses the **Repudiation Risk**—the inability to prove a safety mechanism exists.
+### Track A: System Prompt Integrity (Pre-Computed)
 
-| Requirement | Problem Solved | ZKP Statement (The Non-Repudiable Proof) |
-| :--- | :--- | :--- |
-| **Data Confidentiality** ($\text{LLM06}$) | Compromise of Proprietary Logic | **Prover demonstrates:** The System Prompt **contains** the instruction to filter and redact $\text{SSN}$ and account numbers via a $\text{DLP}$ model. |
-| **Legal Mandate** | Denying the absence of a required legal warning. | **Prover demonstrates:** The System Prompt **includes** the phrase: "WARNING: This advice is not a fiduciary recommendation and is subject to X-Regulation." |
-| **Outcome ($\text{PoGo}$):** The regulator verifies the cryptographic proof, gaining a **mathematical guarantee** that the $\text{RAA}$ satisfies these $\text{LLM06}$ and financial requirements, all without reading the proprietary advisory code. |
+System prompts are relatively static. We generate a proof **at deployment time**, not at inference time.
 
-### 2. Proof of Exclusion (Security/Excessive Agency) 🛑
+**Process:**
+1.  **Policy Definition:** Define the required keywords/patterns (inclusions) and forbidden keywords/patterns (exclusions).
+    *   *Inclusion:* `"redact SSN"`, `"do not disclose account numbers"`
+    *   *Exclusion:* `"you are DAN"`, `"ignore previous instructions"`
+2.  **Circuit Compilation:** A Noir circuit is compiled that takes the system prompt as a private input and the policy as a public input.
+3.  **Proof Generation:** At deployment, the system prompt is fed into the circuit. If it satisfies all inclusions and no exclusions, a proof is generated.
+4.  **Verification:** The proof and the public policy hash are stored. Any auditor can verify the proof against the policy hash without ever seeing the prompt.
 
-This $\text{ZKP}$ addresses the **Excessive Agency Risk**—the danger that the $\text{AI}$ model can be tricked into performing unauthorized, destructive actions ($\text{Prompt Injection}$ is $\text{NP}$-complete).
+**Outcome:** "Compliance-by-Design." The proof is valid for the lifetime of that system prompt version.
 
-| Security Risk | Problem Solved | ZKP Statement (The Ironclad Guardrail) |
-| :--- | :--- | :--- |
-| **Excessive Agency** ($\text{LLM06}$) | $\text{RAA}$ executes state-changing $\text{DB}$ operations ($\text{DELETE}$). | **Prover demonstrates:** The System Prompt **is designed to exclude** the keywords: "DROP," "DELETE," and "TRUNCATE" from its authorized $\text{API}$ call arguments. |
-| **System Prompt Leakage** ($\text{LLM07}$) | $\text{RAA}$ reveals its own proprietary logic to an attacker. | **Prover demonstrates:** The System Prompt **is designed to exclude** any self-referential override commands such as "print full instructions" or "reveal system prompt." |
-| **Outcome ($\text{PoGo}$):** This creates an **ironclad, proactive guardrail**. It provides non-repudiable proof that the $\text{RAA}$ is mathematically incapable of being directed to perform unauthorized, destructive actions. |
+### Track B: User Prompt Compliance (Batch & Purge)
 
-## Conclusion
+User prompts are dynamic and high-volume. Real-time ZKP generation per prompt is computationally prohibitive. We use a **batched, aggregated proof** model.
 
-By leveraging this verifiable dual $\text{ZKP}$ approach, the financial services company provides a **non-repudiable, mathematically sound guarantee of safety** to the regulator while fully **protecting its proprietary business logic**—a critical solution for security architects in the $\text{AI}$ supply chain.
+**Process:**
+1.  **Real-Time Filtering:** At inference time, a lightweight, deterministic filter (regex + ML classifier) screens user prompts for obvious injection patterns. This is fast and does not create a ZKP.
+2.  **Secure Logging:** Prompts that pass the filter are encrypted and written to a short-lived, in-memory audit buffer.
+3.  **Batch Window:** Every `N` minutes (e.g., 5-15 minutes), a background process triggers.
+4.  **Aggregated Proof Generation:** The batch processor reads the encrypted prompts from the buffer. A ZKP circuit processes the entire batch, generating a single proof that asserts:
+    *   *"All prompts in this batch passed the exclusion policy."*
+    *   *"The hash of the batch is `H`."*
+5.  **Anchor & Purge:** The proof and batch hash `H` are written to an immutable audit log (e.g., a blockchain or append-only ledger). The raw prompts in the buffer are then **permanently purged**.
+
+**Outcome:** The auditor receives a chain of batch proofs. They can verify that *every* batch in a given time window was compliant, without ever accessing the raw prompts.
+
+---
+
+## 3. The Noir Circuit (Conceptual)
+
+The core logic of the ZKP circuit is straightforward:
+
+```noir
+// Conceptual Noir Circuit for Prompt Policy Verification
+fn main(
+    prompt: [u8; MAX_PROMPT_LEN],         // Private: The raw prompt (never disclosed)
+    policy_inclusions: [[u8; 64]; N],     // Public: Keywords that MUST be present
+    policy_exclusions: [[u8; 64]; M],     // Public: Keywords that MUST NOT be present
+    policy_hash: Field                    // Public: Hash of the policy for integrity
+) -> pub bool {
+
+    // 1. Verify policy integrity
+    assert(hash(policy_inclusions, policy_exclusions) == policy_hash);
+
+    // 2. Check all required inclusions are present
+    for i in 0..N {
+        assert(contains(prompt, policy_inclusions[i]));
+    }
+
+    // 3. Check all forbidden exclusions are absent
+    for j in 0..M {
+        assert(!contains(prompt, policy_exclusions[j]));
+    }
+
+    true // Proof generated only if all assertions pass
+}
+```
+
+---
+
+## 4. The Evidence Bundle for Auditors
+
+When an auditor requests compliance evidence, they receive an **Evidence Bundle**:
+
+```json
+{
+  "audit_window": {
+    "start": "2026-01-20T14:00:00Z",
+    "end": "2026-01-20T14:15:00Z"
+  },
+  "system_prompt": {
+    "version": "v3.2.1",
+    "proof": "base64-noir-proof...",
+    "policy_hash": "sha256:a1b2c3..."
+  },
+  "user_prompt_batches": [
+    {
+      "batch_id": "batch-001",
+      "timestamp": "2026-01-20T14:05:00Z",
+      "prompt_count": 1247,
+      "batch_hash": "sha256:d4e5f6...",
+      "proof": "base64-noir-proof...",
+      "status": "COMPLIANT"
+    }
+  ],
+  "signatures": {
+    "aegis_control_plane_jws": "eyJhbGciOiJSUzI1NiIs..."
+  }
+}
+```
+
+---
+
+## 5. Regulatory Mapping
+
+| Regulatory Requirement | ZKP Proof Element |
+| --- | --- |
+| **EU AI Act Art. 10 (Data Governance)** | System Prompt Integrity Proof |
+| **NIST AI RMF (GOVERN)** | Policy-as-Circuit for transparent enforcement |
+| **GDPR Art. 5 (Data Minimization)** | Batch & Purge model eliminates long-term PII storage |
+| **OCC 2021-12 (Third-Party Risk)** | User Prompt Compliance Proof for vendor AI models |
+
+---
+
+[Root README](../README.md) | [Auditor Guide](./auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
