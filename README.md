@@ -133,7 +133,7 @@ Current AI security standards frameworks provide the "What" (the objective) but 
 
 ## Technical & Auditor Resources
 
-*   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering hardware integrity, location proofs, identity binding, and prompt compliance. Includes regulatory mapping (OCC/ECB/Reg-K) and the complete Evidence Bundle structure.
+*   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering the full AI lifecycle (Ingestion, Training, and Inference), verifiable geofencing (Reg-K), and identity binding. Includes the complete Evidence Bundle structure for regulatory reporting.
 *   **[Privacy-Preserving Deep-Dive for Technical Auditors](./docs/auditor-privacy-preserving-deep-dive.md)** - Technical walkthrough of Zero-Knowledge Proof circuits, Batch & Purge architecture, Merkle Tree construction, and incident response workflow for prompt integrity verification.
 *   **[Threat Model: Runtime Perception Gap](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)** - Analysis of infrastructure compromise scenarios and the kill-switch architecture.
 *   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** - Detailed technical architecture of the SPIRE/Keylime identity fusion model.
