@@ -21,10 +21,10 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
 
 ### 3. The Enterprise Tenant (Line-of-Business Owner aka LOB)
-*   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data. From a tenant AI service perspective, the AI system prompt must contain mandatory safety guardrails (e.g., "never disclose account numbers") while user prompts must be scanned for injection attacks (e.g., "ignore previous instructions").
+*   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data. From a tenant AI service perspective, the AI system prompt must contain mandatory safety guardrails (e.g., "never disclose account numbers"), user prompts must be scanned for injection attacks, and AI outputs must be verified for PII leakage (hallucinations) before delivery.
 
 ### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
-*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, cryptographically verifiable proof-of-compliance for regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, **European Central Bank (ECB)**), demonstrating that every AI interaction — across all retail devices, employee hardware, and Data Center Infrastructure — runs on trusted hardware, uses trusted/untampered AI models and system prompts, screens user prompts for jailbreak attacks, and complies with data residency laws. Compliance without disclosing sensitive data such as location history, proprietary AI model system prompts, or raw user prompts is a critical need.
+*   **Core Use Case:** **Automated Regulatory Audit.** Providing a real-time, cryptographically verifiable proof-of-compliance for regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, **European Central Bank (ECB)**), demonstrating that every AI interaction — across all retail devices, employee hardware, and Data Center Infrastructure — runs on trusted hardware, uses untampered AI models, and complies with data residency laws. This includes cryptographic proof that system prompts were enforced, user prompts were screened for jailbreaks, and AI outputs were filtered for PII hallucinations — all without disclosing proprietary prompts or ingesting raw customer data.
 
 ## Technical Challenges for Addressing Use Cases
 
@@ -45,10 +45,10 @@ Modern AI workloads are vulnerable to **infrastructure compromise**, where a com
 AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
 
 ### 5. The Black-Box Governance Gap
-AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using trusted/untampered AI models/system prompts without disclosing sensitive data. For example, an auditor cannot verify that the system prompt contained "redact all SSNs" or that a user prompt did not contain a jailbreak command like "print full instructions" without seeing the actual prompts—a privacy and IP liability.
+AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using untampered AI models/prompts without disclosing sensitive data. For example, an auditor cannot verify that the system prompt contained "redact all SSNs," that a user prompt didn't contain a jailbreak command, or that the AI model didn't hallucinate PII in its output without seeing the raw text — a significant privacy and IP liability.
 
-### 6. Prompt Injection & Jailbreak Attacks
-Malicious users can craft prompts to manipulate AI behavior (e.g., "ignore previous instructions," "reveal system prompt"). Traditional logging creates PII/IP liability, while not logging prevents forensics. Enterprises need a way to *prove* prompts were safe without *storing* them.
+### 6. Prompt & Output Integrity: Injection & Hallucination
+Malicious users can craft prompts to manipulate AI behavior (e.g., "reveal system prompt"), while AI models themselves can inadvertently leak PII through hallucinations. Traditional logging creates PII/IP liability, while not logging prevents forensics. Enterprises need a way to *prove* that both inputs and outputs were safe and compliant without *storing* the raw, high-liability data.
 
 ### 7. BYOD Security Gaps
 BYOD devices are unmanaged and unverified, making them a significant security risk for data leakage and unauthorized access.
@@ -87,7 +87,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 The following demonstrates the business value delivered by our three-layer trust model for each of the above-mentioned Enterprise Use Cases.
 
 ### 1. The Enterprise Customer
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (**ZKP** etc.), ensuring the Enterprise meets regulatory metrics (**Reg-K**) without the privacy liability of storing raw customer location data. Additionally, the AI advisory system prompt is cryptographically proven to contain mandatory PII redaction instructions before any customer interaction occurs.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via privacy-preserving location proofs (**ZKP** etc.), ensuring the Enterprise meets regulatory metrics (**Reg-K**) without the privacy liability of storing raw customer location data. Additionally, every interaction is cryptographically proven to have mandatory PII redaction active on both the system prompt and the AI output before delivery.
 
 ### 2. The Enterprise Employee
 *   **Sovereign Value:** **Frictionless Security.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant for workload execution on the employee's device.
@@ -96,7 +96,7 @@ The following demonstrates the business value delivered by our three-layer trust
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable hardware-rooted Workload Identity rather than ip-based network location.
 
 ### 4. The Enterprise Stakeholder
-*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving proofs, the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove model/user prompt integrity—e.g., that the system prompt contains "redact SSNs" and that no user prompts in the audit window contained jailbreak commands—without disclosing proprietary logic. These proofs are **exportable and compatible with standard SIEM/GRC (Security Information and Event Management / Governance, Risk, and Compliance) tools**, allowing for automated, continuous auditing within existing enterprise workflows.
+*   **Sovereign Value:** **Compliance without Liability.** By using privacy-preserving proofs, the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., that system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard SIEM/GRC tools**, allowing for automated, continuous auditing within existing enterprise workflows.
 
 ## Regulatory & Standards Mapping
 The AegisSovereignAI architecture provides a direct implementation path for global AI safety and governance frameworks:
