@@ -8,6 +8,7 @@ Traditionally Infrastructure Security (Layer 1 in Figure 1) and AI Governance (L
 This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Verifiable Intelligence**. **This ensures that sensitive data (financial, medical, etc.) is processed only when the hardware, the location, and the workload/user identity are simultaneously verified.**
 
 ![Figure 1: AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
+*Figure 1: AegisSovereignAI Architecture Summary - Bridging Infrastructure, Identity, and Governance.*
 
 ### Quick Links for Architects & PMs
 *   **[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)**
@@ -38,7 +39,7 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 * **VPN-based Spoofing:** Commonly used IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
 
 ### 2. The Residency vs. Privacy Deadlock
-Regulators require proof of data residency (e.g., **Regulation K / Reg-K**), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under privacy regulations (e.g., **General Data Protection Regulation (GDPR)**). Enterprises are often forced to choose between non-compliance or privacy violation.
+Regulators require proof of data residency (e.g., **Regulation K aka Reg-K**), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under privacy regulations (e.g., **General Data Protection Regulation (GDPR)**). Enterprises are often forced to choose between non-compliance or privacy violation.
 
 ### 3. Infrastructure Compromise
 Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
@@ -57,7 +58,9 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 
 ## The Three-Layer Trust Architecture
 
-AegisSovereignAI acts as the unifying control plane that cryptographically binds silicon-level attestation to application-level governance. Traditionally Layer 1 and Layer 3 are loosely coupled. AegisSovereignAI unifies these layers into a single, cohesive architecture through the use of **Layer 2 Unified and Extensible Identity** which binds the silicon-level attestation to workloads and end users and thus to the application-level governance.
+Traditionally Infrastructure Security (Layer 1 in Figure 2) and AI Governance (Layer 3 in Figure 2) are loosely coupled today. This fragmentation results in a dangerous **"Accountability Gap"** where workload/user identities are easily spoofed, compliance creates massive **Personally Identifiable Information (PII)** liability, and compromised infrastructure can feed fake data to applications undetected.
+
+**AegisSovereignAI** bridges this gap by serving as a unifying control plane. Through a **Unified and Extensible Identity (Layer 2 in Figure 2)** framework, it cryptographically fuses workloads/user identities using silicon-level attestation with application-level governance while preserving privacy to create a single, cohesive identity architecture.
 
 ### Layer 1: Infrastructure Security (The Confidentiality Upgrade Path)
 
@@ -76,6 +79,7 @@ AegisSovereignAI acts as the unifying control plane that cryptographically binds
 * **Audit without Disclosure:** By using privacy-preserving proofs of AI model system prompt critical keyword inclusion and exclusion, the Risk Officer can prove compliance with regulations without the Enterprise ever having to ingest or store sensitive data.
 
 ![Figure 2: AegisSovereignAI Detailed Three-Layer Architecture](images/readme-arch-new.svg)
+*Figure 2: AegisSovereignAI Detailed Three-Layer Architecture - The Sovereign Trust Loop.*
 
 ## Sovereign Value Realization: The Outcome of the Architecture
 
