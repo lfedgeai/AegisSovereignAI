@@ -48,6 +48,63 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
 
 **Outcome:** The auditor receives a chain of batch proofs. They can verify that *every* batch in a given time window was compliant, without ever accessing the raw prompts.
 
+#### Batch & Purge Lifecycle (Visual Flow)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      BATCH & PURGE LIFECYCLE                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Inference Time (T₀)                    Batch Window (T₀ + N min)
+  ═══════════════════                    ═══════════════════════════
+
+  User Prompt                            ┌─────────────────────────┐
+      │                                  │  Ephemeral TEE Buffer   │
+      ▼                                  │  (Encrypted Prompts)    │
+ ┌──────────┐                            │  • Prompt₁              │
+ │ Gateway  │────────────PASS────────────▶  • Prompt₂              │
+ │ Filter   │                            │  • Prompt₃              │
+ └──────────┘                            │  • ...                  │
+      │                                  │  • Promptₙ              │
+      │                                  └────────┬────────────────┘
+   REJECT                                         │
+   (Logged)                                       ▼
+                                         ┌─────────────────────────┐
+                                         │  Merkle Tree Builder    │
+                                         │  Root = Hash(Prompts)   │
+                                         └────────┬────────────────┘
+                                                  │
+                                                  ▼
+        Audit Log                        ┌─────────────────────────┐
+    ┌──────────────┐                     │   ZKP Circuit Engine    │
+    │ Immutable    │◀────ANCHOR──────────│ Proof = ƒ(Root, Policy) │
+    │ Append-Only  │                     └─────────────────────────┘
+    │ (Blockchain) │                              │
+    └──────────────┘                              ▼
+         │                              ┌───────────────────────────┐
+         │                              │  Proof Successfully       │
+         │                              │  Anchored to Audit Log?   │
+         │                              └─────┬──────────┬──────────┘
+         │                                    │          │
+         │                               YES  │          │  NO
+         │                                    ▼          ▼
+         │                          ┌──────────────┐  ┌──────────────┐
+         │                          │   🔥 PURGE   │  │ ESCALATE TO  │
+         │                          │ Raw Prompts  │  │ HITL REVIEW  │
+         │                          │   Deleted    │  │ (Sec. 5)     │
+         │                          └──────────────┘  └──────────────┘
+         │                                    │
+         │                                    ▼
+         │                          ╔════════════════════╗
+         └─────PERSIST──────────────║  ZERO PII Storage  ║
+                                    ║  Only ZKP + Root   ║
+                                    ╚════════════════════╝
+
+  🔑 KEY INSIGHT: Once the proof is anchored, the raw prompts are 
+     permanently deleted. The Enterprise retains ZERO high-liability 
+     PII while maintaining full cryptographic auditability.
+```
+
 ---
 
 ## 3. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
