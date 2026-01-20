@@ -41,13 +41,13 @@ The framework treats both internal infrastructure and external end-user devices 
 | Feature | Tier 1: Managed (LOB Hardware) | Tier 2: BYOD (Retail/BYOD) |
 | :--- | :--- | :--- |
 | **Integrity Signal** | Continuous (Keylime/IMA/SGRM) | Point-in-Time (App Attest/EAT) |
-| **Trust Anchor** | JPMC Managed Root of Trust | OEM Root of Trust (Apple/Google) |
+| **Trust Anchor** | Enterprise Managed Root of Trust (e.g., JPMC/HSBC) | OEM Root of Trust (Apple/Google) |
 | **Session Model** | Persistent Workload Identity | Just-in-Time (JIT) AI Session |
 | **Remediation** | MDM Lockdown + Revocation | Gateway Quarantine (403 Forbidden) |
 
 #### The "Point-in-Time" BYOD Loop
 For unmanaged devices, AegisSovereignAI replaces permanent "Trust" with **Verifiable Evidence per Session**. 
-1. The JPM App instance generates a hardware-rooted **Entity Attestation Token (EAT)**.
+1. The Enterprise App instance (e.g., JPM App) generates a hardware-rooted **Entity Attestation Token (EAT)**.
 2. The **Aegis Verifier** appraisals the evidence and registers the device as a temporary workload.
 3. **SPIRE** issues a Unified SVID containing attested hardware and geolocation claims.
 4. The App engages the AI Cloud via **mTLS**, satisfying all **Regulation K** and **OCC Audit** requirements through math rather than managerial control.
@@ -182,11 +182,11 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 
 ## Technical Details: Verified Ingress (Edge Workloads)
 
-AegisSovereignAI treats the JPM Application (Mobile or Desktop) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
+AegisSovereignAI treats the Enterprise Application (e.g., at JPMC or HSBC) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
 
 ### Unified SVID Claim Schema (OIDs & JSON Paths)
 
-To ensure interoperability with the JPMC API Gateway (Envoy) and backend microservices, the Unified SVIDs utilize the following schema for attested hardware and location claims. These are injected into the X.509 SAN extension using the `AegisSovereignAI` OID namespace (`1.3.6.1.4.1.99999.*`).
+To ensure interoperability with Enterprise API Gateways (e.g., Envoy) and backend microservices, the Unified SVIDs utilize the following schema for attested hardware and location claims. These are injected into the X.509 SAN extension using the `AegisSovereignAI` OID namespace (`1.3.6.1.4.1.99999.*`).
 
 | SVID Claim (JSON Path) | OID Extension | Value Example | Description |
 | :--- | :--- | :--- | :--- |
@@ -202,9 +202,9 @@ A managed laptop, mobile device, or edge sensor uses its **Secure Enclave** or *
 
 ### 2. Conceptual Mapping to Unified Identity
 
-| Unified Identity Component | Data Center / Edge Server | **Ingress: JPM App (The Workload)** |
+| Unified Identity Component | Data Center / Edge Server | **Ingress: Enterprise App (The Workload)** |
 | :--- | :--- | :--- |
-| **Workload Identity** | SPIRE SVID (Server App) | **SPIRE SVID (JPM App Instance)** |
+| **Workload Identity** | SPIRE SVID (Server App) | **SPIRE SVID (Enterprise App Instance)** |
 | **Host Integrity Manager** | Keylime (TPM 2.0) | **Apple App Attest / Windows SGRM** |
 | **Location Provider** | GNSS / Mobile Sidecar | **Location ZKP (Device-side)** |
 | **Unified Credential** | SVID with Geo Claims | **SVID with Ingress Context Claims** |
@@ -216,13 +216,13 @@ A managed laptop, mobile device, or edge sensor uses its **Secure Enclave** or *
 The Ingress process is a **Remote Attestation Loop** that mirrors the backend pipeline:
 
 #### **A. Boot-time & Runtime Attestation ("The Keylime Role")**
-The JPM App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
+The Enterprise App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
 
 #### **B. Workload Identity Issuance ("The SPIRE Role")**
-Once the hardware and app integrity are verified by the **Aegis Verifier**—acting as the **"Trust Bridge"** between OEM Root CAs (Apple/Google) and the JPMC Internal PKI—the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
+Once the hardware and app integrity are verified by the **Aegis Verifier**—acting as the **"Trust Bridge"** between OEM Root CAs (Apple/Google) and the Enterprise Internal PKI (e.g., JPMC or Citi)—the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
 
 #### **C. Access Enforcement ("The Envoy Role")**
-The JPM App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant.
+The Enterprise App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant.
 
 ---
 
@@ -267,7 +267,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 ## Edge Ecosystems (Apple, Android, Windows, Linux)
 
 Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
-1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For JPMC-managed hardware, **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
+1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., JPMC-managed), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
 2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the banking app's keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
 
 > [!TIP]

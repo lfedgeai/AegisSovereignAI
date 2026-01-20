@@ -2,7 +2,7 @@
 
 The integration of **AegisSovereignAI** with **LangGraph** moves multi-agent systems from "logical state management" to **"Physical State Enforcement."**
 
-In high-stakes production environments like JPMC CCB, where agents handle sensitive financial transactions on unmanaged devices (BYOD), the risk isn't just a "bad prompt"—it is the **lack of physical accountability**. By tying User and Workload IDs into a "Blended Identity," you create a mathematical "Chain of Custody" that satisfies both regulators and internal security teams.
+In high-stakes production environments (e.g., Global Banks like JPMC or HSBC), where agents handle sensitive financial transactions on unmanaged devices (BYOD), the risk isn't just a "bad prompt"—it is the **lack of physical accountability**. By tying User and Workload IDs into a "Blended Identity," you create a mathematical "Chain of Custody" that satisfies both regulators and internal security teams.
 
 ---
 
@@ -40,7 +40,7 @@ Using the **Keylime-to-SPIRE** loop, Aegis acts as a physical kill-switch for th
 
 ---
 
-## 🛡️ Strategic Use Case: JPMC CCB "Wealth-Agent" Pilot
+## 🛡️ Strategic Use Case Example: Financial "Wealth-Agent" Pilot
 
 | LangGraph Stage | Aegis Security Enhancement | Strategic Value |
 | --- | --- | --- |

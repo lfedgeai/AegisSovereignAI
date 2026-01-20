@@ -1,6 +1,6 @@
 # Threat Model: Unmanaged Device Security (AegisSovereignAI)
 
-**Scenario**: A JPMC CCB Retail Banking user is accessing a "Geofenced AI Portfolio Advisor" from an **unmanaged, personal** Android/iOS device (BYOD).
+**Scenario**: A Retail Banking user (e.g., at JPMC or Citi) is accessing a "Geofenced AI Portfolio Advisor" from an **unmanaged, personal** Android/iOS device (BYOD).
 **Objective**: The user (or malware on the device) seeks to exploit an **infrastructure blind spot** to believe they are in a "Green Zone" (e.g., within the US/NY) while physically located in a prohibited or high-risk jurisdiction.
 
 ---
@@ -21,8 +21,7 @@
 Despite a "Clean" Boot-time Attestation, the following runtime vectors are active:
 
 ### Vector A: API Hooking (Frida/Xposed)
-- **Method**: Attacker attachs a runtime instrumentation tool (Frida) to the JPMC Banking App.
-- **Action**: Intercepts the `FusedLocationProviderClient` call.
+- **Action**: Intercepts the `FusedLocationProviderClient` call in the banking application.
 - **Payload**: Replaces the legitimate coordinates with a static, authorized NY location.
 - **Result**: The OS and App believe they are in NY.
 
@@ -46,7 +45,7 @@ AegisSovereignAI defends against these threats by shifting trust from the OS API
 ### Layer 1: Mobile Sensor Sidecar (Raw Data Ingress)
 Instead of requesting "Coordinates" from the OS, Aegis requests **Raw Sensor Footprints**:
 - **Cell Tower Triangulation**: Real-time CID/LAC data.
-- **WiFi Proximity**: Known BSSID fingerprints of JPMC branches or US-based infrastructure.
+- **WiFi Proximity**: Known BSSID fingerprints of authorized branches or secure enterprise infrastructure.
 - **NTP Skew**: Measuring network delay to US-based sync servers.
 
 ### Layer 2: Hardware-Rooted EAT Binding

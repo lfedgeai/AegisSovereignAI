@@ -233,7 +233,7 @@ SPIRE Server fetches and rotates MNO public verification keys via a configured e
 
 ## 7. Strategic Value: The Sovereignty Receipt
 
-For global financial services firms (e.g., JPMC, Citi), this proposal replaces a massive manual audit log with a single, cryptographic receipt.
+For global financial services firms (e.g., JPMC, Citi, or HSBC), this proposal replaces a massive manual audit log with a single, cryptographic receipt.
 
 * **For the Auditor:** A 1KB proof that mathematically guarantees the workload was physically in the Chennai Sovereign Zone, running on enterprise-approved silicon.
 * **For the Provider:** Complete privacy of the data center's physical coordinates.
