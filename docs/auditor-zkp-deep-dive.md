@@ -1,8 +1,8 @@
-# Zero-Knowledge Proofs for Prompt Integrity: The Batch & Purge Model
+# Privacy-Preserving Techniques (e.g. ZKP) for Prompt Integrity
 
-> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the ZKP-based prompt integrity verification system. For a high-level overview of the complete attestation model (hardware, location, identity, and prompts), see the **[Auditor Guide](./auditor.md)**.
+> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **privacy-preserving (e.g. ZKP-based)** prompt integrity verification system. For a high-level overview of the complete attestation model (hardware, location, identity, and prompts), see the **[Auditor Guide](./auditor.md)**.
 
-This document provides a technical walkthrough of how **AegisSovereignAI** utilizes Zero-Knowledge Proofs (ZKPs) to solve the **"Audit without Disclosure"** paradox for AI prompts.
+This document provides a technical walkthrough of how **AegisSovereignAI** utilizes **privacy-preserving techniques (e.g. ZKP)** to solve the **"Audit without Disclosure"** paradox for AI prompts.
 
 ## 1. The Problem: The Prompt Paradox
 
@@ -154,7 +154,7 @@ A Financial Services company is deploying a **Private Wealth Gen-AI Advisory** s
 
 ### Solution: The ZKP Dual Compliance Model
 
-This architecture uses **Zero-Knowledge Proofs (ZKP)** to provide a comprehensive, non-repudiable **Proof of Governance (PoGo)** for the AI supply chain, satisfying both regulatory audit and competitive secrecy.
+This architecture uses **privacy-preserving techniques (e.g. ZKP)** to provide a comprehensive, non-repudiable **Proof of Governance (PoGo)** for the AI supply chain, satisfying both regulatory audit and competitive secrecy.
 
 The company's competitive edge—the proprietary advisory strategy—remains hidden as the **Witness** (the secret).
 

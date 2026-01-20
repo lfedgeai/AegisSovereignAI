@@ -46,7 +46,7 @@ Using the **Keylime-to-SPIRE** loop, Aegis acts as a physical kill-switch for th
 | --- | --- | --- |
 | **Ingress (BYOD)** | **Secure Enclave Attestation** | Proves the customer's phone is untampered without needing MDM. |
 | **Orchestration** | **Blended SVID Handshake** | Ensures Agent A can only talk to Agent B if both share a valid User-Session claim. |
-| **Egress (Audit)** | **ZKP-enabled Geofencing** | Proves the advisor's final sign-off occurred in a "Green Zone" (US branch). |
+| **Egress (Audit)** | **Privacy-Preserving (e.g. ZKP) Geofencing** | Proves the advisor's final sign-off occurred in a "Green Zone" (US branch). |
 
 ---
 
