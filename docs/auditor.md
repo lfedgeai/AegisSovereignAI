@@ -12,55 +12,78 @@ Auditors use time-bound, attestation-linked proofs to:
 - **Establish Physical Provenance**: Prove that a specific decision was made on authorized, heterogeneous hardware (Intel TDX, AMD SEV, NVIDIA H100) and not on a spoofed or unauthorized platform.
 - **Ensure Litigation Readiness**: Create an evidentiary chain suitable for regulatory audit, expert review, or courtroom discovery.
 
-## 2. Regulatory & Standards Mapping
+## 2. Regulatory Control Mapping
 
-AegisSovereignAI evidence bundles map directly to the requirements of the **EU AI Act** and **NIST AI RMF**:
+For a Chief Risk Officer or a Regulatory Auditor, the value of AegisSovereignAI lies in its ability to provide **"Mathematical Proof of Compliance."** The following table maps technical architecture outputs to standard financial audit requirements.
 
-| Regulation/Standard | Control Objective | AegisSovereignAI Evidence |
+### Table of Proofs: Cryptographic Evidence for Financial Compliance
+
+| Regulatory Control Objective | AegisSovereignAI Technical Proof | Cryptographic Artifact / Output |
 | --- | --- | --- |
-| **EU AI Act Art. 10** | Data & Governance | Verifiable system prompt circuits proving no PII leak or unauthorized logic. |
-| **EU AI Act Art. 12** | Record-keeping | Cryptographically signed logs linked to hardware-rooted SVIDs. |
-| **NIST AI RMF (GOVERN)** | Governance & Policy | Policy-as-Circuit enforcement via ZKP / Noir compilation. |
-| **NIST AI RMF (RESILIENT)**| Security & Robustness | TEE-based (Intel TDX/AMD SEV) model weight and prompt isolation. |
+| **Data Residency (Reg-K / GDPR):** Proof that PII processing is geographically restricted. | **Verifiable Geofence:** A hardware-rooted proof of location. | **ZKP (Zero-Knowledge Proof):** A "True/False" result validating the node is within a boundary without exposing GPS coordinates. |
+| **Workload Integrity (OCC 2021-12):** Proof that AI models and logic have not been tampered with. | **IMA/EVM Runtime Attestation:** Continuous measurement of the software stack. | **TPM Quote:** A signed SHA-256 hash of the software state, verified against a "Golden Manifest" by Keylime. |
+| **Access Control (Least Privilege):** Proof that only authorized users on verified hardware can access AI. | **Blended SVID Identity:** Fuses user session (OIDC) with hardware state (TPM). | **SPIFFE SVID:** A short-lived X.509 certificate that is only issued if hardware integrity passes. |
+| **Model Confidentiality (DORA):** Proof that weights/prompts are protected from infrastructure admins. | **TEE Evidence:** Proof of execution within a Trusted Execution Environment. | **Attestation Report (Intel TDX / NVIDIA H100):** Hardware-signed report proving the workload is isolated in encrypted memory. |
+| **Audit Traceability:** Proof of "who, what, where, and how" for a specific AI decision. | **Sovereign Trust Loop Log:** An aggregated log of all verified identities and attestations. | **Exportable Evidence Bundle:** A JSON/JWS bundle compatible with SIEM/GRC tools (Splunk, Archer, etc.). |
 
-## 3. The Evidence Chain: From Silicon to Report
+## 3. Implementation Narrative for the Auditor
 
-The AegisSovereignAI **Sovereign Trust Loop** produces a minimal, portable proof package designed for ingestion into standard enterprise **SIEM/GRC (Security Information and Event Management / Governance, Risk, and Compliance)** platforms.
+### 1. The Evidence Generation Flow
 
-### Step 1: Hardware-Rooted Node Attestation
-SPIRE issues a **SPIFFE Verifiable Identity Document (SVID)** only after a successful **Trusted Platform Module (TPM)** quote is verified by the Keylime verifier.
-- **Evidence**: Signed TPM Quote + Node SVID.
-- **Verification**: `notBefore ≤ T ≤ notAfter` (where T is the time of interaction).
+When an AI inference request is made, AegisSovereignAI performs a "Pre-Flight Check":
 
-### Step 2: Workload & Runtime Integrity
-Keylime continuously monitors the software stack (IMA/EVM). If the node firmware or OS is compromised, the SVID is revoked by the **Autonomous Kill-Switch**.
-- **Evidence**: Keylime integrity manifest.
-- **Verification**: Node status = `ATTESTED` at time T.
+1.  **Hardware Verification:** Keylime requests a **TPM Quote** to ensure the silicon is genuine and the OS is untampered.
+2.  **Location Verification:** The node generates a **ZKP Proof** that its current hardware-measured location matches the "Green Zone" policy.
+3.  **Identity Fusion:** SPIRE issues a **Unified SVID** that cryptographically binds the verified hardware to the specific User Session.
 
-### Step 3: Privacy-Preserving Compliance (ZKP)
-For geofencing and model governance, AegisSovereignAI generates a Zero-Knowledge Proof (Noir circuit).
-- **Evidence**: ZKP Proof + Public Verification Key.
-- **Verification**: Mathematical proof validates residency/policy without revealing raw location or proprietary prompts.
+### 2. Continuous Monitoring vs. Point-in-Time Audit
 
-## 4. Auditor Query Examples
+Traditional audits are "point-in-time." AegisSovereignAI enables **Continuous Compliance**:
 
-### Scenario: High-Stakes Financial Advisory
-*"Prove that at 15:00 IST, the AI Agent processing high-net-worth client data was running on an attested TEE-enabled node in North America."*
-→ Ties to **Reg-K (Data Residency)** and **PCI DSS v4.0 Req. 10**.
+*   **Autonomous Kill-Switch:** If a hardware sensor (Layer 1) detects a change in the environment (e.g., a lid opening or a debug port being accessed), the **Keylime-to-SPIRE link** immediately revokes the identity.
+*   **Outcome:** The auditor sees a "Closed Loop" where violations are prevented in real-time rather than discovered months later during a manual review.
 
-**The Evidence Bundle:**
-1. **Hardware Proof**: Intel TDX/AMD SEV attestation report signed by silicon provider.
-2. **Identity Proof**: Node SVID with validity covering 15:00 IST.
-3. **Residency Proof**: ZKP verifying the node was within a geofenced boundary without disclosing raw GPS coordinates.
-4. **Conclusion**: Workload was executing in a cryptographically isolated environment on verified hardware in the approved region.
+### 3. GRC & SIEM Integration
 
-## 5. Implementation: The Compliance Pipeline
+To fit into existing bank workflows, the **Evidence Bundle** is designed to be ingested by standard tools (Splunk, Archer, etc.).
 
-AegisSovereignAI enables an automated compliance pipeline:
-1. **Traceability**: SVIDs are injected into every inter-service request.
-2. **Collection**: Distributed logs are aggregated with cryptographic hashes.
-3. **Narrative Generation**: An LLM-driven reporter maps raw evidence (hashes, SVIDs, TEE reports) into a human-readable narrative citing specific controls (e.g., EU AI Act §12).
-4. **Portability**: Final reports and evidence bundles are exported as JSON/PDF for SIEM/GRC integration.
+*   **Format:** Standardized JSON-LD with JWS (JSON Web Signature) for non-repudiation.
+*   **Mapping:** Each bundle includes tags for **NIST AI RMF** and **ISO/IEC 42001** to allow for automated report generation.
+
+#### Sample Evidence Bundle (JSON Structure)
+
+```json
+{
+  "evidence_id": "ev-9823-bk-2026",
+  "timestamp": "2026-01-20T04:15:00Z",
+  "control_mappings": ["NIST-AI-RMF-GOVERN-1.1", "EU-AI-ACT-ART-12"],
+  "subject": {
+    "spiffe_id": "spiffe://aegis.enterprise/workload/gen-ai-advisor",
+    "hardware_id": "tpm-id-7728-intel-tdx"
+  },
+  "attestation": {
+    "status": "VERIFIED",
+    "verifier": "keylime-verifier-primary",
+    "tpm_quote_signature": "base64-encoded-signature-hash",
+    "ima_status": "MATCH"
+  },
+  "geofence": {
+    "policy": "NORTH-AMERICA-GREEN-ZONE",
+    "zkp_proof": "base64-noir-proof-artifact",
+    "result": "PASSED"
+  },
+  "governance": {
+    "model_hash": "sha256:772ab...",
+    "system_prompt_integrity": "OK"
+  },
+  "signatures": [
+    {
+      "signer": "aegis-control-plane",
+      "jws": "eyJhbGciOiJSUzI1NiIsImtpZCI6In..."
+    }
+  ]
+}
+```
 
 ---
 
