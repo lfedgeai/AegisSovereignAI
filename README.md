@@ -1,7 +1,7 @@
 # AegisSovereignAI: Trusted AI for the Distributed Enterprise
 
 ## Executive Summary
-In a Distributed Enterprise, Infrastructure Security (Layer 1 in Figure 1) and AI Governance (Layer 3 in Figure 1) are often loosely coupled across the spectrum from **centralized clouds to the far edge**. This fragmentation results in a dangerous **"Accountability Gap"** where workload/user identities are easily spoofed, compliance creates massive **Personally Identifiable Information (PII)** liability, and compromised infrastructure — whether in a hyperscale data center or a remote branch office—can feed fake data to applications undetected. 
+In a Distributed Enterprise, Infrastructure Security (Layer 1 in Figure 1) and AI Governance (Layer 3 in Figure 1) are often loosely coupled across the spectrum from **centralized clouds to the far edge**. This fragmentation results in a dangerous **"Accountability Gap"** where workload/user identities are easily spoofed, compliance creates massive **Personally Identifiable Information (PII)** liability, and compromised infrastructure — whether in a hyperscale data center or a remote branch office — can feed fake data to applications undetected. 
 
 **AegisSovereignAI** bridges this gap by serving as a unifying control plane for the absolute distributed footprint. Through a **Unified and Extensible Identity (Layer 2 in Figure 1)** framework, it cryptographically fuses workloads/user identities using silicon-level attestation with application-level governance while preserving privacy to create a single, cohesive identity architecture that extends from the **Cloud Core to the Far Edge**.
 
@@ -10,7 +10,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ![Figure 1: AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 *Figure 1: AegisSovereignAI Architecture Summary - Bridging Infrastructure, Identity, and Governance.*
 
-**[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)** - Try it out with concrete use cases.
+**[Hybrid Cloud PoC for Unified Identity](./hybrid-cloud-poc/README.md)** - **Try it out with concrete use cases.**
 
 ## Enterprise Sovereign Use Cases (Focus: Financial Services)
 
