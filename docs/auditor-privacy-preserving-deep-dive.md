@@ -4,17 +4,18 @@
 
 This document provides a technical walkthrough of how **AegisSovereignAI** utilizes **privacy-preserving techniques (e.g. **ZKP**)** to solve the **"Audit without Disclosure"** paradox for AI prompts.
 
-## 1. The Problem: The Prompt Paradox
+## 1. The Problem: The Prompt & Output Paradox
 
-Enterprises in regulated industries face a fundamental conflict when auditing AI systems:
+Enterprises in regulated industries face a fundamental conflict when auditing AI systems across the complete **Input → Model → Output** lifecycle:
 
 | Requirement | Traditional Approach | Liability / Risk |
 | --- | --- | --- |
-| **Prove Safety Guardrails** | Show full system prompts to auditors. | Exposes proprietary IP. |
-| **Prove Clean User Input** | Log all user prompts for forensic review. | Creates massive PII/GDPR liability. |
-| **Post-Incident Forensic** | Retain all prompts indefinitely. | Violates Data Minimization principles. |
+| **Prove Safety Guardrails** | Show full system prompts to auditors. | Exposes proprietary IP (The Model's "Brain"). |
+| **Prove Clean User Input** | Log all user prompts for forensic review. | Creates massive PII/GDPR liability (The Input). |
+| **Prove Compliant AI Output** | Retain all AI responses to prove filtering. | Risks retaining hallucinated PII leakage (The Output). |
+| **Post-Incident Forensic** | Retain all prompts and responses indefinitely. | Violates Data Minimization principles. |
 
-**AegisSovereignAI's Solution:** Generate a cryptographic **proof** that a prompt satisfies a policy, then **purge** the raw data. The auditor receives mathematical certainty; the Enterprise removes the PII liability.
+**AegisSovereignAI's Solution:** Generate a cryptographic **proof** that an interaction (both prompt and response) satisfies a policy, then **purge** the raw data. The auditor receives mathematical certainty; the Enterprise removes the PII and IP liability.
 
 ---
 
