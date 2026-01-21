@@ -41,41 +41,42 @@ Our solution provides a **Unified Identity & Trust Framework** that secures the 
 ### The Sovereign Trust Loop
 A "Sovereign" system that only secures the output is a broken chain. For Tier-1 financial institutions, trust must be established at the source, maintained in the cloud, and verified at the edge.
 
-1.  **Verified Ingress**: Hardware-rooted attestation of the originating client device ensuring data provenance and **Regulation K (Reg-K)** geographic compliance via ZKP.
+1.  **Verified Ingress**: Hardware-rooted attestation of the originating client device ensuring data provenance and **Regulation K (Reg-K)** geographic compliance via **privacy-preserving techniques** (e.g., Zero-Knowledge Proofs / ZKPs).
     *   *Customer Value:* **Radical Privacy**—verify compliance without tracking movement history.
 2.  **Trusted Processing**: Confidential Computing (TEEs) and Platform Integrity (Keylime) ensuring the AI workload is isolated from the cloud infrastructure.
     *   *Customer Value:* **Absolute Data Sovereignty**—ensuring personal financial data is never exposed to third-party infrastructure.
 3.  **Verifiable Egress**: Hardware-rooted verification ensuring insights are released only to identity-verified and geofenced endpoints.
     *   *Customer Value:* **Security of Outcome**—guaranteeing that sensitive financial insights are delivered only to the authorized user's verified device.
 
-### Enterprise Personas & Sovereign Use Case Alignment
+## Enterprise Use Cases
 
-| Persona | Core Use Case | Primary Benefit | Technical Enabler |
-| :--- | :--- | :--- | :--- |
-| **Enterprise Customer** | **Private Wealth Gen-AI Advisory (Unmanaged Devices)** | **Radical Privacy** | Verified Ingress with ZKP Geolocation |
-| **Enterprise Employee** | **Secure Remote Branch Operations** | **Frictionless Compliance** | Hardware-Rooted Attestation (TPM/Keylime) |
-| **Enterprise Tenant** | **Regulatory Sandboxing for LOBs** | **Multi-Tenant Isolation** | SVID-based Identity Segmentation (SPIFFE) |
-| **Enterprise Stakeholder** | **Automated Regulatory Audit (All Devices & DC Infrastructure)** | **Compliance without Liability** | Continuous "Silicon-to-Audit" Trail |
+This PoC demonstrates the technical implementation for the 4 enterprise use cases described in the [main AegisSovereignAI README](../README.md#enterprise-sovereign-use-cases-focus-financial-services):
 
-#### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
-*   **Core Use Case**: **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while guaranteeing that their physical location and identity are never leaked to the public cloud.
-*   **Target Need**: Private interactions with Gen-AI advisors without sacrificing civil liberties or location history.
-*   **Sovereign Value**: **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via ZKP, ensuring the bank meets regulatory metrics (Reg-K) without the privacy liability of storing raw customer movement data.
+1. **Enterprise Customer** - Private Wealth Gen-AI Advisory (Unmanaged Devices)
+2. **Enterprise Employee** - Secure Remote Branch Operations  
+3. **Enterprise Tenant** - Secure Sandboxing for Line-of-Business (LOB) units
+4. **Regulator** - Automated Regulatory Audit
 
-#### 2. The Enterprise Employee (Branch Relationship Manager)
-*   **Core Use Case**: **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
-*   **Target Need**: Frictionless access to sensitive client PII on-site for analysis or loan processing using managed laptops or branch servers.
-*   **Sovereign Value**: **Frictionless Compliance.** Instead of manual VPNs or vulnerable passwords, the **Hardware Integrity** of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant. If the device firmware is compromised, access is revoked cryptographically at the hardware layer.
+For full use case descriptions, value propositions, and regulatory context, see the [main README](../README.md).
 
-#### 3. The Enterprise Tenant (Line-of-Business Owner)
-*   **Core Use Case**: **Regulatory Sandboxing for Lobs.** Enabling the Mortgage and Credit Card divisions to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective AI models and data.
-*   **Target Need**: Guarantee that sensitive workloads are isolated even when sharing Sovereign Cloud infrastructure.
-*   **Sovereign Value**: **Multi-Tenant Isolation.** Trust is established via **Cryptographic Identity (SPIFFE/SVID)** rather than network location. This provides hardware-enforced isolation between business units, even on shared silicon.
+### PoC Implementation Coverage
 
-#### 4. The Enterprise Stakeholder (Chief Risk/Sovereignty Officer)
-*   **Core Use Case**: **Automated Regulatory Audit (All End-User Devices & Data Center Infrastructure).** Providing a real-time, mathematical proof-of-compliance for the **Office of the Comptroller of the Currency (OCC)** or **European Central Bank (ECB)**, demonstrating that every AI interaction—across all retail devices, employee hardware, and **Managed Data Center Infrastructure**—was verified by hardware and compliant with data residency laws.
-*   **Target Need**: Deterministic, math-based proof for **Government Regulators** that data residency and sovereignty policies are strictly enforced.
-*   **Sovereign Value**: **Compliance without Liability.** By using ZKP-based location proofs, the Risk Officer can prove regional residency to regulators without the bank ever having to ingest or store high-resolution, high-liability customer location data.
+This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally in [README-arch-sovereign-ingress.md](README-arch-sovereign-ingress.md).
+
+| Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
+|----------|---------------------------|-------------------------|------------|
+| **Enterprise Customer** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Egress ready |
+| **Enterprise Employee** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Egress ready |
+| **Enterprise Tenant** | N/A (Internal workload isolation) | ✅ Implemented | Full |
+| **Regulator** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Data center audit ready |
+
+**What This PoC Demonstrates:**
+- ✅ Hardware-rooted identity (TPM attestation via Keylime)
+- ✅ Unified SPIFFE/SPIRE identity with geolocation claims
+- ✅ Privacy-preserving geofencing (Reg-K compliance without storing GPS)
+- ✅ Envoy-based policy enforcement (fail-closed WASM filtering)
+- ✅ Silicon-to-Audit trail for regulatory compliance
+- ✅ Degraded SVID detection (insider threat protection)
 
 ---
 
