@@ -70,13 +70,16 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 | **Enterprise Tenant** | N/A (Internal workload isolation) | ✅ Implemented | Full |
 | **Regulator** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Data center audit ready |
 
-**What This PoC Demonstrates:**
+**What This PoC Currently Demonstrates:**
 - ✅ Hardware-rooted identity (TPM attestation via Keylime)
-- ✅ Unified SPIFFE/SPIRE identity with geolocation claims
-- ✅ Privacy-preserving geofencing (Reg-K compliance without storing GPS)
+- ✅ Unified SPIFFE/SPIRE identity with geolocation claims (sensor metadata in SVID)
 - ✅ Envoy-based policy enforcement (fail-closed WASM filtering)
-- ✅ Silicon-to-Audit trail for regulatory compliance
 - ✅ Degraded SVID detection (insider threat protection)
+- ✅ mTLS with hardware-bound certificates (workload attestation)
+
+**Roadmap (Architecturally Defined):**
+- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - [Architecture](README-arch-sovereign-ingress.md)
+- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
 
