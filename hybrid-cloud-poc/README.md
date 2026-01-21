@@ -128,7 +128,7 @@ For detailed information on the unified identity architecture, including the com
   - Envoy (API Gateway) with WASM plugin
   - Server App
 - **Geolocation Service:**
-  - Mobile Geolocation Service (CAMARA API)
+  - Mobile Geolocation Service (CAMARA - Common API framework for Mobile network Acceleration and Reachability APIs)
 
 ![Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture](images/Slide19.PNG)
 
@@ -738,7 +738,7 @@ To meet the regulatory bar of an "End-to-End Zero Trust" architecture, AegisSove
 | **Ingress** | **ZKP Location/ID** | Privacy-Preserving KYC / Anti-Fraud | `draft-lkspa-wimse-verifiable-geo-fence` |
 | **Processing** | **Confidential TEE** | Data-in-Use Protection | `draft-ietf-rats-architecture` |
 | **Identity** | **DID + SVID (SPIFFE)**| Immutable Workload Identity | `draft-ni-a2a-ai-agent` |
-| **Egress** | **SPIRE SVID/OPA** | Service-to-Service Auth / DLP | `RFC 9535 (SPIFFE)` |
+| **Egress** | **SPIRE SVID / Open Policy Agent (OPA)** | Service-to-Service Auth / Data Loss Prevention (DLP) | `RFC 9535 (SPIFFE)` |
 
 ### IETF Draft Alignment Summary
 | Stage | IETF Draft / Standard | Role in Enterprise Architecture |
