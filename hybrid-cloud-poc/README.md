@@ -61,7 +61,7 @@ For full use case descriptions, value propositions, and regulatory context, see 
 
 ### PoC Implementation Coverage
 
-This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally in the [Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md).
+This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally (see Architecture Documentation section below).
 
 | Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
 |----------|---------------------------|-------------------------|------------|
@@ -78,7 +78,7 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
 **Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - See [Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)
+- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - See Architecture Documentation  section below
 - 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
@@ -94,20 +94,21 @@ The AegisSovereignAI framework implements this loop through:
 > [!NOTE]
 > **Implementation Status**: The Verified Ingress (Stage 1) architecture is defined and the technical implementation is slated for the immediate roadmap. This PoC currently provides the end-to-end implementation for the Trusted Egress (Stage 2).
 
-## Stage 1: Verified Ingress (Roadmap)
-The AegisSovereignAI framework treats the trust chain as a closed loop. For a detailed technical breakdown of the Ingress hardware-rooted provenance, see:
+## Architecture Documentation
 
-For a detailed technical breakdown of the complete trust framework (Ingress + Egress), see:
+For the complete technical breakdown of the **Unified Identity & Trust Framework** covering both stages, see:
 
 👉 **[Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**
 
-## Stage 2: Trusted Egress & Data Center Infrastructure Attestation (Upstream Ready)
+This document provides detailed architecture for:
+- **Stage 1 (Verified Ingress)** - Hardware-rooted attestation of client devices, privacy-preserving geofencing, and data provenance
+- **Stage 2 (Trusted Egress)** - Data center infrastructure attestation, workload identity, and policy enforcement
 
-The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
+### Current PoC Implementation Status
 
-### Unified Identity Architecture
-For detailed information on the unified identity architecture, including the complete end-to-end flow, attestation mechanisms, and component interactions, see:
-**[README-arch-sovereign-unified-identity.md](README-arch-sovereign-unified-identity.md)**
+The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Stage 2: Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
+
+
 
 ### Architecture Overview
 
