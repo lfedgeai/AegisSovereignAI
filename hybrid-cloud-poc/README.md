@@ -61,7 +61,7 @@ For full use case descriptions, value propositions, and regulatory context, see 
 
 ### PoC Implementation Coverage
 
-This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally in [README-arch-sovereign-ingress.md](README-arch-sovereign-ingress.md).
+This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally in the [Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md).
 
 | Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
 |----------|---------------------------|-------------------------|------------|
@@ -78,7 +78,7 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
 **Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - [Architecture](README-arch-sovereign-ingress.md)
+- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - See [Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)
 - 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
@@ -97,7 +97,9 @@ The AegisSovereignAI framework implements this loop through:
 ## Stage 1: Verified Ingress (Roadmap)
 The AegisSovereignAI framework treats the trust chain as a closed loop. For a detailed technical breakdown of the Ingress hardware-rooted provenance, see:
 
-👉 **[README-arch-sovereign-ingress.md](README-arch-sovereign-ingress.md)**
+For a detailed technical breakdown of the complete trust framework (Ingress + Egress), see:
+
+👉 **[Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**
 
 ## Stage 2: Trusted Egress & Data Center Infrastructure Attestation (Upstream Ready)
 
