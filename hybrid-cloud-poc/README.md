@@ -72,14 +72,14 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 
 **What This PoC Currently Demonstrates:**
 - ✅ Hardware-rooted identity (TPM attestation via Keylime)
-- ✅ Unified SPIFFE/SPIRE identity with geolocation claims (sensor metadata in SVID)
+- ✅ Hardware-Rooted Geofencing (Egress): Unified SPIFFE/SPIRE identity with geolocation claims (sensor metadata in SVID)
 - ✅ Envoy-based policy enforcement (fail-closed WASM filtering)
 - ✅ Degraded SVID detection (insider threat protection)
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
 **Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving geofencing (ZKP-based Reg-K compliance without storing GPS) - See Architecture Documentation  section below
-- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
+- 🔲 Privacy-preserving Geofencing (Ingress & Egress): ZKP-based Reg-K compliance without storing GPS - See Architecture Documentation section below
+or Mo- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
 
@@ -101,14 +101,12 @@ For the complete technical breakdown of the **Unified Identity & Trust Framework
 👉 **[Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**
 
 This document provides detailed architecture for:
-- **Stage 1 (Verified Ingress)** - Hardware-rooted attestation of client devices, privacy-preserving geofencing, and data provenance
-- **Stage 2 (Trusted Egress)** - Data center infrastructure attestation, workload identity, and policy enforcement
+- **Stage 1 (Verified Ingress)** - Hardware-rooted attestation of client devices, privacy-preserving (ZKP) geofencing, and data provenance
+- **Stage 2 (Trusted Egress)** - Data center infrastructure attestation, workload identity, policy enforcement, and hardware-rooted geofencing
 
 ### Current PoC Implementation Status
 
 The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Stage 2: Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
-
-
 
 ### Architecture Overview
 
