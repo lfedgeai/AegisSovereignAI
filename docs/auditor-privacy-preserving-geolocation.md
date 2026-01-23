@@ -201,6 +201,9 @@ AegisSovereignAI uses **hardware-rooted multi-sensor fusion** to prevent locatio
 | **TPM-Signed GNSS** | High | Hardware-rooted GPS signatures |
 | **App-Level GPS** | Low | Cross-validated against higher-trust sensors |
 
+> [!IMPORTANT]
+> **All Location Sources Have Privacy Implications:** Not just GPS—mobile network location (CAMARA/MNO) can also be precise (50-200m via cell triangulation), creating GDPR liability. The ZKP approach applies to **all sensor types**: the Enterprise never stores raw coordinates regardless of source.
+
 ### Attack Resistance
 
 | Attack Vector | Traditional Vulnerability | Aegis Defense |
