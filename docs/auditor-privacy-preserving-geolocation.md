@@ -126,7 +126,60 @@ fn main(
 }
 ```
 
+### TPM-Signed ZKP Output: End-to-End Hardware Binding
+
+For **absolute privacy guarantees**, the ZKP proof itself is signed by the TPM on the Keylime-attested host. This ensures the proof was generated on a specific verified server and cannot be replayed from elsewhere.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              TPM-SIGNED ZKP OUTPUT (KEYLIME AGENT PLUGIN)               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Keylime Agent Plugin                                    Auditor
+  ════════════════════                                    ════════
+
+  ┌──────────────────────┐
+  │  1. TPM-Signed       │   (Input attestation)
+  │     GPS Coordinates  │
+  └──────────┬───────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  2. ZKP Circuit      │   (Privacy-preserving computation)
+  │     Generates Proof  │
+  └──────────┬───────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  3. TPM Signs        │   (Output attestation)
+  │     Proof Hash       │
+  │     ────────────     │
+  │     proof_hash =     │
+  │       SHA256(zkp)    │
+  │     output_sig =     │
+  │       TPM_Sign(      │
+  │         proof_hash)  │
+  └──────────┬───────────┘
+             │
+             ▼
+  ┌──────────────────────┐          ┌─────────────────────┐
+  │  ZKP Proof +         │────────▶│  Verify:            │
+  │  TPM Output Sig      │          │  • ZKP is valid     │
+  └──────────────────────┘          │  • Output sig binds │
+                                    │    proof to TPM     │
+                                    └─────────────────────┘
+```
+
+**Why This Matters:**
+1. **Input Binding:** TPM-signed coordinates prove the GPS came from genuine hardware
+2. **Output Binding:** TPM-signed proof hash proves the ZKP was generated on **that specific Keylime-attested server**
+3. **No Replay:** An attacker cannot generate a valid ZKP elsewhere and replay it—the output signature would fail TPM verification
+
+> [!NOTE]
+> **Performance Impact:** Geolocation proofs are refreshed every 1-5 minutes (not per-request). At this frequency, the ~100ms TPM signing overhead is negligible.
+
 ---
+
 
 ## 4. Multi-Sensor Fusion: Defeating Spoofing Attacks
 
