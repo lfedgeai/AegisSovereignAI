@@ -301,6 +301,68 @@ When an auditor requests geolocation compliance evidence:
 3. **Verify Hardware Attestation:** Confirm the session was on attested hardware via SVID.
 4. **Aggregate Compliance:** Confirm all sessions in the audit window are compliant.
 
+### Example: Policy Proof Generation & Verification
+
+> [!NOTE]
+> **Public Boundary Policy:** Unlike proprietary prompt logic, geolocation compliance boundaries (e.g., "EEA", "US-EAST") are defined by regulation—not trade secrets. Sharing the exact boundary polygon with auditors is a **reasonable default**.
+
+#### Step 1: Enterprise Generates Policy Proof
+
+The Enterprise defines the compliance boundary and generates a verifiable policy commitment:
+
+```json
+// POLICY DEFINITION (Public - shared with Auditor)
+{
+  "policy_name": "EEA_REGULATION_K_v2",
+  "policy_version": "2026.1",
+  "boundary_polygon": [
+    {"lat": 71.185, "lon": -9.55},   // Norway (northwest)
+    {"lat": 71.185, "lon": 31.59},   // Finland (northeast)
+    {"lat": 34.80, "lon": 31.59},    // Cyprus (southeast)
+    {"lat": 36.00, "lon": -9.55}     // Portugal (southwest)
+  ],
+  "policy_hash": "sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+}
+```
+
+The Keylime Agent Plugin generates ZKP proofs using this policy:
+
+```
+Enterprise Server (Keylime Agent Plugin)
+═════════════════════════════════════════
+
+1. Load Policy: EEA_REGULATION_K_v2
+2. Receive TPM-signed GPS: (48.8566, 2.3522)  ← Paris
+3. ZKP Circuit: point_in_polygon(48.8566, 2.3522, EEA_BOUNDARY) → TRUE
+4. Generate Proof: π = Prove(coordinates, boundary, tpm_sig)
+5. TPM Sign Output: output_sig = TPM_Sign(SHA256(π))
+6. Emit SVID Claim: grc.geolocation.status = "compliant"
+```
+
+#### Step 2: Auditor Verifies Proof
+
+The Auditor receives the Evidence Bundle and verifies independently:
+
+```
+Auditor Verification (Independent)
+══════════════════════════════════
+
+1. Retrieve Policy: Download EEA_REGULATION_K_v2 from regulatory registry
+2. Verify Policy Hash: SHA256(boundary_polygon) == "sha256:7f83b..." ✓
+3. Verify ZKP Proof: 
+   - Load proof π from Evidence Bundle
+   - Load public inputs: boundary_polygon, tpm_public_key, timestamp
+   - Run Noir Verifier: Verify(π, public_inputs) → TRUE ✓
+4. Verify TPM Output Signature:
+   - Verify output_sig against Keylime-registered TPM public key ✓
+5. Conclusion: "Session was on verified hardware within EEA boundary"
+```
+
+**Key Insight:** The Auditor never sees the precise GPS coordinates (48.8566, 2.3522). They only verify that:
+- A valid TPM-signed coordinate existed (input integrity)
+- That coordinate was inside the EEA polygon (compliance)
+- The proof was generated on a specific Keylime-attested server (output integrity)
+
 ---
 
 ## 8. Regulatory Mapping
