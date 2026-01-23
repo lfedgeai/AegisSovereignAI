@@ -1,11 +1,11 @@
 # Layer 3: Privacy-Preserving AI Governance (The "Audit without Disclosure" Paradox)
 
-> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **Layer 3 AI Governance** model using **privacy-preserving techniques (e.g., ZKPs)** for prompt and output verification. For Layer 1/2 foundations (Hardware Trust, Identity, Location), see **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)**.
+> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **Layer 3 AI Governance** model using **privacy-preserving techniques (e.g., ZKPs)** for prompt and output verification. For Layer 1/2 foundations (Hardware Trust, Identity, Location), see **[Privacy-Preserving Geolocation](./auditor-privacy-preserving-geolocation.md)**.
 
 This document solves the **"Audit without Disclosure"** paradox: how can enterprises prove AI compliance to regulators without exposing proprietary prompts or retaining high-liability PII?
 
 > [!IMPORTANT]  
-> **Layer 2 Prerequisites:** All Layer 3 governance assumes a verified **Sovereign Anchor** is in place. Before proceeding with content verification, auditors must confirm the workload is running on attested hardware (Layer 1) with verified identity and location (Layer 2). See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)** for Stage 1 verification.
+> **Layer 2 Prerequisites:** All Layer 3 governance assumes a verified **Sovereign Anchor** is in place. Before proceeding with content verification, auditors must confirm the workload is running on attested hardware (Layer 1) with verified identity and location (Layer 2). See **[Privacy-Preserving Geolocation](./auditor-privacy-preserving-geolocation.md)** for Stage 1 verification.
 
 ## 1. The Problem: The Prompt & Output Paradox
 
@@ -84,7 +84,7 @@ While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the
 AegisSovereignAI's Layer 3 provides **cryptographic verification** across the AI governance lifecycle: **Model Training → System Prompt → User Prompt → AI Output**.
 
 > [!NOTE]
-> **Layer 2 Content Moved:** Data Ingestion Provenance (Track A) and Geofencing verification are Layer 2 concerns. See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)** for these primitives.
+> **Layer 2 Content Moved:** Data Ingestion Provenance (Track A) and Geofencing verification are Layer 2 concerns. See **[Privacy-Preserving Geolocation](./auditor-privacy-preserving-geolocation.md)** for these primitives.
 
 ### Track A: Model Training Governance (Redaction Policy)
 
@@ -309,7 +309,7 @@ If the ZKP circuit encounters a prompt that violates an **Exclusion Rule** (e.g.
 
 > [!NOTE]
 > **Modular Verification:** The complete Evidence Bundle is verified in two stages:
-> - **Stage 1 (Layer 1/2):** "Is this a valid Aegis Sovereign Node?" See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)**
+> - **Stage 1 (Layer 1/2):** "Is this a valid Aegis Sovereign Node?" See **[Privacy-Preserving Geolocation](./auditor-privacy-preserving-geolocation.md)**
 > - **Stage 2 (This Document):** "Did this node follow the governance policy for this session?"
 
 When an auditor requests **Layer 3 compliance evidence**, they receive:
@@ -447,4 +447,4 @@ A `sovereign_factory` applies the `governance.wrap_node` decorator to the LangGr
 
 ---
 
-[Root README](../README.md) | [Auditor Guide](./auditor.md) | [Infrastructure Sovereignty (Layer 1/2)](./infrastructure-sovereignty.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
+[Root README](../README.md) | [Auditor Guide](./auditor.md) | [Privacy-Preserving Geolocation (Layer 2)](./auditor-privacy-preserving-geolocation.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
