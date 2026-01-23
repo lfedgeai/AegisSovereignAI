@@ -92,27 +92,131 @@ AegisSovereignAI resolves this deadlock using a **"Coordinate-in-Polygon" ZKP ci
      The auditor receives a cryptographic proof of compliance.
 ```
 
+### The Geolocation Sidecar Architecture
+
+The AegisSovereignAI architecture uses a **Geolocation Sidecar** alongside the Keylime Agent. The sidecar handles location collection and ZKP generation, while the Keylime Agent handles all TPM operations. Both run in the **same trust boundary** on the attested host.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                       KEYLIME AGENT + GEOLOCATION SIDECAR                                │
+│                              (Same Trust Boundary)                                       │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────────────────────────────┐
+  │                         GEOLOCATION SIDECAR                                          │
+  │                         (Open Source, Auditable)                                     │
+  │                                                                                      │
+  │   ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐     │
+  │   │   GNSS Plugin       │    │  Mobile Plugin      │    │  Mobile Plugin      │     │
+  │   │   (Sensor Mode 1)   │    │  (Sensor Mode 2.1)  │    │  (Sensor Mode 2.2)  │     │
+  │   ├─────────────────────┤    ├─────────────────────┤    ├─────────────────────┤     │
+  │   │ Source: Local GNSS  │    │ Source: MNO (CAMARA │    │ Source: MNO (CAMARA │     │
+  │   │ (optionally HW-     │    │  location-retrieve) │    │  location-verify)   │     │
+  │   │  signed)            │    │                     │    │                     │     │
+  │   ├─────────────────────┤    ├─────────────────────┤    ├─────────────────────┤     │
+  │   │ ZKP: Sidecar        │    │ ZKP: Sidecar        │    │ ZKP: MNO generates  │     │
+  │   │      generates      │    │      generates      │    │      (future ext.)  │     │
+  │   └──────────┬──────────┘    └──────────┬──────────┘    └──────────┬──────────┘     │
+  │              └──────────────────────────┴──────────────────────────┘                │
+  │                                         │                                            │
+  │                                         ▼                                            │
+  │                          ┌───────────────────────────┐                              │
+  │                          │  ZKP Proof (+ sensor HW   │                              │
+  │                          │   metadata for anti-swap) │                              │
+  │                          └─────────────┬─────────────┘                              │
+  │                                        │                                             │
+  └────────────────────────────────────────┼─────────────────────────────────────────────┘
+                                           │
+                                           ▼
+  ┌─────────────────────────────────────────────────────────────────────────────────────┐
+  │                         KEYLIME AGENT                                                │
+  │                                                                                      │
+  │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
+  │   │  TPM Operations:                                                             │   │
+  │   │  • PCR 15 extension with hash(geolocation + sensor_hw + nonce)               │   │
+  │   │  • Quote generation with PCR 15 included                                     │   │
+  │   └─────────────────────────────────────────────────────────────────────────────┘   │
+  │                                                                                      │
+  └──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Sensor Modes
+
+| Mode | Location Source | ZKP Generator | TPM Operations |
+|------|-----------------|---------------|----------------|
+| **(1) GNSS** | Local device (optionally HW-signed) | Sidecar | Agent (PCR 15 extend) |
+| **(2.1) Mobile Direct** | MNO via CAMARA `location-retrieve` | Sidecar | Agent (PCR 15 extend) |
+| **(2.2) Mobile Boundary** | MNO via CAMARA `location-verify` | MNO (future extension) | Agent (PCR 15 extend) |
+
+#### GNSS Trust Tiers
+
+| Tier | GNSS Type | Hardware Signing | Trust Level |
+|------|-----------|------------------|-------------|
+| **Tier 1** | u-blox (secure element) | ✅ Native HW signature | Highest (end-to-end HW chain) |
+| **Tier 2** | Consumer GNSS | ❌ None (raw NMEA) | Standard (TPM output sig only) |
+
+> [!NOTE]
+> For Tier 2 GNSS, the sidecar reads raw coordinates (no HW signature), generates the ZKP, and the Keylime Agent TPM-signs the output. The TPM output signature is the sole hardware attestation. Enterprise policy can enforce "Tier 1 only" for high-security workloads.
+
+### Sensor Hardware Attestation (Anti-Swap Protection)
+
+The **full sensor hardware metadata** is included in the TPM attestation (PCR 15 extension). This prevents rogue admins or users from swapping sensors without detection.
+
+| Sensor Type | Attested Fields | Unique Identifier |
+|-------------|-----------------|-------------------|
+| **Mobile** | `sensor_id`, `sensor_imei`, `sensor_imsi` | `sensor_imei` (IMEI) |
+| **GNSS** | `sensor_id`, `sensor_serial_number` | `sensor_serial_number` |
+
+**How it works:**
+1. Sidecar collects sensor hardware metadata at location capture time
+2. Keylime Agent hashes the full geolocation response (including all HW fields) with nonce
+3. PCR 15 is extended with this hash
+4. If an attacker swaps the sensor, the `sensor_imei` or `sensor_serial_number` changes
+5. The PCR 15 value will differ from expected—Verifier detects the mismatch
+
+```json
+// Example: Full sensor metadata in PCR 15 hash
+{
+  "sensor_type": "mobile",
+  "mobile": {
+    "sensor_id": "12d1:1433",           // Manufacturer (USB ID)
+    "sensor_imei": "860123456789012",   // UNIQUE to this modem
+    "sensor_imsi": "214070123456789",   // SIM subscriber ID
+    "sensor_msisdn": "+34696810912"     // Phone number
+  },
+  "tpm_attested": true,
+  "tpm_pcr_index": 15
+}
+```
+
+> [!IMPORTANT]
+> **Code Reference:** See [`geolocation_handler.rs`](../hybrid-cloud-poc/rust-keylime/keylime-agent/src/geolocation_handler.rs#L377-L383) for the PCR 15 extension implementation that includes full sensor metadata.
+
 ### The ZKP Circuit
 
 ```rust
 // Conceptual Noir Circuit for Privacy-Preserving Geofencing
 fn main(
     // PRIVATE INPUTS (Never disclosed)
-    gps_latitude: Field,           // User's precise latitude
-    gps_longitude: Field,          // User's precise longitude
-    sensor_signature: [u8; 64],    // TPM signature over coordinates
+    gps_latitude: Field,                   // User's precise latitude
+    gps_longitude: Field,                  // User's precise longitude
+    gnss_hw_signature: Option<[u8; 64]>,   // Optional: HW-signed GNSS (Tier 1)
+    sensor_serial_number: Field,           // Unique sensor identifier
     
     // PUBLIC INPUTS (Visible to auditor)
-    compliance_polygon: [Point; N], // The "Green Zone" boundary
-    tpm_public_key: pub Field,      // For signature verification
-    proof_timestamp: pub Field      // When the proof was generated
+    compliance_polygon: [Point; N],        // The "Green Zone" boundary
+    gnss_hw_public_key: Option<pub Field>, // Optional: for Tier 1 GNSS
+    tpm_public_key: pub Field,             // For TPM output verification
+    proof_timestamp: pub Field             // When the proof was generated
 ) {
-    // 1. Verify the coordinates came from genuine hardware
-    assert(verify_tpm_signature(
-        sensor_signature, 
-        hash(gps_latitude, gps_longitude, proof_timestamp),
-        tpm_public_key
-    ));
+    // 1. If Tier 1 GNSS: Verify hardware signature
+    if gnss_hw_signature.is_some() {
+        assert(verify_gnss_signature(
+            gnss_hw_signature.unwrap(),
+            hash(gps_latitude, gps_longitude, proof_timestamp),
+            gnss_hw_public_key.unwrap()
+        ));
+    }
     
     // 2. Verify the point is inside the compliance polygon
     assert(point_in_polygon(
@@ -122,13 +226,13 @@ fn main(
     ));
     
     // OUTPUT: Proof that "genuine hardware reported a location within the boundary"
-    // WITHOUT revealing the actual coordinates
+    // WITHOUT revealing the actual coordinates or sensor serial number
 }
 ```
 
-### TPM-Signed ZKP Output: End-to-End Hardware Binding
+### TPM-Attested ZKP Output: Mode-Specific Flows
 
-For **absolute privacy guarantees**, the ZKP proof itself is signed by the TPM on the Keylime-attested host. This ensures the proof was generated on a specific verified server and cannot be replayed from elsewhere.
+The **Geolocation Sidecar** generates the ZKP proof, then passes it to the **Keylime Agent** for TPM attestation via PCR 15 extension. The flow varies by sensor mode:
 
 > [!NOTE]
 > **Platform Support:** Keylime is designed for **Linux servers** with TPM 2.0. For **client devices** (iOS, Android, Windows), alternative attestation components are used:
@@ -138,60 +242,141 @@ For **absolute privacy guarantees**, the ZKP proof itself is signed by the TPM o
 > 
 > See **[Unified Identity Framework](../hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** for cross-platform attestation details.
 
+#### Mode 1: GNSS (Local Sensor)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│              TPM-SIGNED ZKP OUTPUT (KEYLIME AGENT PLUGIN)               │
+│          MODE 1: GNSS WITH OPTIONAL HARDWARE SIGNING                    │
 └─────────────────────────────────────────────────────────────────────────┘
 
-  Keylime Agent Plugin                                    Auditor
-  ════════════════════                                    ════════
+  Geolocation Sidecar              Keylime Agent              Auditor
+  ═══════════════════              ═════════════              ════════
 
   ┌──────────────────────┐
-  │  1. TPM-Signed       │   (Input attestation)
-  │     GPS Coordinates  │
+  │  1. GNSS Sensor      │
+  │     Reads Coords     │
+  │     (optionally HW-  │
+  │      signed)         │
   └──────────┬───────────┘
              │
              ▼
   ┌──────────────────────┐
-  │  2. ZKP Circuit      │   (Privacy-preserving computation)
+  │  2. ZKP Circuit      │
   │     Generates Proof  │
+  │     (+ sensor_serial)│
   └──────────┬───────────┘
              │
-             ▼
-  ┌──────────────────────┐
-  │  3. TPM Signs        │   (Output attestation)
-  │     Proof Hash       │
-  │     ────────────     │
-  │     proof_hash =     │
-  │       SHA256(zkp)    │
-  │     output_sig =     │
-  │       TPM_Sign(      │
-  │         proof_hash)  │
-  └──────────┬───────────┘
-             │
-             ▼
-  ┌──────────────────────┐          ┌─────────────────────┐
-  │  ZKP Proof +         │────────▶│  Verify:            │
-  │  TPM Output Sig      │          │  • ZKP is valid     │
-  └──────────────────────┘          │  • Output sig binds │
-                                    │    proof to TPM     │
+             ▼                       ┌─────────────────────┐
+  ┌──────────────────────┐          │  3. PCR 15 Extend   │
+  │  ZKP Proof +         │─────────►│     hash(geo +      │
+  │  Sensor Metadata     │          │      sensor_hw +    │
+  └──────────────────────┘          │      nonce)         │
+                                    └──────────┬──────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │  4. Generate Quote  │────────►
+                                    │     (includes PCR15)│
                                     └─────────────────────┘
 ```
 
-**Why This Matters:**
-1. **Input Binding:** TPM-signed coordinates prove the GPS came from genuine hardware
-2. **Output Binding:** TPM-signed proof hash proves the ZKP was generated on **that specific Keylime-attested server**
-3. **No Replay:** An attacker cannot generate a valid ZKP elsewhere and replay it—the output signature would fail TPM verification
+#### Mode 2.1: Mobile Network (Direct Location Retrieval)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│       MODE 2.1: MOBILE NETWORK VIA CAMARA (DIRECT RETRIEVAL)            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Geolocation Sidecar              Keylime Agent              Auditor
+  ═══════════════════              ═════════════              ════════
+
+  ┌──────────────────────┐
+  │  1. Call CAMARA      │
+  │     location-        │
+  │     retrieve API     │
+  │     (MNO returns     │
+  │      lat/lon)        │
+  └──────────┬───────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  2. ZKP Circuit      │
+  │     Generates Proof  │
+  │     (+ sensor_imei)  │
+  └──────────┬───────────┘
+             │
+             ▼                       ┌─────────────────────┐
+  ┌──────────────────────┐          │  3. PCR 15 Extend   │
+  │  ZKP Proof +         │─────────►│     hash(geo +      │
+  │  Sensor Metadata     │          │      sensor_hw +    │
+  └──────────────────────┘          │      nonce)         │
+                                    └──────────┬──────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │  4. Generate Quote  │────────►
+                                    │     (includes PCR15)│
+                                    └─────────────────────┘
+```
+
+#### Mode 2.2: Mobile Network (Boundary Verification - Future Extension)
+
+> [!WARNING]
+> **Future Extension:** Mode 2.2 requires CAMARA API extension to return ZKP proofs. Current CAMARA `location-verify` returns only boolean results. This mode documents the proposed architecture pending CAMARA standardization.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│       MODE 2.2: MOBILE NETWORK VIA CAMARA (BOUNDARY VERIFY)             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  Geolocation Sidecar              Keylime Agent              Auditor
+  ═══════════════════              ═════════════              ════════
+
+  ┌──────────────────────┐
+  │  1. Call CAMARA      │
+  │     location-verify  │
+  │     (MNO generates   │
+  │      ZKP proof)      │
+  └──────────┬───────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  2. Receive MNO ZKP  │
+  │     + MNO Signature  │
+  │     (no local ZKP    │
+  │      generation)     │
+  └──────────┬───────────┘
+             │
+             ▼                       ┌─────────────────────┐
+  ┌──────────────────────┐          │  3. PCR 15 Extend   │
+  │  MNO ZKP +           │─────────►│     hash(mno_zkp +  │
+  │  Sensor Metadata     │          │      sensor_hw +    │
+  └──────────────────────┘          │      nonce)         │
+                                    └──────────┬──────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │  4. Generate Quote  │────────►
+                                    │     (includes PCR15)│
+                                    └─────────────────────┘
+```
+
+**Why Sidecar + Agent Separation Matters:**
+1. **Separation of Concerns:** Sidecar handles sensor I/O and ZKP computation; Agent handles TPM operations
+2. **Same Trust Boundary:** Both components run on the same attested host, so no additional network hops
+3. **Open Source Verifiability:** Like Keylime Agent, the sidecar code is open source for audit
+4. **Sensor Hardware Binding:** Full sensor metadata (IMEI/serial) is included in PCR 15 hash, preventing sensor swaps
+5. **No Replay:** An attacker cannot replay a ZKP from elsewhere—the PCR 15 value would mismatch
 
 > [!NOTE]
-> **Performance Impact:** Geolocation proofs are refreshed every 1-5 minutes (not per-request). At this frequency, the ~100ms TPM signing overhead is negligible.
+> **Performance Impact:** Geolocation proofs are refreshed every 1-5 minutes (not per-request). At this frequency, the ~100ms TPM PCR extension overhead is negligible.
 
 ---
 
 
-## 4. Multi-Sensor Fusion: Defeating Spoofing Attacks
+## 5. Multi-Sensor Fusion: Defeating Spoofing Attacks
 
-AegisSovereignAI uses **hardware-rooted multi-sensor fusion** to prevent location spoofing. This builds on the architecture detailed in the **[Unified Identity & Trust Framework](../hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)**.
+AegisSovereignAI uses **hardware-rooted multi-sensor fusion** via the **Geolocation Sidecar** to prevent location spoofing. The sidecar collects data from multiple sensor sources and generates ZKP proofs that the Keylime Agent TPM-attests.
 
 ### Sensor Hierarchy
 
@@ -217,7 +402,7 @@ AegisSovereignAI uses **hardware-rooted multi-sensor fusion** to prevent locatio
 
 ---
 
-## 5. The SVID Geolocation Claims
+## 6. The SVID Geolocation Claims
 
 When geolocation verification succeeds, the claims are embedded in the **SPIFFE Verifiable Identity Document (SVID)**:
 
@@ -247,7 +432,7 @@ When geolocation verification succeeds, the claims are embedded in the **SPIFFE 
 
 ---
 
-## 6. Enterprise Use Case: Private Wealth Gen-AI Advisory
+## 7. Enterprise Use Case: Private Wealth Gen-AI Advisory
 
 ### Scenario (Use Case 1 - Enterprise Customer)
 
@@ -266,7 +451,7 @@ A high-net-worth client uses the **Private Wealth Gen-AI Advisory** from their p
 
 ---
 
-## 7. The Evidence Bundle for Auditors
+## 8. The Evidence Bundle for Auditors
 
 When an auditor requests geolocation compliance evidence:
 
@@ -376,7 +561,7 @@ Auditor Verification (Independent)
 
 ---
 
-## 8. Regulatory Mapping
+## 9. Regulatory Mapping
 
 | Regulatory Need | AegisSovereignAI Implementation |
 |-----------------|--------------------------------|
@@ -387,7 +572,7 @@ Auditor Verification (Independent)
 
 ---
 
-## 9. Integration with Layer 3 AI Governance
+## 10. Integration with Layer 3 AI Governance
 
 Geolocation verification is a **Layer 2 prerequisite** for Layer 3 AI Governance. The modular architecture:
 
