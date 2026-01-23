@@ -19,7 +19,7 @@ This roadmap outlines a 90-day execution template to transition the AegisSoverei
 **Goal:** Extend the trust boundary to unmanaged HNW customer devices via Verified Ingress.
 
 *   **Workstream 4 (Mobile SDK):** Integrate the Aegis Ingress SDK (App Attest/Key Attestation) into an authorized mobile application (e.g., JPM Private Banking).
-*   **Workstream 5 (Privacy-Preserving Geofencing):** Implement **privacy-preserving techniques (e.g. ZKP)** for verified geofencing (Reg-K compliance) in high-risk regions.
+*   **Workstream 5 (Privacy-Preserving Geofencing):** Implement **privacy-preserving techniques (e.g. Zero-knowledge-proofs aka ZKPs)** for verified geofencing (Reg-K compliance) in high-risk regions.
 *   **Workstream 6 (Aegis Verifier):** Instantiate the Aegis Verifier as the "Trust Bridge" between OEM Root CAs and the bank's SPIRE server.
 *   **Milestone:** A HNW customer performs a trade verification from a personal iPhone with **Point-in-Time** hardware attestation.
 

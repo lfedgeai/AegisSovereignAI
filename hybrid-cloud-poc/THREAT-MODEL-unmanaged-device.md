@@ -21,6 +21,7 @@
 Despite a "Clean" Boot-time Attestation, the following runtime vectors are active:
 
 ### Vector A: API Hooking (Frida/Xposed)
+- **Method**: Attacker attachs a runtime instrumentation tool (Frida etc.) to the Banking App.
 - **Action**: Intercepts the `FusedLocationProviderClient` call in the banking application.
 - **Payload**: Replaces the legitimate coordinates with a static, authorized NY location.
 - **Result**: The OS and App believe they are in NY.
@@ -54,7 +55,7 @@ The Aegis app triggers a **Point-in-Time Attestation** via the **Secure Enclave/
 2.  **Hardware Signing**: The Secure Enclave signs the **Challenge + Raw Sensor Data**.
 3.  **Integrity Proof**: The signature includes a proof that **Root/Jailbreak** status is negative.
 
-### Layer 3: ZKP Verification (Privacy-Preserving Proof)
+### Layer 3: Zero-knowledge-proofs aka ZKPs Verification (Privacy-Preserving Proof)
 The device generates a **Zero-Knowledge Proof (ZKP)**:
 - **Verification**: The **Aegis Verifier**—acting as the Trust Bridge—validates the proof without seeing raw PII. If the sensor data was synthetic (Missing Cell/WiFi correlation), the mathematical proof fails.
 - **Enforcement (The SVID Grant)**: Upon successful verification, the **Aegis Control Plane** issues a **Unified Workload SVID** containing the `grc.geolocation.status: compliant` claim.

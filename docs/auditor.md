@@ -1,6 +1,6 @@
 # Auditor Guide: Verifying the Sovereign Trust Loop
 
-> **For Auditors & Risk Officers:** This is the high-level guide to understanding AegisSovereignAI's attestation-linked evidence model. For a deep technical dive into **privacy-preserving techniques (e.g. ZKP)** circuits and the Five-Track architecture for the full AI lifecycle, see the **[Privacy-Preserving Deep-Dive for Technical Auditors](./auditor-privacy-preserving-deep-dive.md)**.
+> **For Auditors & Risk Officers:** This is the high-level guide to understanding AegisSovereignAI's attestation-linked evidence model. For a deep technical dive into **privacy-preserving techniques (e.g. **Zero-knowledge-proofs aka ZKPs**)** circuits and the Five-Track architecture for the full AI lifecycle, see the **[Privacy-Preserving Deep-Dive for Technical Auditors](./auditor-privacy-preserving-deep-dive.md)**.
 
 AegisSovereignAI provides a cryptographically verifiable solution to the **"Accountability Gap"** in modern AI infrastructure. This guide provides auditors and risk officers with the technical framework required to prove compliance with global standards, including the **EU AI Act**, **NIST AI RMF**, and **Regulation K (Reg-K)**.
 
@@ -10,7 +10,7 @@ Traditional IT security relies on **Infrastructure Blind Spots**—where an admi
 
 Auditors use time-bound, attestation-linked proofs to:
 - **Test Control Effectiveness**: Verify that claimed controls (attestation, residency, model integrity) worked at a concrete instant.
-- **Solve the Residency vs. Privacy Deadlock**: Use **privacy-preserving techniques (e.g. ZKP)** to prove data residency and model compliance without ingesting or storing high-liability **Personally Identifiable Information (PII)**.
+- **Solve the Residency vs. Privacy Deadlock**: Use **privacy-preserving techniques (e.g. **ZKP**)** to prove data residency and model compliance without ingesting or storing high-liability **Personally Identifiable Information (PII)**.
 - **Establish Physical Provenance**: Prove that a specific decision was made on authorized, heterogeneous hardware (Intel TDX, AMD SEV, NVIDIA H100) and not on a spoofed or unauthorized platform.
 - **Ensure Litigation Readiness**: Create an evidentiary chain suitable for regulatory audit, expert review, or courtroom discovery.
 
@@ -40,7 +40,7 @@ When an AI inference request is made, AegisSovereignAI performs a "Pre-Flight Ch
 1.  **Ingestion/Provenance Verification:** Proving the data source is a genuine hardware device in an authorized region (Track A).
 2.  **Training/Redaction Verification:** Proving the model was trained only on policy-compliant, redacted data (Track B).
 3.  **Hardware Verification:** Keylime requests a **TPM Quote** to ensure the silicon is genuine and the OS is untampered.
-4.  **Location Verification:** The node generates a **privacy-preserving proof (e.g. ZKP)** that its current hardware-measured location matches the "Green Zone" policy.
+4.  **Location Verification:** The node generates a **privacy-preserving techniques (e.g. **ZKP**)** proof that its current hardware-measured location matches the "Green Zone" policy.
 5.  **Inference Governance (Batch & Purge):** Generating proofs for system/user prompts and AI outputs while purging raw data (Tracks C/D/E).
 6.  **Identity Fusion:** SPIRE issues a **Unified SVID** that cryptographically binds the verified hardware to the specific User Session.
 

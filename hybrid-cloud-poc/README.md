@@ -78,8 +78,8 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
 **Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving Geofencing (Ingress & Egress): ZKP-based Reg-K compliance without storing GPS - See Architecture Documentation section below
-or Mo- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
+- 🔲 Privacy-preserving Geofencing (Ingress & Egress): ZKP-based Reg-K compliance without storing GPS or Mobile Network location data - See Architecture Documentation section below
+- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
 

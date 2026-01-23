@@ -1,6 +1,6 @@
 # Infrastructure Sovereignty: Layer 1 & Layer 2 Trust Primitives
 
-> **For Technical Auditors & Architects:** This document covers the **Environmental Trust** foundations (Hardware + Identity + Location) that must be established before Layer 3 AI Governance can begin. For the AI-specific governance model (prompts, outputs, compliance proofs), see the **[Privacy-Preserving Deep-Dive](./auditor-privacy-preserving-deep-dive.md)**.
+> **For Technical Auditors & Architects:** This document covers the **Environmental Trust** foundations (Hardware + Identity + Location) that must be established before Layer 3 AI Governance can begin. For the AI-specific governance model (prompts, outputs, compliance proofs), see the **[Privacy-Preserving Deep-Dive](./auditor-privacy-preserving-ai-governance.md)**.
 
 ---
 
@@ -12,11 +12,11 @@ Before auditing **what the AI is saying** (Layer 3), auditors must first verify 
 |-------|--------------|----------------------|
 | **Layer 1: Infrastructure** | Hardware Trust | "Is this genuine, untampered silicon?" |
 | **Layer 2: Identity** | Environmental Trust | "Is this workload running in an authorized location on an authorized device?" |
-| **Layer 3: Governance** | Content Trust | "Did this AI follow the governance policy?" (See [Privacy-Preserving Deep-Dive](./auditor-privacy-preserving-deep-dive.md)) |
+| **Layer 3: Governance** | Content Trust | "Did this AI follow the governance policy?" (See [Privacy-Preserving Deep-Dive](./auditor-privacy-preserving-ai-governance.md)) |
 
 **The Modular Evidence Bundle:** When an auditor receives an Evidence Bundle, verification proceeds in stages:
 - **Stage 1 (This Document):** "Is this a valid Aegis Sovereign Node?" → Verified via Layer 1/2 Attestation
-- **Stage 2 ([Deep-Dive](./auditor-privacy-preserving-deep-dive.md)):** "Did this node follow the governance policy?" → Verified via Layer 3 ZKP
+- **Stage 2 ([Deep-Dive](./auditor-privacy-preserving-ai-governance.md)):** "Did this node follow the governance policy?" → Verified via Layer 3 ZKP
 
 ---
 
@@ -138,7 +138,7 @@ When an auditor requests infrastructure attestation, they receive:
 2. **Verify Identity Binding:** Confirm the SVID is bound to the attested hardware.
 3. **Verify Geofence Proof:** Confirm the workload is within the compliant boundary.
 
-Once Stage 1 passes, the auditor proceeds to **Stage 2** ([Layer 3 Governance Verification](./auditor-privacy-preserving-deep-dive.md)).
+Once Stage 1 passes, the auditor proceeds to **Stage 2** ([Layer 3 Governance Verification](./auditor-privacy-preserving-ai-governance.md)).
 
 ---
 
@@ -154,4 +154,4 @@ Once Stage 1 passes, the auditor proceeds to **Stage 2** ([Layer 3 Governance Ve
 
 ---
 
-[Root README](../README.md) | [Auditor Guide](./auditor.md) | [Privacy-Preserving Deep-Dive (Layer 3)](./auditor-privacy-preserving-deep-dive.md)
+[Root README](../README.md) | [Auditor Guide](./auditor.md) | [Privacy-Preserving Deep-Dive (Layer 3)](./auditor-privacy-preserving-ai-governance.md)

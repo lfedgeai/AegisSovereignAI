@@ -172,7 +172,7 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
   - Envoy WASM Plugin and Mobile Sensor Microservice (Mock MNO) to be released as standalone, reusable open source projects
 - **Mobile Sensor Microservice (Mock MNO)**:
   - Acts as the "Mock MNO" provider for verifying "Device Location" via CAMARA APIs.
-  - Verifier calls this service (conceptually) or verifies the ZKP receipt derived from it.
+  - Verifier calls this service (conceptually) or verifies the Zero-knowledge-proofs aka ZKPs receipt derived from it.
 - No breaking changes to either upstream project
 - Each component independently mergeable
 
@@ -267,7 +267,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 ## Edge Ecosystems (Apple, Android, Windows, Linux)
 
 Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
-1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., JPMC-managed), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
+1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., at JPMC or Barclays), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
 2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the banking app's keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
 
 > [!TIP]

@@ -15,7 +15,7 @@
 - **Gen 4 (This Proposal):** Noir ZK-Circuit wraps evidence into privacy-preserving compliance proof
 
 **Two Verification Layers:**
-1. **ZKP Compliance** — Proves location within policy boundary (privacy-preserving)
+1. **Zero-knowledge-proofs aka ZKPs Compliance** — Proves location within policy boundary (privacy-preserving)
 2. **Hardware Integrity** — TPM-attested mobile sensor (IMEI, IMSI), GPS sensor (serial, location), OS, SPIRE Agent
 
 **Result:** Workloads cannot communicate via mTLS unless they provide mathematical proof of physical residency. Non-compliant workloads are network-isolated ("Black Cloud").
