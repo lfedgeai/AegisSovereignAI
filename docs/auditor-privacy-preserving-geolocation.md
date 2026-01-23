@@ -130,6 +130,14 @@ fn main(
 
 For **absolute privacy guarantees**, the ZKP proof itself is signed by the TPM on the Keylime-attested host. This ensures the proof was generated on a specific verified server and cannot be replayed from elsewhere.
 
+> [!NOTE]
+> **Platform Support:** Keylime is designed for **Linux servers** with TPM 2.0. For **client devices** (iOS, Android, Windows), alternative attestation components are used:
+> - **iOS:** Apple App Attest + Secure Enclave
+> - **Android:** Android Key Attestation + StrongBox
+> - **Windows:** SGRM (System Guard Runtime Monitor)
+> 
+> See **[Unified Identity Framework](../hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** for cross-platform attestation details.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │              TPM-SIGNED ZKP OUTPUT (KEYLIME AGENT PLUGIN)               │
