@@ -137,7 +137,8 @@ AegisSovereignAI is designed to be framework-agnostic, serving as a secure execu
 ## Technical & Auditor Resources
 
 *   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering the full AI lifecycle (Ingestion, Training, and Inference), verifiable geofencing (Reg-K), and identity binding. Includes the complete Evidence Bundle structure for regulatory reporting.
-*   **[Privacy-Preserving Deep-Dive for Technical Auditors](./docs/auditor-privacy-preserving-deep-dive.md)** - Technical walkthrough of the **Five-Track Sovereign AI Lifecycle** (Ingestion, Training, Inference), verifiable geofencing circuits, Batch & Purge architecture, and incident response workflow for comprehensive governance.
+*   **[Infrastructure Sovereignty (Layer 1/2)](./docs/infrastructure-sovereignty.md)** - Technical deep-dive on **Environmental Trust**: Hardware attestation (TEE/TPM), identity binding (SPIFFE/SPIRE + Keylime), privacy-preserving geofencing (Reg-K), and data ingestion provenance.
+*   **[Privacy-Preserving AI Governance (Layer 3)](./docs/auditor-privacy-preserving-deep-dive.md)** - Technical walkthrough of the **Four-Track Layer 3 Governance Lifecycle** (Training, System Prompt, User Prompt, Output), Batch & Purge architecture, and modular Evidence Bundle verification.
 *   **[Threat Model: Unmanaged Device Security](./hybrid-cloud-poc/THREAT-MODEL-unmanaged-device.md)** - Analysis of **Infrastructure Blind Spots** on **BYOD/Unmanaged Devices**, detailing how AegisSovereignAI prevents location spoofing via hardware-rooted sensor fusion.
 *   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** - Detailed technical architecture of the SPIRE/Keylime identity fusion model.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.

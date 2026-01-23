@@ -1,8 +1,11 @@
-# Privacy-Preserving Techniques (e.g. **Zero-knowledge-proofs aka ZKPs**) for the Full AI Lifecycle
+# Layer 3: Privacy-Preserving AI Governance (The "Audit without Disclosure" Paradox)
 
-> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **privacy-preserving (e.g. **ZKP**-based)** prompt integrity verification system. For a high-level overview of the complete attestation model (hardware, location, identity, and prompts), see the **[Auditor Guide](./auditor.md)**.
+> **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **Layer 3 AI Governance** model using **privacy-preserving techniques (e.g., ZKPs)** for prompt and output verification. For Layer 1/2 foundations (Hardware Trust, Identity, Location), see **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)**.
 
-This document provides a technical walkthrough of how **AegisSovereignAI** utilizes **privacy-preserving techniques (e.g. **ZKP**)** to solve the **"Audit without Disclosure"** paradox for AI prompts.
+This document solves the **"Audit without Disclosure"** paradox: how can enterprises prove AI compliance to regulators without exposing proprietary prompts or retaining high-liability PII?
+
+> [!IMPORTANT]  
+> **Layer 2 Prerequisites:** All Layer 3 governance assumes a verified **Sovereign Anchor** is in place. Before proceeding with content verification, auditors must confirm the workload is running on attested hardware (Layer 1) with verified identity and location (Layer 2). See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)** for Stage 1 verification.
 
 ## 1. The Problem: The Prompt & Output Paradox
 
@@ -76,36 +79,14 @@ While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the
 
 ---
 
-## 4. Foundational Primitive: Verifiable Geofencing (Reg-K)
+## 4. The Four-Track Layer 3 Governance Lifecycle
 
-Before auditing AI logic, auditors must often verify **where** the data is being processed to comply with residency laws like **Regulation K** or **GDPR**.
+AegisSovereignAI's Layer 3 provides **cryptographic verification** across the AI governance lifecycle: **Model Training → System Prompt → User Prompt → AI Output**.
 
-**The Challenge:** Traditional GPS/IP-based geofencing creates PII liability by storing the user's precise location.
+> [!NOTE]
+> **Layer 2 Content Moved:** Data Ingestion Provenance (Track A) and Geofencing verification are Layer 2 concerns. See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)** for these primitives.
 
-**The ZKP Solution:** A "Coordinate-in-Polygon" circuit.
-1. **Private Input:** The node's precise GPS/cellular coordinates (verified by TPM-signed sensor data).
-2. **Public Input:** The permitted geographic boundary (the "Green Zone" polygon).
-3. **Proof:** The circuit mathematically proves the private coordinate is inside the public polygon without ever revealing the coordinate itself.
-
-**Outcome:** The auditor sees a "Pass/Fail" cryptographic result tied to a hardware-rooted identity, satisfying residency requirements with zero privacy leakage.
-
----
-
-## 5. The Five-Track Sovereign AI Lifecycle Strategy
-
-AegisSovereignAI provides **end-to-end cryptographic verification** across every stage of the AI lifecycle: **Ingestion → Training → Inference → Output**.
-
-### Track A: Data Ingestion (Hardware-Rooted Provenance)
-
-Proving the integrity and origin of raw data before it enters the AI pipeline.
-
-**Process:**
-1. **Hardware Attestation:** Data is ingested through a FIDO/TPM-verified node.
-2. **Provenance ZKP:** A circuit proves that the data was signed by a genuine hardware-rooted key associated with a specific authorized region, while **hiding the specific device UUID** or MSISDN.
-
-**Outcome:** Proof of Data Integrity and Regional Provenance without creating a "Device Tracking" database.
-
-### Track B: Model Training (Redaction Policy)
+### Track A: Model Training Governance (Redaction Policy)
 
 Proving that sensitive information was excluded from the model's weights during the training phase.
 
@@ -115,7 +96,7 @@ Proving that sensitive information was excluded from the model's weights during 
 
 **Outcome:** Mathematical proof that the model is "Clean-by-Design," mitigating the risk of future PII leakage via model inversion.
 
-### Track C: System Prompt Integrity (Pre-Computed)
+### Track B: System Prompt Integrity (Pre-Computed)
 
 System prompts are the "Law" of the AI. Because they are static, we pre-compute proofs at deployment.
 
@@ -129,7 +110,7 @@ System prompts are the "Law" of the AI. Because they are static, we pre-compute 
 
 **Outcome:** "Compliance-by-Design." The proof is valid for the lifetime of that system prompt version.
 
-### Track D: User Prompt Compliance (Batch & Purge)
+### Track C: User Prompt Compliance (Batch & Purge)
 
 User prompts are dynamic and high-volume. To maintain performance, we use an **Aggregated Batching** model.
 
@@ -186,7 +167,7 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
          │                          ┌──────────────┐  ┌──────────────┐
          │                          │   🔥 PURGE   │  │ ESCALATE TO  │
          │                          │ Raw Prompts  │  │ HITL REVIEW  │
-         │                          │   Deleted    │  │ (Sec. 8)     │
+         │                          │   Deleted    │  │ (Sec. 7)     │
          │                          └──────────────┘  └──────────────┘
          │                                    │
          │                                    ▼
@@ -200,7 +181,7 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
      PII while maintaining full cryptographic auditability.
 ```
 
-### Track E: AI Output Compliance (Real-Time Filtering & Batch Proof)
+### Track D: AI Output Compliance (Real-Time Filtering & Batch Proof)
 
 AI model outputs pose unique compliance risks that require verification even when inputs are safe:
 - **PII Leakage:** AI can hallucinate or inadvertently expose SSNs, account numbers, or other sensitive data
@@ -230,11 +211,11 @@ AI model outputs pose unique compliance risks that require verification even whe
 - **Compliant Output:** "I don't have access to individual client portfolios. Please contact your relationship manager."
 - **Non-Compliant Hallucination:** "John Smith (SSN: 123-45-6789) has $2.3M in equities and $800K in bonds."
 
-Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track E ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
+Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track D ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
 
 ---
 
-## 6. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
+## 5. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
 
 ### Scenario
 
@@ -276,7 +257,7 @@ This ZKP addresses the **Excessive Agency Risk**—the danger that the AI model 
 
 ---
 
-## 7. The Noir Circuit (Technical Implementation)
+## 6. The Noir Circuit (Technical Implementation)
 
 The core logic uses a ZK-friendly string search algorithm.
 
@@ -308,7 +289,7 @@ fn main(
 
 ---
 
-## 8. Incident Response & Escalation Workflow
+## 7. Incident Response & Escalation Workflow
 
 In a cryptographic audit model, a **"Failure to Generate a Proof"** is the primary signal of a policy violation.
 
@@ -324,15 +305,25 @@ If the ZKP circuit encounters a prompt that violates an **Exclusion Rule** (e.g.
 
 ---
 
-## 9. The Evidence Bundle for Auditors
+## 8. The Evidence Bundle for Auditors (Stage 2: Layer 3 Verification)
 
-When an auditor requests compliance evidence, they receive an **Evidence Bundle**:
+> [!NOTE]
+> **Modular Verification:** The complete Evidence Bundle is verified in two stages:
+> - **Stage 1 (Layer 1/2):** "Is this a valid Aegis Sovereign Node?" See **[Infrastructure Sovereignty](./infrastructure-sovereignty.md)**
+> - **Stage 2 (This Document):** "Did this node follow the governance policy for this session?"
+
+When an auditor requests **Layer 3 compliance evidence**, they receive:
 
 ```json
 {
+  "bundle_type": "LAYER_3_GOVERNANCE",
   "audit_window": {
     "start": "2026-01-20T14:00:00Z",
     "end": "2026-01-20T14:15:00Z"
+  },
+  "layer_2_reference": {
+    "infrastructure_bundle_id": "infra-bundle-2026-01-20-14",
+    "status": "STAGE_1_VERIFIED"
   },
   "system_prompt": {
     "version": "v3.2.1",
@@ -363,14 +354,15 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 }
 ```
 
-**Auditor Workflow:**
-1.  **Verify System Prompt Proof:** Confirm the deployed system prompt version satisfies the policy.
-2.  **Verify Batch Proofs:** For each batch, confirm the proof is valid against the stated policy.
-3.  **Verify Chain of Custody:** Confirm the Merkle Root values are anchored in the immutable audit log.
+**Auditor Workflow (Stage 2):**
+1. **Prerequisite:** Confirm Stage 1 (Layer 1/2) verification passed via `infrastructure_bundle_id` reference.
+2. **Verify System Prompt Proof:** Confirm the deployed system prompt version satisfies the policy.
+3. **Verify Batch Proofs:** For each batch, confirm the proof is valid against the stated policy.
+4. **Verify Chain of Custody:** Confirm the Merkle Root values are anchored in the immutable audit log.
 
 ---
 
-## 10. Regulatory Value Proposition
+## 9. Regulatory Value Proposition (Layer 3)
 
 | Regulatory Need | AegisSovereignAI Execution |
 | --- | --- |
@@ -382,7 +374,7 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 
 ---
 
-## 11. Practical Implementation: The LangGraph Sovereign Substrate
+## 10. Practical Implementation: The LangGraph Sovereign Substrate
 
 This section demonstrates how the **Batch & Purge** model is implemented in practice using the **AegisSovereignAI Sovereign Substrate** for **LangGraph** multi-agent workflows.
 
@@ -455,4 +447,4 @@ A `sovereign_factory` applies the `governance.wrap_node` decorator to the LangGr
 
 ---
 
-[Root README](../README.md) | [Auditor Guide](./auditor.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
+[Root README](../README.md) | [Auditor Guide](./auditor.md) | [Infrastructure Sovereignty (Layer 1/2)](./infrastructure-sovereignty.md) | [IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)
