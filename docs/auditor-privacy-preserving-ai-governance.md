@@ -56,7 +56,7 @@ Using **Secure Multi-Party Computation (SMPC)**, the Enterprise and the Auditor 
 
 ### Why This Matters for Enterprise Financial Services
 
-For a Senior Lead AI Cybersecurity Architect, this solves the **"Auditor Liability"** problem. If a human auditor sees a list of sensitive project names, that auditor becomes a security risk. By using a **TEE-based Auditor Agent**, you achieve:
+For enterprise security architects, this solves the **"Auditor Liability"** problem. If a human auditor sees a list of sensitive project names, that auditor becomes a security risk. By using a **TEE-based Auditor Agent**, you achieve:
 
 1. **Zero Disclosure:** No human ever sees the raw sensitive keywords.
 2. **Provable Compliance:** A cryptographic certificate replaces "trusting someone's word."
