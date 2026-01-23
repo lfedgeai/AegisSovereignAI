@@ -1,4 +1,4 @@
-# Privacy-Preserving Techniques (e.g. **ZKP**) for the Full AI Lifecycle
+# Privacy-Preserving Techniques (e.g. **Zero-knowledge-proofs aka ZKPs**) for the Full AI Lifecycle
 
 > **For Technical Auditors & Architects:** This document provides a deep technical walkthrough of the **privacy-preserving (e.g. **ZKP**-based)** prompt integrity verification system. For a high-level overview of the complete attestation model (hardware, location, identity, and prompts), see the **[Auditor Guide](./auditor.md)**.
 
@@ -19,7 +19,49 @@ Enterprises in regulated industries face a fundamental conflict when auditing AI
 
 ---
 
-## 2. Why Privacy-Preserving Techniques (e.g. **ZKP**)? A Technical Comparison
+## 2. The Hardware-Backed Cryptographic Audit: Prover/Verifier Policy Considerations
+
+To ensure sensitive information (like proprietary trade secrets or unannounced project names) is not leaked during the policy audit, the **AegisSovereignAI** architecture shifts away from a "human reading a list" model to a **Hardware-Backed Cryptographic Audit**.
+
+In a sovereign environment, you don't actually show the raw policy list to a human auditor. Instead, you use one of the following three "blind" verification techniques:
+
+### 2.1. The TEE Auditor Enclave (Hardware Trust)
+
+Instead of a person, a **Trusted Execution Environment (TEE)** (e.g., Intel SGX, AMD SEV, or a Nitro Enclave) acts as the auditor.
+
+* **The Setup:** You load the raw keyword list into an isolated hardware enclave.
+* **The Code:** You run a small, open-source "Auditor Agent" inside the enclave. This agent's code is publicly auditable and does only one thing: *Verify that the list contains mandatory regulatory terms (like GDPR/CCPA requirements) and nothing illegal.*
+* **The Attestation:** The TEE hardware produces a **Remote Attestation Quote**. This is a cryptographically signed statement proving that "This specific approved code ran on this specific private data and produced this Policy Root Hash."
+* **Result:** The auditor trusts the **Hardware Quote**, not the enterprise. They never see the list; they only see the proof that the list was "blessed" by the enclave.
+
+### 2.2. ZKP "Compliance Spot-Checks" (Mathematical Trust)
+
+If you prefer to avoid TEEs, you can use a **Meta-Proof**. The Auditor provides a list of "Mandatory Blocks" (e.g., social security number patterns, known malware signatures).
+
+* **The Challenge:** The Auditor says: "I don't need to see your secret list, but prove to me that 'SSN_PATTERN' is included in your Policy Root."
+* **The Response:** The Enterprise provides a **ZKP of Membership** (using a Sparse Merkle Tree path).
+* **Result:** This proves the policy is *compliant* with the law without revealing the *rest* of the proprietary keywords that the enterprise wants to keep secret.
+
+### 2.3. SMPC Policy Generation (Collaborative Trust)
+
+Using **Secure Multi-Party Computation (SMPC)**, the Enterprise and the Auditor can collaboratively generate the Policy Root without either party ever seeing the other's "contribution."
+
+* The Auditor provides the regulatory "must-block" list.
+* The Enterprise provides the proprietary "secret-block" list.
+* The SMPC protocol mathematically merges them into a single **Sovereign Root Hash**.
+* **Result:** Neither side sees the full list, but the resulting Root Hash is guaranteed to contain the requirements of both parties.
+
+### Why This Matters for Enterprise Financial Services
+
+For a Senior Lead AI Cybersecurity Architect, this solves the **"Auditor Liability"** problem. If a human auditor sees a list of sensitive project names, that auditor becomes a security risk. By using a **TEE-based Auditor Agent**, you achieve:
+
+1. **Zero Disclosure:** No human ever sees the raw sensitive keywords.
+2. **Provable Compliance:** A cryptographic certificate replaces "trusting someone's word."
+3. **Auditability:** The *process* is audited, while the *data* remains sovereign.
+
+---
+
+## 3. Why Privacy-Preserving Techniques (e.g. **ZKP**)? A Technical Comparison
 
 While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the unique combination of **mathematical certainty** and **data minimization** required for high-stakes AI governance.
 
@@ -34,7 +76,7 @@ While multiple Privacy-Enhancing Technologies (PETs) exist, **ZKP** provides the
 
 ---
 
-## 3. Foundational Primitive: Verifiable Geofencing (Reg-K)
+## 4. Foundational Primitive: Verifiable Geofencing (Reg-K)
 
 Before auditing AI logic, auditors must often verify **where** the data is being processed to comply with residency laws like **Regulation K** or **GDPR**.
 
@@ -49,7 +91,7 @@ Before auditing AI logic, auditors must often verify **where** the data is being
 
 ---
 
-## 4. The Five-Track Sovereign AI Lifecycle Strategy
+## 5. The Five-Track Sovereign AI Lifecycle Strategy
 
 AegisSovereignAI provides **end-to-end cryptographic verification** across every stage of the AI lifecycle: **Ingestion → Training → Inference → Output**.
 
@@ -144,7 +186,7 @@ User prompts are dynamic and high-volume. To maintain performance, we use an **A
          │                          ┌──────────────┐  ┌──────────────┐
          │                          │   🔥 PURGE   │  │ ESCALATE TO  │
          │                          │ Raw Prompts  │  │ HITL REVIEW  │
-         │                          │   Deleted    │  │ (Sec. 5)     │
+         │                          │   Deleted    │  │ (Sec. 8)     │
          │                          └──────────────┘  └──────────────┘
          │                                    │
          │                                    ▼
@@ -188,11 +230,11 @@ AI model outputs pose unique compliance risks that require verification even whe
 - **Compliant Output:** "I don't have access to individual client portfolios. Please contact your relationship manager."
 - **Non-Compliant Hallucination:** "John Smith (SSN: 123-45-6789) has $2.3M in equities and $800K in bonds."
 
-Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track C ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
+Even if the system prompt prohibits disclosure and the user prompt was benign, **the AI model itself** can generate PII. Track E ensures this never reaches the user **and** provides cryptographic proof of the filter's effectiveness.
 
 ---
 
-## 5. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
+## 6. Concrete Example: Private Wealth Gen-AI Advisory (Unmanaged Devices)
 
 ### Scenario
 
@@ -234,7 +276,7 @@ This ZKP addresses the **Excessive Agency Risk**—the danger that the AI model 
 
 ---
 
-## 6. The Noir Circuit (Technical Implementation)
+## 7. The Noir Circuit (Technical Implementation)
 
 The core logic uses a ZK-friendly string search algorithm.
 
@@ -266,7 +308,7 @@ fn main(
 
 ---
 
-## 7. Incident Response & Escalation Workflow
+## 8. Incident Response & Escalation Workflow
 
 In a cryptographic audit model, a **"Failure to Generate a Proof"** is the primary signal of a policy violation.
 
@@ -282,7 +324,7 @@ If the ZKP circuit encounters a prompt that violates an **Exclusion Rule** (e.g.
 
 ---
 
-## 8. The Evidence Bundle for Auditors
+## 9. The Evidence Bundle for Auditors
 
 When an auditor requests compliance evidence, they receive an **Evidence Bundle**:
 
@@ -328,7 +370,7 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 
 ---
 
-## 9. Regulatory Value Proposition
+## 10. Regulatory Value Proposition
 
 | Regulatory Need | AegisSovereignAI Execution |
 | --- | --- |
@@ -337,6 +379,79 @@ When an auditor requests compliance evidence, they receive an **Evidence Bundle*
 | **GDPR Art. 5 (Data Minimization) / CCPA** | **Batch & Purge** ensures the enterprise never stores long-term PII logs for "forensic" needs. |
 | **OCC 2021-12 / Reg-K** | Mathematical proof that residency-restricted AI was only accessed by compliant prompts. |
 | **DORA (Digital Operational Resilience Act)** | Incident Response workflow provides auditable escalation path for policy violations. |
+
+---
+
+## 11. Practical Implementation: The LangGraph Sovereign Substrate
+
+This section demonstrates how the **Batch & Purge** model is implemented in practice using the **AegisSovereignAI Sovereign Substrate** for **LangGraph** multi-agent workflows.
+
+### The Sovereign Substrate Architecture
+
+The core innovation is the **non-intrusive Node Wrapper**. Instead of modifying the agentic logic, AegisSovereignAI wraps the LangGraph execution nodes, trapping state transitions at the "edge" of each agent's decision loop. This allows the governance layer to be applied to **any** LangGraph workflow without changing the agent's source code.
+
+```mermaid
+sequenceDiagram
+    participant User as Human/External App
+    participant Substrate as AegisSovereignAI Substrate
+    participant Node as LangGraph Node (Agent)
+    participant TEE as Ephemeral TEE Buffer
+    participant Auditor as Ledger/Audit Log
+
+    Note over User, Auditor: SESSION START
+
+    User->>Substrate: 1. Initial Prompt (State)
+    
+    Note right of Substrate: Layer 3: Policy Enforcement
+    Substrate->>Substrate: Scan for PII/Jailbreak
+    Substrate->>TEE: Buffer Compliant Input
+
+    Substrate->>Node: 2. Execute Original Agent Logic
+    
+    Node-->>Substrate: 3. Return State Update (AI Response)
+
+    Note right of Substrate: Layer 3: Drift Detection
+    Substrate->>Substrate: Scan for Agentic Drift/Hallucinated PII
+    Substrate->>TEE: Buffer Agent Output & Tool Results
+
+    Note over Node: (Repeat for all nodes in Graph)
+
+    Note right of Substrate: BATCH & PURGE CYCLE
+    Substrate->>TEE: Aggregate Session Interaction
+    Substrate->>Substrate: Generate aggregated Proof (Mock ZKP)
+    Substrate->>Auditor: 4. Anchor Evidence Bundle (Proof Only)
+    Substrate->>TEE: 🔥 PERMANENT PURGE
+
+    Substrate-->>User: 5. Verified Sovereign Result
+    
+    Note over User, Auditor: SESSION COMPLETE (Zero Data Residual)
+```
+
+### Functional Breakdown
+
+#### 1. The Gateway Check (Layer 3 Ingress)
+Every interaction starts with a **Proactive Policy Scan**. The Substrate intercepts the `HumanMessage` before the agent processes it. If a violation (like a jailbreak attempt) is detected, it is logged in the internal compliance buffer immediately.
+
+#### 2. Node Wrapping (Transparent Governance)
+A `sovereign_factory` applies the `governance.wrap_node` decorator to the LangGraph `StateGraph`. This allows AegisSovereignAI to:
+- **Trap Inputs:** See exactly what prompt is hitting the LLM.
+- **Trap Outputs:** See exactly what the LLM responded before it updates the shared `State`.
+- **Verify Tools:** Intercept and scan external data returned from tools (e.g., Tavily, MCP).
+
+#### 3. The "Batch & Purge" Mechanism (Session-Level)
+- **Buffering:** During the session, all raw text is stored in an ephemeral, in-memory buffer (simulating a TEE).
+- **ZKP Generation:** Upon session completion, the engine calculates a Merkle Root of the entire session history and generates a cryptographic proof of compliance.
+- **Anchoring:** The Evidence Bundle (Metadata + Proof) is written to a persistent audit log.
+- **The Purge:** The raw execution trace is permanently deleted from memory. **No PII is ever stored at rest.**
+
+### Summary of Sovereign Benefits
+
+| Feature | Traditional Audit | Sovereign Audit (Aegis) |
+| :--- | :--- | :--- |
+| **Data Retention** | Persistent raw logs (High liability) | **Zero Residual Data** (Batch & Purge) |
+| **Privacy** | Auditor sees everything | **Auditor sees cryptoproof only** |
+| **Detection** | Reactive (post-incident) | **Just-in-Time** (Intercept before state update) |
+| **Integration** | Intrusive code changes | **Non-Intrusive Substrate** (Node Wrappers) |
 
 ---
 
