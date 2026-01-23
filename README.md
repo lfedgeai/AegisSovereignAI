@@ -30,37 +30,42 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 ## Technical Challenges for Addressing Use Cases
 
-To address the above use cases, we must solve for the specific technical problems that traditional IT security cannot mitigate. Note that the below technical problems are not unique to AI or Financial Services but are especially critical for the security, privacy, and compliance of the above use cases. 
+To address the above use cases, we must solve the unique technical problems below. Note that the below technical problems are not unique to AI or Financial Services but are especially critical for the security, privacy, and compliance of the above use cases. 
 
 ### 1. The Fragility of Identity & Geofencing
 Traditional security relies on **bearer tokens** and **IP-based geofencing**, which are fundamentally non-binding and easily spoofed.
 * **Replay Attacks:** Standard tokens function like a physical key; if a malicious actor intercepts a token, they can replay it to impersonate a legitimate workload (e.g., an AI agent).
 * **VPN-based Spoofing:** Commonly used IP-based location checks are trivial to bypass using VPNs, allowing remote attackers to appear within "Green Zones."
+    * **Example (Use Case 2 - Enterprise Employee):** A Relationship Manager attempts to access the "Green Zone" server from an unauthorized jurisdiction via a residential VPN. Traditional IP-checks fail to detect the spoofed location.
 
 ### 2. The Residency vs. Privacy Deadlock
 Regulators require proof of data residency (e.g., **Regulation K aka Reg-K**), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under privacy regulations (e.g., **General Data Protection Regulation (GDPR)**). Enterprises are often forced to choose between non-compliance or privacy violation.
+* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client uses the Private Wealth Gen-AI Advisory from their personal mobile device. The bank must prove to an EU regulator that the AI inference stayed within the EEA (**Reg-K** compliance), but doing so requires ingesting or storing raw GPS data from the client's device — a GDPR violation.
 
 ### 3. Infrastructure Compromise
-Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds fake sensor/location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
+Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds, for example, fake location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
+* **Example (Use Case 2 - Enterprise Employee):** A compromised branch server's hypervisor feeds fake "within Green Zone" location data to the AI workload via Frida hooks, allowing a Relationship Manager to appear compliant while accessing sensitive PII from an unauthorized jurisdiction.
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift & Computational Determinism
-AI prompt response drift can be influenced by the type of hardware. Even at `temperature=0`, a model running on an NVIDIA A100 can produce different numerical results than on an H100 due to non-associative math and thread-timing variations. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results—is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
+AI prompt response drift can be influenced by the type of hardware. Response can vary based on randomness setting (e.g., temperature). Even when randomness is fully disabled (e.g., `temperature=0`), the same model can produce different outputs on different hardware types (e.g., NVIDIA A100 vs H100) due to floating-point math and parallel execution differences. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results — is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
+* **Example (Use Case 3 - Enterprise Tenant):** The Mortgage LOB's credit risk model produces different risk scores when run on A100 vs H100 GPUs due to floating-point variations. Traditional infrastructure management cannot guarantee which hardware type executed a given inference, making regulatory reproducibility impossible.
 
-### 5. The Black-Box Governance Gap
-AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using untampered AI models/prompts without disclosing sensitive data. For example, an auditor cannot verify that the system prompt contained "redact all SSNs," that a user prompt didn't contain a jailbreak command, or that the AI model didn't hallucinate PII in its output without seeing the raw text — a significant privacy and IP liability.
+### 5. The Black-Box Governance Gap: Integrity & Data Liability
+AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using untampered AI models/prompts without disclosing sensitive data. This is further complicated by **Prompt Injection** (malicious instructions) and **Hallucinations** (unintended PII leakage).
+* **The "Audit Paradox":** Traditional logging for compliance creates massive PII/IP liability, but *not* logging prevents forensics and "Effective Challenge."
+* **Example (Use Case 3 & 4 - Enterprise Tenant & Regulator):** An OCC auditor needs to verify that the Credit Card LOB's AI agent didn't use prohibited demographic data for credit scoring. Under current methods, the bank must disclose raw prompts to the auditor — revealing the LOB's proprietary scoring logic and customer PII — creating significant liability.
 
-### 6. Prompt & Output Integrity: Injection & Hallucination
-Malicious users can craft prompts to manipulate AI behavior (e.g., "reveal system prompt"), while AI models themselves can inadvertently leak PII through hallucinations. Traditional logging creates PII/IP liability, while not logging prevents forensics. Enterprises need a way to *prove* that both inputs and outputs were safe and compliant without *storing* the raw, high-liability data.
-
-### 7. Bring Your Own Device (BYOD) Security Gaps
+### 6. Bring Your Own Device (BYOD) Security Gaps
 BYOD devices are unmanaged and unverified, making them a significant security risk for data leakage and unauthorized access.
+* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client accesses the Private Wealth Gen-AI Advisory from their personal iPad. The device may be jailbroken or compromised without the bank's knowledge, creating an undetectable data leakage vector for sensitive portfolio information.
 
-### 8. Edge Security Gaps
+### 7. Edge Security Gaps
 Edge nodes are often in untrusted physical locations, making them vulnerable to physical tampering and unauthorized environment modification.
+* **Example (Use Case 2 - Enterprise Employee):** A rural bank branch server used by Relationship Managers is physically compromised or stolen. Traditional software-based security cannot detect hardware tampering, allowing attackers to extract AI model weights and sensitive customer PII.
 
 ---
 
-## The Three-Layer Trust Architecture
+## The Three-Layer Trust Architecture: Fusing Silicon, Identity, and Governance
 
 **AegisSovereignAI** bridges Infrastructure Security (Layer 1 in Figure 2) and AI Governance (Layer 3 in Figure 2) by serving as a unifying control plane. Through a **Unified and Extensible Identity (Layer 2 in Figure 2)** framework, it cryptographically fuses workloads/user identities using silicon-level attestation with application-level governance while preserving privacy to create a single, cohesive identity architecture.
 
@@ -72,10 +77,10 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 
 ### Layer 2: Unified and Extensible Identity (The Provable Bridge)
 
-* **Hardware-rooted geo-fenced workload Identity (SPIRE/Keylime):** Binds SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. **Privacy-preserving techniques** (e.g., Zero-Knowledge Proofs / ZKPs) are used to prove location compliance with regulations without the Enterprise ever having to ingest or store sensitive precise location data.
-* **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** on the fly instead of **Enterprise Device Ownership**. This creates a regulatory **Safe Harbor** for the Enterprise, proving that data only touched verified hardware without the liability of managing the device itself.
-* **Blended Identities:** Fuses human user sessions with workload identities to ensure **Just-in-Time Agency** and accountability in multi-agent graphs.
-* **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIRE identity is revoked in **real-time**, isolating the agent before lateral movement.
+* **Hardware-rooted geo-fenced workload Identity (SPIFFE/SPIRE, Keylime):** Binds SPIFFE/SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. **Privacy-preserving techniques** (e.g., Zero-Knowledge Proofs / ZKPs) are used to prove location compliance with regulations without the Enterprise ever having to ingest or store sensitive precise location data.
+* **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** on the fly instead of **Enterprise Device Ownership**. This creates a regulatory **Safe Harbor** for the Enterprise, proving that data only touched verified hardware without the liability of managing the device itself. 
+* **Combined Human User, Workload, and Device Identity:** Combine human user sessions with BYOD/Enterprise device workload (e.g., mobile banking application) identities to ensure accountability in multi-agent graphs.
+* **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIFFE/SPIRE identity is revoked in **real-time**, isolating the agent before lateral movement.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
 
@@ -126,7 +131,7 @@ AegisSovereignAI is designed to be framework-agnostic, serving as a secure execu
 
 | Agent Framework | Complementary Value of AegisSovereignAI | How AegisSovereignAI Accomplishes This |
 | --- | --- | --- |
-| **LangGraph** | **Just-in-Time Policy Enforcement:** Prevents agentic drift or PII leakage across complex, multi-step workflows. | **Automated Kill-Switch:** Fuses the agent session with a silicon-rooted SVID (SPIFFE Verifiable Identity Document) (Layer 2). Session inputs and outputs are verified via privacy-preserving "Batch & Purge" (Layer 3) before final delivery — proofs are generated over the complete session, not per-step. |
+| **LangGraph** | **Just-in-Time Policy Enforcement:** Prevents agentic drift or PII leakage across complex, multi-step workflows. | **Automated Kill-Switch (Hardware-Triggered):** Fuses the agent session with a silicon-rooted SVID (SPIFFE Verifiable Identity Document) (Layer 2). Session inputs and outputs are verified via privacy-preserving "Batch & Purge" (Layer 3) before final delivery — proofs are generated over the complete session, not per-step. Unlike software-level policies, this cannot be bypassed if the OS is compromised. |
 | **KAgentI** | **Replay-Proof Agent Authorization:** Ensures each agent invocation is bound to verified hardware and privacy-preserving geolocation, preventing token replay and impersonation and sensitive data exfiltration attacks. | **Hardware-Rooted SVID:** Extends KAgentI's native SPIRE support by binding SVIDs to TPM-attested device credentials and privacy-preserving geolocation (Layer 2). This ensures the agent identity cannot be replayed or spoofed — the token is cryptographically bound to specific silicon and verified location while preserving privacy, not just a valid service principal. |
 
 ## Technical & Auditor Resources
