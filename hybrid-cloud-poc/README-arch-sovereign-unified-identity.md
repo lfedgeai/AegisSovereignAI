@@ -37,7 +37,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 
 ## Strategic Vision: Silicon-to-Audit
 
-The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "organization's (e.g., bank's) core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
+The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "organization's (e.g., a Global Bank like JPMC's, or a Command Center's) core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
 
 ### Edge Workload Integration: Managed vs. BYOD (Unmanaged)
 
@@ -48,16 +48,16 @@ The framework treats both internal infrastructure and external end-user devices 
 | Feature | Tier 1: Managed (LOB Hardware) | Tier 2: BYOD (Retail/BYOD) |
 | :--- | :--- | :--- |
 | **Integrity Signal** | Continuous (Keylime/IMA/SGRM) | Point-in-Time (App Attest/EAT) |
-| **Trust Anchor** | Enterprise Managed Root of Trust (e.g., JPMC/HSBC) | OEM Root of Trust (Apple/Google) |
+| **Trust Anchor** | Enterprise Managed Root of Trust (e.g., JPMC/HSBC or a Gov Agency) | OEM Root of Trust (Apple/Google) |
 | **Session Model** | Persistent Workload Identity | Just-in-Time (JIT) AI Session |
 | **Remediation** | MDM Lockdown + Revocation | Gateway Quarantine (403 Forbidden) |
 
 #### The "Point-in-Time" BYOD Loop [ROADMAP]
 For unmanaged devices, AegisSovereignAI replaces permanent "Trust" with **Verifiable Evidence per Session**. 
-1. The Enterprise App instance (e.g., JPM App) generates a hardware-rooted **Entity Attestation Token (EAT)**.
+1. The Enterprise App instance (e.g., a Private Wealth app used by a **High-Net-Worth Client**) generates a hardware-rooted **Entity Attestation Token (EAT)**.
 2. The **Aegis Verifier** appraisals the evidence and registers the device as a temporary workload.
 3. **SPIRE** issues a Unified SVID containing attested hardware and geolocation claims.
-4. The App engages the AI Cloud via **mTLS**, satisfying all **Regulation K** and **OCC Audit** requirements through math rather than managerial control.
+4. The App engages the AI Cloud via **mTLS**, satisfying all **Regulation K** and **Office of the Comptroller of the Currency (OCC)** Audit requirements through math rather than managerial control.
 
 ---
 
@@ -242,7 +242,7 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE: (Roadmap)
 > [!NOTE]
 > **Implementation Status**: This section describes the **Architectural Roadmap** for Verified Ingress. The current PoC implementation focuses on **Stage 2: Trusted Egress** within the data center.
 
-AegisSovereignAI treats the Enterprise Application (e.g., at JPMC or HSBC) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
+AegisSovereignAI treats the Enterprise Application (e.g., a Private Wealth app for **High-Net-Worth Clients** or a secure patient portal) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
 
 ### Unified SVID Claim Schema (OIDs & JSON Paths)
 
@@ -328,7 +328,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 
 Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
 1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., at JPMC or Barclays), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
-2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the application's (e.g., banking app's) keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
+2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the application's (e.g., a banking or regulated healthcare app) keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
 
 > [!TIP]
 > **Strategic Alignment (Apple PCC)**: AegisSovereignAI aligns with the architecture of **Apple’s Private Cloud Compute (PCC)**. Both models utilize a "Trusted Loop" where the Secure Enclave is used at both ends—on the user device and in the sovereign data center—to create end-to-end cryptographic proof of software and hardware integrity.

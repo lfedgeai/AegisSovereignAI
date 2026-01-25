@@ -8,7 +8,7 @@
 
 This proposal outlines an architectural extension to the **CAMARA Device Location Verification API**.
 
-We propose introducing a **"Premium Tier"** for location services that moves beyond standard Network Assurance (Cell Tower Triangulation) to **Hardware Assurance** (TPM + GNSS Attestation). This extension enables Telcos to offer unforgeable "Proof of Residency" to regulated industries (Banking, Defense, Healthcare) that require audit-proof compliance with data sovereignty laws (e.g., GDPR, EUDR).
+We propose introducing a **"Premium Tier"** for location services that moves beyond standard Network Assurance (Cell Tower Triangulation) to **Hardware Assurance** (TPM + GNSS Attestation). This extension enables Telcos to offer unforgeable "Proof of Residency" to regulated industries (e.g., Banking, Defense/Government, Healthcare) that require audit-proof compliance with data sovereignty laws (e.g., GDPR, EUDR).
 
 ## 2\. The Problem: The "Trust Gap" in Location APIs
 
@@ -46,7 +46,7 @@ This extension transforms the Location API from a commodity utility into a high-
 | Feature | Standard API (Current) | Premium API (Proposed) |
 | :--- | :--- | :--- |
 | **Verification Source** | Network Signal | Network + Silicon (TPM) |
-| **Target Customer** | Ride-sharing, Logistics | Banks, Gov/Defense, Hospitals |
+| **Target Customer** | Ride-sharing, Logistics | High-Compliance (Banks, Defense/Government, Hospitals) |
 | **Value Prop** | "Approximate Location" | **"Legal Proof of Residency"** |
 | **Use Case** | Routing, Fraud Check | **Sovereign Cloud, EUDR Compliance** |
 

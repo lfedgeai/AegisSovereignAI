@@ -13,7 +13,7 @@ This directory contains a proof-of-concept implementation demonstrating sovereig
 ## The Architecture Scenario
 This PoC simulates a real-world regulated environment:
 - **The Public Zone (Public Cloud - e.g., Telefonica):** Represents a scalable environment where initial processing occurs (the Client).
-- **The Trusted Zone (On-Premise):** Represents the Private Sovereign Cloud where the Root of Trust is established and sensitive, regulated data (e.g., Banking Secrets) is stored (the Server).
+- **The Trusted Zone (On-Premise):** Represents the Private Sovereign Cloud where the Root of Trust is established and sensitive, regulated data (e.g., Banking or Healthcare Secrets) is stored (the Server).
 - **The Trust Bridge (AegisSovereignAI):** A unified control plane that issues short-lived, hardware-rooted credentials allowing the two zones to communicate only if strict integrity and location policies are met.
 
 ## The Problem
@@ -23,7 +23,7 @@ Current security approaches for AI inference applications, secret stores, system
 ![The Problem: A Fragile and Non-Verifiable Security Model](images/Slide6.PNG)
 
 The diagram illustrates a traditional security architecture for AI inference applications showing:
-1. End user host sending inference data with bearer tokens and source IP to a high-compliance application (e.g., Bank Inference app) in Sovereign Cloud
+1. End user host sending inference data with bearer tokens and source IP to a high-compliance application (e.g., a Private Wealth app for **High-Net-Worth Clients**) in Sovereign Cloud
 2. Workload host requesting secrets from Customer-managed key vault using bearer/proof-of-possession tokens
 3. Key vault retrieving encrypted models from storage
 
@@ -774,15 +774,15 @@ Maintaining a global hardware fleet requires managing **Attestation Drift**, whe
 - **Dynamic Policy Enforcement**: BIOS-level tampering or unauthorized hardware swaps trigger an immediate measurement mismatch, revoking the agent's SVID and blocking all traffic in the Sovereign AI loop.
 
 ### Compromise Detection & Remediation (Unmanaged Devices)
-For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the bank does not control relies on three cryptographic feedback loops:
+For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the organization (e.g., a Global Bank like JPMC, or a Healthcare Provider) does not control relies on three cryptographic feedback loops:
 
-1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the banking app's code is untampered.
+1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the regulated application's (e.g., a banking or healthcare app) code is untampered.
 2.  **App-Level Integrity Proofs**: The framework uses **ZKP-based circuits** to verify that the AI engagement app is running in a secure, non-debuggable memory space. If an attacker attempts to attach a debugger or intercept the AI prompt, the hardware-rooted "Environment Claim" fails, and the attestation quote is rejected by the Sovereign Cloud.
 3.  **Deterministic SVID Revocation**: Once the **Keylime Verifier** or **Ingress Gateway** detects an integrity mismatch (e.g., a "Golden State" deviation), the device's SVID is immediately and automatically flagged for revocation.
     *   **Remediation**: The Envoy API Gateway, seeing a revoked or "Hardware-Fail" SVID, returns a **403 Forbidden** for all sensitive PII endpoints. This ensures that a compromised device is cryptographically and instantaneously quarantined from the Sovereign AI Loop, regardless of its management status.
 
 > [!NOTE]
-> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the bank's requirements.
+> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the organization's (e.g., JPMC's or a Defense/Government agency's) security requirements.
 
 ### Security & Trust Model Assumptions (IETF RATS Alignment)
 To provide "Silicon-to-Audit" guarantees, AegisSovereignAI aligns with the **IETF RATS (Remote Attestation Procedures)** architecture:

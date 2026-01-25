@@ -12,7 +12,7 @@
 | **Trust Boundary** | Between the **Unmanaged Device OS** and the **Unified Identity Plane** (SVID). |
 | **Primary Threat** | **Runtime Locality Spoofing** via OS-level manipulation (exploiting an Infrastructure Blind Spot). |
 | **Enforcement Mechanism** | Conditional issuance of **Unified SVID** with attested claims. |
-| **Impact** | Violation of **Regulation K (Reg-K)**; unauthorized access to sensitive financial models; potential PII leakage. |
+| **Impact** | Violation of **Regulation K (Reg-K)**; unauthorized access to sensitive financial models; potential **Personally Identifiable Information (PII)** leakage. |
 
 ---
 
@@ -21,8 +21,8 @@
 Despite a "Clean" Boot-time Attestation, the following runtime vectors are active:
 
 ### Vector A: API Hooking (Frida/Xposed)
-- **Method**: Attacker attachs a runtime instrumentation tool (Frida etc.) to the Banking App.
-- **Action**: Intercepts the `FusedLocationProviderClient` call in the banking application.
+- **Method**: Attacker attachs a runtime instrumentation tool (Frida etc.) to the protected application (e.g., a banking app).
+- **Action**: Intercepts the `FusedLocationProviderClient` call in the protected application.
 - **Payload**: Replaces the legitimate coordinates with a static, authorized NY location.
 - **Result**: The OS and App believe they are in NY.
 

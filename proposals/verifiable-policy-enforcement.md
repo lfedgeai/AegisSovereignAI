@@ -57,7 +57,7 @@ AegisSovereignAI supports three distinct sensing modes, all rooted in **TPM-atte
 ### Case 1: GPS + Mobile (Full Triangulation)
 
 * **Evidence:** TPM-signed GPS (Precise) + MNO-signed Tower ID (Anchor).
-* **Value:** The "Gold Standard" for high-compliance workloads (e.g., global banks, insurance firms).
+* **Value:** The "Gold Standard" for high-compliance workloads (e.g., global banks, insurance firms, or healthcare providers).
 
 ### Case 2: GPS Only (Infrastructure Residency)
 
@@ -233,7 +233,7 @@ SPIRE Server fetches and rotates MNO public verification keys via a configured e
 
 ## 7. Strategic Value: The Sovereignty Receipt
 
-For global financial services firms (e.g., JPMC, Citi, or HSBC), this proposal replaces a massive manual audit log with a single, cryptographic receipt.
+For global high-compliance firms (e.g., JPMC, HSBC, or a major Healthcare Network), this proposal replaces a massive manual audit log with a single, cryptographic receipt.
 
 * **For the Auditor:** A 1KB proof that mathematically guarantees the workload was physically in the Chennai Sovereign Zone, running on enterprise-approved silicon.
 * **For the Provider:** Complete privacy of the data center's physical coordinates.

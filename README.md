@@ -12,18 +12,18 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 **See the [Unified Identity Hybrid Cloud Proof of Concept (PoC) Guide](./hybrid-cloud-poc/README.md) for concrete use cases and detailed setup instructions.**
 
-## Enterprise Sovereign Use Cases (Focus: High-Security/Compliance Environments e.g., Financial Services)
+## Enterprise Sovereign Use Cases (Focus: High-Security/Compliance Sectors e.g., Banking, Healthcare, Defense/Government)
 
-### 1. The Enterprise Customer (High-Compliance End-Consumer e.g., Retail/Private Banking)
+### 1. The Enterprise Customer (High-Security/Compliance End-Consumer e.g., High-Net-Worth Client)
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while using their physical location for **Regulation K (Reg-K)** compliance without disclosing precise location to the AI service. 
 
 ### 2. The Enterprise Employee (Regulated Sector Employee e.g., Branch Relationship Manager)
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
 
-### 3. The Enterprise Tenant (Line-of-Business Owner aka LOB)
+### 3. The Enterprise Tenant (Line-of-Business Owner aka LOB e.g., Mortgage and Credit Card)
 *   **Core Use Case:** **Secure Sandboxing for LOBs.** Enabling enterprise tenants (e.g., Mortgage and Credit Card) to share the same physical Sovereign Cloud while ensuring total cryptographic isolation of their respective workloads, including AI models and data. From a tenant AI service perspective: data ingestion pipelines must prove PII was redacted and provenance verified before entering the tenant's vector store; the AI system prompt must contain mandatory safety guardrails (e.g., "never disclose account numbers"); user prompts must be scanned for injection attacks (e.g. "ignore previous instructions"); and AI outputs must be verified for PII leakage (hallucinations) before delivery.
 
-### 4. The Regulator (e.g., Office of the Comptroller of the Currency (OCC), European Central Bank (ECB), Securities and Exchange Commission (SEC))
+### 4. The Regulator (e.g., Office of the Comptroller of the Currency (OCC), European Central Bank (ECB), or Securities and Exchange Commission (SEC))
 *   **Core Use Case:** **Automated Regulatory Audit.** While traditional audit models provide visibility through coarse data logging, applying this to AI creates a **Privacy Liability Paradox**: the more granular the audit (e.g., logging raw prompts/outputs), the higher the ingestion risk of sensitive PII and proprietary secrets. The **Regulator** requires real-time, cryptographically verifiable proof-of-compliance—demonstrating that: (1) all data ingested into AI systems (training data, Retrieval-Augmented Generation / RAG vector stores) was properly redacted and provenance-verified; (2) every AI interaction across the Enterprise strictly followed mandatory policy (trusted hardware, untampered models, and data residency); all without the liability of raw data ingestion or the exposure of proprietary prompt logic. This hardware-rooted provenance supports the reproducibility and documentation principles of the **Model Risk Management (MRM)** regulatory framework and **Federal Reserve/OCC Supervisory Letter SR 11-7** (Interagency Guidance on Model Risk Management).
 
 ---
@@ -79,7 +79,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 
 * **Hardware-rooted geo-fenced workload Identity (SPIFFE/SPIRE, Keylime):** Binds SPIFFE/SPIRE workload identities to hardware credentials (TPM). An agent cannot execute unless it is on a verified, authorized machine in an authorized geolocation boundary. **Privacy-preserving techniques** (e.g., Zero-Knowledge Proofs / ZKPs) are used to prove location compliance with regulations without the Enterprise ever having to ingest or store sensitive precise location data.
 * **Safe Harbor for Bring Your Own Device (BYOD):** Securely extend Agentic workflows to unmanaged customer devices by verifying **Silicon Integrity** on the fly instead of **Enterprise Device Ownership**. This creates a regulatory **Safe Harbor** for the Enterprise, proving that data only touched verified hardware without the liability of managing the device itself. 
-* **Combined Human User, Workload, and Device Identity:** Combine human user sessions with BYOD/Enterprise device workload (e.g., mobile banking application) identities to ensure accountability in multi-agent graphs.
+* **Combined Human User, Workload, and Device Identity:** Combine human user sessions with BYOD/Enterprise device workload (e.g., mobile regulated application) identities to ensure accountability in multi-agent graphs.
 * **Autonomous Revocation:** If a node's hardware state drifts (detected by Keylime), its SPIFFE/SPIRE identity is revoked in **real-time**, isolating the agent before lateral movement.
 
 ### Layer 3: AI Governance (Verifiable Logic & Privacy)
@@ -103,7 +103,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
 The following demonstrates the business value delivered by our three-layer trust model for each of the above-mentioned Enterprise Use Cases.
 
 ### 1. The Enterprise Customer
-*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via **privacy-preserving techniques**, ensuring the Enterprise meets regulatory metrics (**Reg-K**) without the privacy liability of storing raw customer location data. Additionally, every interaction is cryptographically proven to have mandatory PII redaction active on both the system prompt before any customer interaction occurs and the AI output before delivery.
+*   **Sovereign Value:** **Radical Privacy.** Users are verified as compliant (e.g., "In the US" or "In a Branch") via **privacy-preserving techniques**, ensuring the organization (e.g., a Global Bank like JPMC, or a Healthcare Provider) meets regulatory metrics (**Reg-K**, **Health Insurance Portability and Accountability Act (HIPAA)**) without the privacy liability of storing raw customer location data. Additionally, every interaction is cryptographically proven to have mandatory PII redaction active on both the system prompt before any customer or patient interaction occurs and the AI output before delivery.
 
 ### 2. The Enterprise Employee
 *   **Sovereign Value:** **Frictionless Security.** Instead of manual VPNs or vulnerable passwords, the Hardware Integrity of their device (TPM/Keylime) automatically proves it is untampered and policy-compliant for workload execution on the employee's device.
@@ -111,8 +111,8 @@ The following demonstrates the business value delivered by our three-layer trust
 ### 3. The Enterprise Tenant
 *   **Sovereign Value:** **Multi-Tenant Isolation.** Trust is established via cryptographically verifiable hardware-rooted Workload Identity rather than IP-based location.
 
-### 4. The Regulator (e.g., Office of the Comptroller of the Currency (OCC), European Central Bank (ECB), Securities and Exchange Commission (SEC))
-*   **Sovereign Value:** **Compliance without Liability.** By using **privacy-preserving techniques**, the Enterprise can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., ingested training data was properly redacted and provenance-verified; system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard Security Information and Event Management (SIEM) / Governance, Risk, and Compliance (GRC) tools** (e.g., Open Cybersecurity Schema Framework / OCSF), allowing for automated, continuous auditing within existing enterprise Security Operations Center (SOC) workflows.
+### 4. The Regulator (e.g., Office of the Comptroller of the Currency (OCC), European Central Bank (ECB), or Securities and Exchange Commission (SEC))
+*   **Sovereign Value:** **Compliance without Liability.** By using **privacy-preserving techniques**, high-compliance organizations (e.g., Banks, Healthcare Providers, or Defense/Government Agencies) can prove regional residency to auditors without ingesting high-liability customer location data. They can also prove end-to-end AI integrity — e.g., ingested training data was properly redacted and provenance-verified; system prompts were governed, user prompts were safe, and AI outputs were filtered for hallucinations — without disclosing proprietary logic. These proofs are **exportable and compatible with standard Security Information and Event Management (SIEM) / Governance, Risk, and Compliance (GRC) tools** (e.g., Open Cybersecurity Schema Framework / OCSF), allowing for automated, continuous auditing within existing enterprise Security Operations Center (SOC) workflows.
 
 ## Regulatory & Standards Mapping
 The AegisSovereignAI architecture provides a direct implementation path for global AI safety and governance frameworks:
