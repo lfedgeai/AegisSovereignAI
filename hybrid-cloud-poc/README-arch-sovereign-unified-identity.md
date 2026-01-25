@@ -72,6 +72,18 @@ By validating the high-entropy hardware evidence device-side and emitting an Ent
 
 ---
 
+## Transparent Zero-Knowledge Proofs (No Trusted Third Party)
+
+A critical requirement for Sovereign Infrastructure is the elimination of **Trusted Third Parties (TTPs)**. In traditional ZKP systems (Gen 3 - Groth16), a "Trusted Setup" phase was required to generate cryptographic parameters. If the "Toxic Waste" from this setup was not destroyed, the entire system's integrity could be compromised.
+
+AegisSovereignAI 0.2.0 utilizes **Gen 4 ZKP (Plonky2/FRI-based)** to achieve **Mathematical Transparency**:
+
+*   **No Trusted Setup**: Verification is based on hash-based STARKs and PLONKish arithmetization. There are no secret parameters to manage or destroy.
+*   **Verification without Trust**: An auditor only needs to inspect the open-source **Rust Circuit Code**. The mathematical validity of the proof is self-contained and requires no external "Root of Trust" beyond the public circuit definition.
+*   **Post-Quantum Foundations**: By using hash-based verification (FRI), the system establishing a foundation for resistance against future quantum computing threats.
+
+---
+
 ## Strategic Scaling: Category-Based Geofencing
 
 For Tier-1 Enterprises (e.g., Global Banks), identity systems must scale to millions of users without sacrificing performance. AegisSovereignAI achieves this through **Policy Categorization**.
