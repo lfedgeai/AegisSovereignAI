@@ -72,6 +72,19 @@ By validating the high-entropy hardware evidence device-side and emitting an Ent
 
 ---
 
+## Strategic Scaling: Category-Based Geofencing
+
+For Tier-1 Enterprises (e.g., Global Banks), identity systems must scale to millions of users without sacrificing performance. AegisSovereignAI achieves this through **Policy Categorization**.
+
+| Approach | Scaling Model | Verifier Impact | Audit Complexity |
+| :--- | :--- | :--- | :--- |
+| **Per-User Geofencing** | O(N) Users | High (DB-lookup required per request) | Extreme (Millions of unique circuits) |
+| **Category Geofencing** | O(C) Categories | **O(1)** (Stateless cache in Envoy/WASM) | **Low** (100-500 Standardized Policies) |
+
+**The Enterprise Value:** By defining ~100 standard geofence categories (e.g., `FINANCIAL_HUB_NY`, `EU_RESIDENCY_ZONE`), the enterprise can enforce complex geographic compliance (Reg-K) at wire-speed. The ZKP ensures that while the category is public, the *exact* coordinate remains private to the user's hardware.
+
+---
+
 ## End-to-End Flow Visualization
 
 ### Detailed Flow Diagram (Full View)
