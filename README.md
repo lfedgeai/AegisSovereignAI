@@ -12,12 +12,12 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 
 **See the [Unified Identity Hybrid Cloud Proof of Concept (PoC) Guide](./hybrid-cloud-poc/README.md) for concrete use cases and detailed setup instructions.**
 
-## Enterprise Sovereign Use Cases (Focus: Financial Services)
+## Enterprise Sovereign Use Cases (Focus: High-Security/Compliance Environments e.g., Financial Services)
 
-### 1. The Enterprise Customer (Retail/Private Banking End-Consumer)
+### 1. The Enterprise Customer (High-Compliance End-Consumer e.g., Retail/Private Banking)
 *   **Core Use Case:** **Private Wealth Gen-AI Advisory (Unmanaged Devices).** Providing high-net-worth clients with AI-driven portfolio insights on their personal, unmanaged devices while using their physical location for **Regulation K (Reg-K)** compliance without disclosing precise location to the AI service. 
 
-### 2. The Enterprise Employee (Branch Relationship Manager)
+### 2. The Enterprise Employee (Regulated Sector Employee e.g., Branch Relationship Manager)
 *   **Core Use Case:** **Secure Remote Branch Operations.** Allowing Relationship Managers to access sensitive PII from "Green Zone" servers on managed hardware, whether at a branch or a verified remote location.
 
 ### 3. The Enterprise Tenant (Line-of-Business Owner aka LOB)
@@ -40,7 +40,7 @@ Traditional security relies on **bearer tokens** and **IP-based geofencing**, wh
 
 ### 2. The Residency vs. Privacy Deadlock
 Regulators require proof of data residency (e.g., **Regulation K aka Reg-K**), but traditional geofencing relies on ingesting high-resolution location data (GPS, Mobile Network, etc.), creating massive PII liability under privacy regulations (e.g., **General Data Protection Regulation (GDPR)**). Enterprises are often forced to choose between non-compliance or privacy violation.
-* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client uses the Private Wealth Gen-AI Advisory from their personal mobile device. The bank must prove to an EU regulator that the AI inference stayed within the EEA (**Reg-K** compliance), but doing so requires ingesting or storing raw GPS data from the client's device — a GDPR violation.
+* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client uses the Private Wealth Gen-AI Advisory from their personal mobile device. The organization (e.g., bank) must prove to an EU regulator that the AI inference stayed within the EEA (**Reg-K** compliance), but doing so requires ingesting or storing raw GPS data from the client's device — a GDPR violation.
 
 ### 3. Infrastructure Compromise
 Modern AI workloads are vulnerable to **infrastructure compromise**, where a compromised OS or Hypervisor feeds, for example, fake location data to the application (e.g., via Frida hooks), tricking compliance logic while the device is in an unauthorized jurisdiction.
@@ -48,20 +48,20 @@ Modern AI workloads are vulnerable to **infrastructure compromise**, where a com
 
 ### 4. The "Silicon Lottery": Hardware-Induced Drift & Computational Determinism
 AI prompt response drift can be influenced by the type of hardware. Response can vary based on randomness setting (e.g., temperature). Even when randomness is fully disabled (e.g., `temperature=0`), the same model can produce different outputs on different hardware types (e.g., NVIDIA A100 vs H100) due to floating-point math and parallel execution differences. For quantitative risk management, **Computational Determinism** — ensuring that the same model on the same hardware type produces consistent results — is essential. Enterprises require the ability to restrict and verify hardware types to ensure deterministic outcomes for regulated workloads.
-* **Example (Use Case 3 - Enterprise Tenant):** The Mortgage LOB's credit risk model produces different risk scores when run on A100 vs H100 GPUs due to floating-point variations. Traditional infrastructure management cannot guarantee which hardware type executed a given inference, making regulatory reproducibility impossible.
+* **Example (Use Case 3 - Enterprise Tenant):** The Mortgage LOB's credit risk model produces different risk scores when run on A100 vs H100 GPUs due to floating-point variations. Traditional infrastructure management cannot guarantee which hardware type executed a given inference, making regulatory reproducibility within the organization impossible.
 
 ### 5. The Black-Box Governance Gap: Integrity & Data Liability
 AI models are non-deterministic, making them difficult to audit. There is no cryptographic proof that a specific decision was made using untampered AI models/prompts without disclosing sensitive data. This is further complicated by **Prompt Injection** (malicious instructions) and **Hallucinations** (unintended PII leakage).
 * **The "Audit Paradox":** Traditional logging for compliance creates massive PII/IP liability, but *not* logging prevents forensics and "Effective Challenge."
-* **Example (Use Case 3 & 4 - Enterprise Tenant & Regulator):** An OCC auditor needs to verify that the Credit Card LOB's AI agent didn't use prohibited demographic data for credit scoring. Under current methods, the bank must disclose raw prompts to the auditor — revealing the LOB's proprietary scoring logic and customer PII — creating significant liability.
+* **Example (Use Case 3 & 4 - Enterprise Tenant & Regulator):** An OCC auditor needs to verify that the Credit Card LOB's AI agent didn't use prohibited demographic data for credit scoring. Under current methods, the organization must disclose raw prompts to the auditor — revealing the LOB's proprietary scoring logic and customer PII — creating significant liability.
 
 ### 6. Bring Your Own Device (BYOD) Security Gaps
 BYOD devices are unmanaged and unverified, making them a significant security risk for data leakage and unauthorized access.
-* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client accesses the Private Wealth Gen-AI Advisory from their personal iPad. The device may be jailbroken or compromised without the bank's knowledge, creating an undetectable data leakage vector for sensitive portfolio information.
+* **Example (Use Case 1 - Enterprise Customer):** A high-net-worth client accesses the Private Wealth Gen-AI Advisory from their personal iPad. The device may be jailbroken or compromised without the organization's knowledge, creating an undetectable data leakage vector for sensitive portfolio information.
 
 ### 7. Edge Security Gaps
 Edge nodes are often in untrusted physical locations, making them vulnerable to physical tampering and unauthorized environment modification.
-* **Example (Use Case 2 - Enterprise Employee):** A rural bank branch server used by Relationship Managers is physically compromised or stolen. Traditional software-based security cannot detect hardware tampering, allowing attackers to extract AI model weights and sensitive customer PII.
+* **Example (Use Case 2 - Enterprise Employee):** A branch server used by Relationship Managers is physically compromised or stolen. Traditional software-based security cannot detect hardware tampering, allowing attackers to extract AI model weights and sensitive customer PII.
 
 ---
 
