@@ -127,12 +127,12 @@ SPIRE SERVER and KEYLIME VERIFIER VERIFICATION PHASE:
 ┌──────────────┐  [8]  ┌──────────────┐  [9]  ┌──────────────┐  [10] ┌──────────────┐  [11] ┌──────────────┐  [12] ┌──────────────┐  [13] ┌──────────────┐  [14] ┌──────────────┐  [15] ┌──────────────┐
 │ SPIRE Server │──────>│ Keylime      │──────>│   Keylime    │──────>│ Keylime      │──────>│ rust-keylime │──────>│ Mobile Sensor│──────>│ rust-keylime │──────>│ Keylime      │──────>│ SPIRE Server │
 │ Extract: App │       │ Verifier     │       │  Registrar   │       │ Verifier     │       │    Agent     │       │ Microservice │       │    Agent     │       │ Verifier     │       │ Issue Agent  │
-│ Key, Cert,   │       │ Verify App   │       │ Return: IP,  │       │ Verify AK    │       │ Generate     │       │ Verify       │       │ Return Quote │       │ Verify Quote │       │ SVID with    │
-│ Nonce, UUID  │       │ Key Cert     │       │ Port, AK,    │       │ Registration │       │ TPM Quote    │       │ Device Loc   │       │ + Location   │       │ Verify Cert  │       │ BroaderClaims│
-└──────────────┘       │ Signature    │       │ mTLS Cert    │       │ (PoC Check)  │       │ (with loc)   │       │ (Mock MNO)   │       └──────────────┘       │ Verify Loc   │       └──────────────┘
-                       └──────────────┘       └──────────────┘       └──────────────┘       │  (PCR 15)    │                                                             │ Return       │
-                                                                                            └──────────────┘                                                             │ BroaderClaims│
-                                                                                                                                                                 └──────────────┘
+│ Key, Cert,   │       │ Verify App   │       │ Return: IP,  │       │ Verify AK    │       │ (Sidecar)    │       │ (Mock MNO)   │       │ (Sidecar)    │       │ Verify ZKP   │       │ SVID with    │
+│ Nonce, UUID  │       │ Key Cert     │       │ Port, AK,    │       │ Registration │       │ Collect Loc  │       │ Return Loc   │       │ Generate ZKP │       │ Verify Quote │       │ BroaderClaims│
+└──────────────┘       │ Signature    │       │ mTLS Cert    │       │ (PoC Check)  │       └──────┬───────┘       └──────────────┘       │ (Plonky2)    │       └──────┬───────┘       └──────────────┘
+                       └──────────────┘       └──────────────┘       └──────────────┘              │                                      └──────────────┘              │
+                                                                                                   └─────────────────── [13] ──────────────────────┘              │
+                                                                                                                                                                  └──────────────┘
 
 SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 ┌──────────────┐  [16] ┌──────────────┐  [17] ┌──────────────┐  [18] ┌──────────────┐  [19] ┌──────────────┐  [20] ┌──────────────┐  [21] ┌──────────────┐
@@ -157,10 +157,10 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 **[9]** Lookup Agent: Verifier queries Registrar for agent info (IP, Port, AK, mTLS Cert)
 **[10]** Verify AK Registration: Verifier verifies TPM AK is registered with registrar/verifier (PoC security check - only registered AKs can attest)
 **[11]** Quote Request: Verifier requests fresh TPM quote with challenge nonce
-**[12]** Location Detection: Agent detects mobile sensor, binds to PCR 15 with nonce
-**[13]** Location Extraction: Keylime Verifier initiates fetch of location via mTLS, validates nonce and PCR index*
-**[14]** Quote Response: Agent returns TPM quote and nonce-bound location data
-**[15]** Verification Result: Verifier returns BroaderClaims (geolocation, TPM attestation) → SPIRE Server
+**[12]** Location Detection: Agent (Sidecar) detects mobile sensor / GNSS coordinates
+**[13]** MNO Endorsement: Verifier fetches location from MNO (Mock MNO Microservice) to bind to session
+**[14]** ZKP Generation: Agent (Sidecar) runs Plonky2 circuits to prove: Coordinate-in-Geofence, binding to session nonce
+**[15]** Stateless Verification: Verifier validates ZKP proof and TPM quote result → SPIRE Server
 **[16]** Agent SVID: Server issues agent SVID with BroaderClaims embedded → SPIRE Agent
 **[17]** Workload Request: Workload connects to Agent Workload API
 **[18]** Workload API: Workload requests SVID via Agent Workload API
@@ -1817,7 +1817,7 @@ POST http://localhost:9050/verify
 sequenceDiagram
     participant Workload as Workload App
     participant Hardware as TPM / Sensors
-    participant KAgent as Keylime Agent
+    participant KAgent as Keylime Agent (Sidecar)
     participant Agent as SPIRE Agent
     participant MNO as Mock MNO (Carrier)
     participant Verifier as Keylime Verifier
@@ -1834,17 +1834,20 @@ sequenceDiagram
     Server->>Verifier: Verify Identity
     
     Note right of Verifier: Host Integrity Check
-    Verifier->>KAgent: Trigger: Fetch TPM Quote & Geo
+    Verifier->>KAgent: Trigger attestation with nonce
     KAgent->>Hardware: Read PCRs
-    Hardware->>KAgent: TPM-Signed Evidence (IMEI, IMSI)
-    KAgent-->>Verifier: Integrity Quote + Geo
+    Hardware->>KAgent: TPM-Signed Evidence
     
-    Verifier->>MNO: Verify Device Location (CAMARA API)
-    MNO-->>Verifier: Signed MNO Endorsement
-    Verifier-->>Server: Attested Claims + MNO Anchor
+    Note right of KAgent: Gen 4: Privacy-Preserving Gen
+    KAgent->>MNO: Request Geo-Endorsement
+    MNO-->>KAgent: Signed MNO Response (Gen 4 Dependency*)
+    KAgent->>KAgent: Run Plonky2 ZKP Prover (On-Device)
+    Note over KAgent: Prove: Location is in Category Radius
     
-    Server->>Server: Run Plonky2 ZKP Prover
-    Note right of Server: Prove: Location matches MNO Radius<br/>(Privacy-preserving)
+    KAgent-->>Verifier: Integrity Quote + ZKP Proof
+    Verifier->>Verifier: Stateless ZKP Verification
+    
+    Verifier-->>Server: Attested Claims (compliant) + Proof Receipt
     
     Server-->>Agent: Agent SVID + grc.sovereignty_receipt
     
@@ -1853,9 +1856,12 @@ sequenceDiagram
     
     Note over Workload, Envoy: 4. RUNTIME VERIFICATION (Stateless)
     Workload->>Envoy: mTLS Request with SVID Chain
-    Envoy->>Envoy: Extract & Verify ZKP Receipt
+    Envoy->>Envoy: Extract & Verify ZKP Receipt (Plonky2)
     Envoy-->>Workload: Allowed (Verified Sovereign)
 ```
+
+> [!IMPORTANT]
+> **Gen 4 Implementation Status**: The ZKP Prover logic (Plonky2) and stateless verification are fully implemented. The remaining dependency for absolute zero-trust is **MNO Local Response Signing**, which ensures the location input to the ZKP circuit is authenticated by the carrier before proof generation.
 
 ### Evolution: Gen 3 → Gen 4
 
