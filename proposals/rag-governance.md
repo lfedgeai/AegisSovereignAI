@@ -25,7 +25,7 @@ We propose injecting a mandatory **Policy Enforcement Point (PEP)** between retr
 
 ## 2\. Motivation
 
-In critical infrastructure sectors (Banking, Defence, Healthcare), standard RAG architectures introduce two systemic risks that block production adoption:
+In critical infrastructure sectors (e.g., Banking, Defence, Healthcare), standard RAG architectures introduce two systemic risks that block production adoption:
 
   * **Context Contamination:** A retriever may fetch documents the caller is not authorized to see (e.g., a "Public" agent retrieves a "Confidential" policy doc). If the LLM reads this chunk, it may leak the secret in its answer. Application-level "if/then" checks are brittle and hard to audit.
   * **The GenAI Audit Paradox:** LLMs are probabilistic. Re-running a prompt six months later may yield a different result. Traditional logs (Input/Output) are therefore insufficient for regulatory audits. Auditors need proof of *why* a decision was made, which requires freezing the exact state of the retrieved knowledge at the moment of inference.
@@ -111,7 +111,7 @@ This design ensures:
 
 ### A. The Governance Interface
 
-We propose a standard abstract base class that allows users to swap policy backends (OPA, Kyverno, or proprietary banking engines).
+We propose a standard abstract base class that allows users to swap policy backends (OPA, Kyverno, or high-compliance sector engines).
 
 ```python
 class BaseGovernanceHandler(ABC):
@@ -157,13 +157,13 @@ To solve the audit paradox, the middleware produces a structured JSON log for ev
     
     // The Workload Identity calling the API (Always present in Zero Trust)
     "principal": {
-        "id": "spiffe://bank.local/ns/loan-service/sa/chat-backend",
-        "trust_domain": "bank.local"
+        "id": "spiffe://sovereign.local/ns/regulated-service/sa/chat-backend",
+        "trust_domain": "sovereign.local"
     },
 
     // The Human User (Optional - Null for autonomous agents)
     "subject": {
-        "user_id": "jdoe_banker", 
+        "user_id": "jdoe_authorized_user", 
         "auth_method": "OIDC",
         "groups": ["loan_officers", "ny_branch"]
     },
@@ -257,7 +257,7 @@ This architecture is designed to support hardware-rooted identity.
 +======================================================================+
 ||                  **Unified SVID** (X.509 Certificate)              ||
 ||--------------------------------------------------------------------||
-||  Subject: spiffe://bank.local/ns/loan-service/sa/chat-backend      || <-- "Who"
+||  Subject: spiffe://sovereign.local/ns/regulated-service/sa/chat-backend || <-- "Who"
 ||--------------------------------------------------------------------||
 ||  Extensions (AegisSovereignAI):                                         ||
 ||    - x-aegis-device-trust: sha256(tpm_quote_verified)              || <-- "On What"

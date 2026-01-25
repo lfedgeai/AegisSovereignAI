@@ -10,7 +10,7 @@ Today's cloud geofencing relies on **SLA promises**—enterprises trust that dat
 **Regulatory pressure is intensifying:**
 - EU AI Act (data locality requirements)
 - India's DPDP Act (cross-border data transfer restrictions)
-- Banking regulators demanding auditable compliance
+- High-compliance regulators demanding auditable compliance
 
 ---
 
@@ -95,7 +95,7 @@ AegisSovereignAI delivers **mathematically-enforced data sovereignty** through a
 ### Strategic Value
 
 - **Regulatory Compliance:** Preemptive alignment with EU AI Act, DPDP, and emerging regulations
-- **Enterprise Sales:** Differentiated offering for global banks, insurance, and healthcare
+- **Enterprise Sales:** Differentiated offering for high-compliance sectors (e.g., global banks, insurance, and healthcare)
 - **Open Source Leadership:** Positioned for CNCF/LF Edge contribution (SPIRE, Keylime)
 
 > **Bottom Line:** AegisSovereignAI transforms data sovereignty from a contractual promise into a mathematical guarantee—auditable, enforceable, and privacy-preserving.
