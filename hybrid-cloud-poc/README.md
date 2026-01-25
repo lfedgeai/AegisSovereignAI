@@ -13,7 +13,7 @@ This directory contains a proof-of-concept implementation demonstrating sovereig
 ## The Architecture Scenario
 This PoC simulates a real-world regulated environment:
 - **The Public Zone (Public Cloud - e.g., Telefonica):** Represents a scalable environment where initial processing occurs (the Client).
-- **The Trusted Zone (On-Premise):** Represents the Sovereign Private Cloud where the Root of Trust is established and sensitive data (e.g., Banking Secrets) is stored (the Server).
+- **The Trusted Zone (On-Premise):** Represents the Private Sovereign Cloud where the Root of Trust is established and sensitive, regulated data (e.g., Banking Secrets) is stored (the Server).
 - **The Trust Bridge (AegisSovereignAI):** A unified control plane that issues short-lived, hardware-rooted credentials allowing the two zones to communicate only if strict integrity and location policies are met.
 
 ## The Problem
@@ -23,7 +23,7 @@ Current security approaches for AI inference applications, secret stores, system
 ![The Problem: A Fragile and Non-Verifiable Security Model](images/Slide6.PNG)
 
 The diagram illustrates a traditional security architecture for AI inference applications showing:
-1. End user host sending inference data with bearer tokens and source IP to Bank Inference application in Sovereign Cloud
+1. End user host sending inference data with bearer tokens and source IP to a high-compliance application (e.g., Bank Inference app) in Sovereign Cloud
 2. Workload host requesting secrets from Customer-managed key vault using bearer/proof-of-possession tokens
 3. Key vault retrieving encrypted models from storage
 
@@ -790,7 +790,7 @@ To provide "Silicon-to-Audit" guarantees, AegisSovereignAI aligns with the **IET
 1.  **The Trust Anchor (Attester Root)**: We assume the **Device Silicon (TPM/Secure Enclave)** and the **Immutable Boot ROM** are uncompromised. This hardware root of trust is the only component that can sign **Evidence** (Quotes/Claims).
 2.  **Verified Integrity (Static Appraisal)**: Any compromise that persists across reboots (e.g., a modified kernel) is caught during the **Evidence Appraisal** stage. The verifier compares the boot-time hardware quote against the **Reference Integrity Manifest (RIM)**—the "Answer Key" signed by the OEM.
 3.  **Runtime Protection (Dynamic Appraisal)**: For volatile "runtime jailbreaks" that occur after boot, the framework uses **Linux IMA (Integrity Measurement Architecture)**. The system continuously measures every binary, script, and kernel module as they are loaded. If an unauthorized rooting tool or exploit payload is executed, the **Evidence** sent to the verifier will deviate from the **Appraisal Policy**, revoking the SVID within seconds.
-4.  **Mathematical Enforcement**: The system moves the security boundary from *Managerial Trust* (MDM) to *Mathematical Trust* (Remote Attestation). A jailbroken device is not "blocked" from existing; it is simply mathematically incapable of producing the cryptographic proof required to access the bank's Sovereign AI Loop.
+4.  **Mathematical Enforcement**: The system moves the security boundary from *Managerial Trust* (MDM) to *Mathematical Trust* (Remote Attestation). A jailbroken device is not "blocked" from existing; it is simply mathematically incapable of producing the cryptographic proof required to access the organization's Sovereign AI Loop.
 
 #### Scaling: Hardware Key Management & OEM Trust
 A common question for Tier-1 institutions is: *"Do we have to manually track every OS update and hash for every customer device?"*
@@ -799,9 +799,9 @@ The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests 
 
 1.  **OEM Reference Manifests (RIM)**: This is the **"Answer Key"** provided by the manufacturer (Apple, Google, Microsoft). It contains the *expected* hashes of every official OS and firmware component.
 2.  **The TPM Quote**: This is the **"Actual Snapshot"** produced by the customer's hardware. It reflects the *current* state of the device silicon and kernel.
-3.  **Automated Comparison**: The bank's **Keylime Verifier** ingests the **signed RIM (Answer Key)** and compares it to the **received Quote (Snapshot)**. 
-4.  **Zero-Touch Verification**: The bank doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
-5.  **Scaling**: This allows the bank to support billions of unmanaged devices without ever having to manually manage an OS hash. The bank trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
+3.  **Automated Comparison**: The enterprise **Keylime Verifier** ingests the **signed RIM (Answer Key)** and compares it to the **received Quote (Snapshot)**. 
+4.  **Zero-Touch Verification**: The organization doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
+5.  **Scaling**: This allows high-compliance organizations (e.g., banks) to support billions of unmanaged devices without ever having to manually manage an OS hash. The organization trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
 
 ## Components
 

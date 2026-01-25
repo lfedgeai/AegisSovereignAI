@@ -2,7 +2,7 @@
 
 The integration of **AegisSovereignAI** with **LangGraph** moves multi-agent systems from "logical state management" to **"Physical State Enforcement."**
 
-In high-stakes production environments (e.g., Global Banks like JPMC or HSBC), where agents handle sensitive financial transactions on unmanaged devices (BYOD), the risk isn't just a "bad prompt"—it is the **lack of physical accountability**. By tying User and Workload IDs into a "Blended Identity," you create a mathematical "Chain of Custody" that satisfies both regulators and internal security teams.
+In high-stakes production environments (e.g., high-compliance organizations like Global Banks), where agents handle sensitive financial or regulated transactions on unmanaged devices (BYOD), the risk isn't just a "bad prompt"—it is the **lack of physical accountability**. By tying User and Workload IDs into a "Blended Identity," you create a mathematical "Chain of Custody" that satisfies both regulators and internal security teams.
 
 ---
 
@@ -12,7 +12,7 @@ As LangGraph orchestrates agents at machine speed, it creates three new systemic
 
 *   **Identity Fluidity & Attribution Gaps:** Agents often "hide" behind a single service account. If a "Payment Agent" makes an error, there is no cryptographic proof of which specific hardware node or human session initiated that step.
 *   **Capability Bleed (Session Hijacking 2.0):** In a multi-agent graph, if an "untrusted" node is compromised, it can attempt to "bleed" into a "trusted" node by hijacking the active LangGraph state.
-*   **The Non-Deterministic Audit:** Regulators require "reproducibility." If an agent denies a mortgage on a BYOD device, the bank must prove the decision wasn't caused by **Hardware-Induced Drift** (stochasticity in GPU/NPU kernels).
+*   **The Non-Deterministic Audit:** Regulators require "reproducibility." If an agent denies a transaction (e.g., a mortgage) on a BYOD device, the organization must prove the decision wasn't caused by **Hardware-Induced Drift** (stochasticity in GPU/NPU kernels).
 
 ---
 

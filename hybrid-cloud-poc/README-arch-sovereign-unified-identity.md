@@ -37,7 +37,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 
 ## Strategic Vision: Silicon-to-Audit
 
-The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "bank's core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
+The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "organization's (e.g., bank's) core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
 
 ### Edge Workload Integration: Managed vs. BYOD (Unmanaged)
 
@@ -68,7 +68,7 @@ A core innovation of the AegisSovereignAI framework is the **Aegis Verifier**, w
 ### Normalization of Trust
 The Verifier acts as the translation layer between:
 - **OEM Roots of Trust**: Apple (App Attest), Google (Android Key Attestation), TPM Manufacturers (Endorsement Keys).
-- **Enterprise Internal PKI**: The bank's internal SPIRE installation.
+- **Enterprise Internal PKI**: The organization's internal SPIRE installation.
 
 By validating the high-entropy hardware evidence device-side and emitting an Enterprise-signed SVID, the Verifier allows downstream microservices to verify "Trust" using standard mTLS without needing to understand the complexities of individual hardware roots.
 
@@ -93,7 +93,7 @@ AegisSovereignAI 0.2.0 utilizes **Gen 4 ZKP (Plonky2/FRI-based)** to achieve **M
 
 ## Strategic Scaling: Category-Based Geofencing
 
-For Tier-1 Enterprises (e.g., Global Banks), identity systems must scale to millions of users without sacrificing performance. AegisSovereignAI achieves this through **Policy Categorization**.
+For Tier-1 Enterprises (e.g., high-compliance organizations like Global Banks), identity systems must scale to millions of users without sacrificing performance. AegisSovereignAI achieves this through **Policy Categorization**.
 
 | Approach | Scaling Model | Verifier Impact | Audit Complexity |
 | :--- | :--- | :--- | :--- |
@@ -328,7 +328,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 
 Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
 1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., at JPMC or Barclays), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
-2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the banking app's keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
+2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the application's (e.g., banking app's) keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
 
 > [!TIP]
 > **Strategic Alignment (Apple PCC)**: AegisSovereignAI aligns with the architecture of **Apple’s Private Cloud Compute (PCC)**. Both models utilize a "Trusted Loop" where the Secure Enclave is used at both ends—on the user device and in the sovereign data center—to create end-to-end cryptographic proof of software and hardware integrity.
@@ -1701,7 +1701,7 @@ The WASM filter supports three verification modes, configurable per-deployment:
 | Mode | CAMARA Call | Sidecar Required | Use Case |
 |------|-------------|------------------|----------|
 | **Trust** (default) | ❌ None | ❌ No | Standard workloads, trust attestation-time verification |
-| **Runtime** | ✅ With cache (15min TTL) | ✅ Yes | High-security apps, banking, enterprise |
+| **Runtime** | ✅ With cache (15min TTL) | ✅ Yes | High-security/compliance apps (e.g., banking, healthcare) |
 | **Strict** | ✅ No cache (real-time) | ✅ Yes | Critical infrastructure, military, regulatory compliance |
 
 **Configuration** (envoy.yaml):

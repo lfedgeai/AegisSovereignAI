@@ -1,6 +1,6 @@
 # Threat Model: Unmanaged Device Security (AegisSovereignAI)
 
-**Scenario**: A Retail Banking user (e.g., at JPMC or Citi) is accessing a "Geofenced AI Portfolio Advisor" from an **unmanaged, personal** Android/iOS device (BYOD).
+**Scenario**: A user in a high-compliance environment (e.g., Retail Banking at JPMC or Citi) is accessing a "Geofenced AI Portfolio Advisor" from an **unmanaged, personal** Android/iOS device (BYOD).
 **Objective**: The user (or malware on the device) seeks to exploit an **infrastructure blind spot** to believe they are in a "Green Zone" (e.g., within the US/NY) while physically located in a prohibited or high-risk jurisdiction.
 
 ---

@@ -53,7 +53,7 @@ Traditional audits are "point-in-time." AegisSovereignAI enables **Continuous Co
 
 ### 3. GRC & SIEM Integration
 
-To fit into existing bank workflows, the **Evidence Bundle** is designed to be ingested by standard tools (Splunk, Archer, etc.).
+To fit into existing organizational workflows (e.g., standard bank workflows), the **Evidence Bundle** is designed to be ingested by standard tools (Splunk, Archer, etc.).
 
 *   **Format:** Standardized JSON-LD with JWS (JSON Web Signature) for non-repudiation.
 *   **Mapping:** Each bundle includes tags for **NIST AI RMF** and **ISO/IEC 42001** to allow for automated report generation.
