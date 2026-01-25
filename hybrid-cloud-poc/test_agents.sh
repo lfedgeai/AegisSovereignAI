@@ -140,39 +140,49 @@ stop_agent_services_only() {
     # Step 1: Stop agent processes only
     echo "  1. Stopping agent processes..."
 
-    # Stop rust-keylime Agent
+    # 1.1: Stop rust-keylime Agent
     echo "     Stopping rust-keylime Agent..."
     pkill -f "keylime_agent" >/dev/null 2>&1 || true
     pkill -f "rust-keylime" >/dev/null 2>&1 || true
     pkill -f "target/release/keylime_agent" >/dev/null 2>&1 || true
 
-    # Stop TPM Plugin Server
+    # 1.2: Stop TPM Plugin Server
     echo "     Stopping TPM Plugin Server..."
     pkill -f "tpm_plugin_server" >/dev/null 2>&1 || true
 
-    # Stop SPIRE Agent (not Server)
+    # 1.3: Stop SPIRE Agent (not Server)
     echo "     Stopping SPIRE Agent..."
     pkill -x "spire-agent" >/dev/null 2>&1 || true
 
-    sleep 1
+    # 1.4: Wait for processes to fully stop
+    echo "     Waiting for processes to exit..."
+    sleep 3
+
+    # Force kill remaining agent processes
+    if pgrep -f "keylime_agent|rust-keylime|tpm_plugin|spire-agent" >/dev/null 2>&1; then
+        echo "     Force killing remaining agent processes..."
+        pkill -9 -f "keylime_agent|rust-keylime|tpm_plugin|spire-agent" >/dev/null 2>&1 || true
+        sleep 1
+    fi
 
     # Step 2: Clean up only agent data directories
     echo "  2. Cleaning up agent data directories..."
 
-    # Remove SPIRE Agent data (not Server data)
+    # 2.1: Remove SPIRE Agent data
     echo "     Removing SPIRE Agent data directories..."
     rm -rf /tmp/spire-agent 2>/dev/null || true
+    rm -rf /tmp/spire-data/agent 2>/dev/null || true
     rm -f /tmp/spire-agent.pid 2>/dev/null || true
     rm -f /tmp/spire-agent.log 2>/dev/null || true
 
-    # Remove rust-keylime agent data
+    # 2.2: Remove rust-keylime agent data
     echo "     Removing rust-keylime agent data..."
     rm -rf /tmp/keylime-agent 2>/dev/null || true
     rm -f /tmp/rust-keylime-agent.pid 2>/dev/null || true
     rm -f /tmp/keylime-agent.sock 2>/dev/null || true
     rm -f /tmp/rust-keylime-agent.log 2>/dev/null || true
 
-    # Remove TPM Plugin data
+    # 2.3: Remove TPM Plugin data
     echo "     Removing TPM Plugin data..."
     rm -rf /tmp/spire-data/tpm-plugin 2>/dev/null || true
     rm -f /tmp/tpm-plugin-server.pid 2>/dev/null || true
@@ -1024,7 +1034,7 @@ wait_for_one_agent_svid_renewal() {
         initial_agent_size=$(wc -l < "$agent_log" 2>/dev/null || echo "0")
         # Count existing renewals
         if [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "true" ]; then
-            initial_renewal_count=$(grep -c "Successfully reattested node" "$agent_log" 2>/dev/null || echo 0)
+            initial_renewal_count=$(grep -cE "Successfully reattested node|Node attestation was successful" "$agent_log" 2>/dev/null || echo 0)
         else
             initial_renewal_count=$(grep -iE "Successfully rotated agent SVID" "$agent_log" 2>/dev/null | wc -l)
         fi
@@ -1048,7 +1058,7 @@ wait_for_one_agent_svid_renewal() {
         local current_count=0
         if [ -f "$agent_log" ]; then
             if [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "true" ]; then
-                current_count=$(grep -c "Successfully reattested node" "$agent_log" 2>/dev/null || echo 0)
+                current_count=$(grep -cE "Successfully reattested node|Node attestation was successful" "$agent_log" 2>/dev/null || echo 0)
             else
                 current_count=$(grep -iE "Successfully rotated agent SVID" "$agent_log" 2>/dev/null | wc -l)
             fi
@@ -1061,7 +1071,7 @@ wait_for_one_agent_svid_renewal() {
             # Show the renewal log entry
             if [ -f "$agent_log" ]; then
                 if [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "true" ]; then
-                    grep "Successfully reattested node" "$agent_log" | tail -1 | sed 's/^/    /'
+                    grep -E "Successfully reattested node|Node attestation was successful" "$agent_log" | tail -1 | sed 's/^/    /'
                 else
                     grep -iE "Successfully rotated agent SVID" "$agent_log" | tail -1 | sed 's/^/    /'
                 fi
@@ -1084,6 +1094,7 @@ wait_for_one_agent_svid_renewal() {
 fetch_agent_svid() {
     local output_file="${1:-/tmp/agent-svid-dump/agent-svid.pem}"
     local agent_log="/tmp/spire-agent.log"
+    local agent_socket="/tmp/spire-agent/public/api.sock"
 
     echo ""
     echo "  Fetching agent SVID..."
@@ -1091,57 +1102,57 @@ fetch_agent_svid() {
     # Create output directory
     mkdir -p "$(dirname "$output_file")" 2>/dev/null || true
 
-    # Extract agent SVID from logs (agent logs the certificate PEM)
-    # Look for the most recent "Agent SVID Certificate (PEM)" log entry
-    # Log format: time="..." level=info msg="..." cert_pem="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
+    # 1. Primary Method: Use SPIRE Agent API (most reliable)
+    local spire_agent="${PROJECT_DIR}/spire/bin/spire-agent"
+    if [ -f "$spire_agent" ] && [ -S "$agent_socket" ]; then
+        echo "    Using SPIRE Agent API to fetch SVID..."
+        # Extract directory and base name for the API call
+        local tmp_dir=$(dirname "$output_file")
+        local base_name=$(basename "$output_file")
+        
+        # SPIRE agent api fetch x509 writes to -write directory
+        if "$spire_agent" api fetch x509 -socketPath "$agent_socket" -write "$tmp_dir/" >/dev/null 2>&1; then
+            # The API writes to svid.0.pem, svid.1.pem, etc.
+            # We need to find the one that matches our agent (usually svid.0.pem)
+            if [ -f "${tmp_dir}/svid.0.pem" ]; then
+                cp "${tmp_dir}/svid.0.pem" "$output_file"
+                echo -e "${GREEN}    ✓ Agent SVID fetched via SPIRE Agent API${NC}"
+                return 0
+            fi
+        fi
+    fi
+
+    # 2. Secondary Method: Extract from logs (fallback)
     if [ -f "$agent_log" ]; then
+        echo "    Falling back to log extraction..."
         # Use Python to extract the certificate from logs
         if command -v python3 >/dev/null 2>&1; then
             local cert_pem=$(python3 << 'PYEOF'
 import sys
 import re
+import os
 
 log_file = "/tmp/spire-agent.log"
+if not os.path.exists(log_file):
+    sys.exit(1)
+
 try:
     with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-        # Read lines and search backwards for the most recent agent SVID log
+        # Read lines and search backwards for any line containing cert_pem
         lines = f.readlines()
         for line in reversed(lines):
-            if "Agent SVID Certificate (PEM)" in line and "cert_pem=" in line:
+            # Look for cert_pem with either msg containing "Agent SVID" or "Agent Unified SVID"
+            # This handles various log formats we use in node.go and client.go
+            if "cert_pem=" in line:
                 # Extract cert_pem="..." value
-                # Handle both single-line and multi-line formats
                 # Pattern: cert_pem="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n"
                 match = re.search(r'cert_pem="([^"]+)"', line)
                 if match:
                     cert = match.group(1)
                     # Replace escaped newlines with actual newlines
-                    cert = cert.replace('\\n', '\n')
+                    cert = cert.replace('\\n', '\n').rstrip()
                     if 'BEGIN CERTIFICATE' in cert and 'END CERTIFICATE' in cert:
                         print(cert)
-                        sys.exit(0)
-
-                # If cert spans multiple lines, try to find it
-                # Look for the line with cert_pem= and extract until END CERTIFICATE
-                if 'cert_pem=' in line:
-                    # Find the start of cert_pem value
-                    start_idx = line.find('cert_pem="') + len('cert_pem="')
-                    # Extract from start to end of line, then continue reading if needed
-                    cert_part = line[start_idx:]
-                    # Remove trailing quote if present
-                    cert_part = cert_part.rstrip('"')
-                    cert_part = cert_part.replace('\\n', '\n')
-
-                    # If END CERTIFICATE is in this line, we're done
-                    if 'END CERTIFICATE' in cert_part:
-                        print(cert_part)
-                        sys.exit(0)
-
-                    # Otherwise, we might need to read more lines (unlikely but possible)
-                    # For now, try to extract what we have
-                    if 'BEGIN CERTIFICATE' in cert_part:
-                        # Try to find END CERTIFICATE in the same line or construct it
-                        # Most certificates should fit in one log line
-                        print(cert_part)
                         sys.exit(0)
 except Exception as e:
     pass
@@ -1157,26 +1168,22 @@ PYEOF
                 fi
             fi
         fi
+    fi
 
-        # Last resort: Try to get agent SVID from SPIRE server using agent SPIFFE ID
-        # We can query the server for the agent's SVID
-        local spire_server="${PROJECT_DIR}/spire/bin/spire-server"
-        if [ -f "$spire_server" ]; then
-            # Get agent SPIFFE ID from logs
-            local agent_spiffe_id=$(grep "Successfully reattested node" "$agent_log" | tail -1 | \
-                grep -oP 'spiffe_id="\K[^"]+' 2>/dev/null)
-
-            if [ -n "$agent_spiffe_id" ]; then
-                echo "    Trying to fetch agent SVID from SPIRE server for agent: $agent_spiffe_id"
-                # Note: This would require server API access, which may not be available
-                # For now, we'll rely on log extraction
-            fi
+    # 3. Final Resort: Try to find any PEM in the log if previous attempts failed
+    if [ -f "$agent_log" ]; then
+        echo "    Final attempt: searching for any PEM block in logs..."
+        # Search for a PEM block spanning multiple lines
+        # This is for when Logrus multi-line formatting is used
+        sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' "$agent_log" | tail -n 20 > "$output_file"
+        if [ -s "$output_file" ]; then
+             echo -e "${GREEN}    ✓ Agent SVID recovered via raw PEM search${NC}"
+             return 0
         fi
     fi
 
-    echo -e "${YELLOW}    ⚠ Could not extract agent SVID from logs${NC}"
-    echo "    Agent SVID should be logged in /tmp/spire-agent.log"
-    echo "    Look for: 'Unified-Identity - Verification: Agent SVID Certificate (PEM)'"
+    echo -e "${RED}  ✗ All methods to fetch agent SVID failed${NC}"
+    echo "    Check logs: tail -n 50 $agent_log"
     return 1
 }
 
@@ -1529,6 +1536,48 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         echo -e "${GREEN}  ✓ rust-keylime agent built successfully${NC}"
     fi
 fi
+
+# Unified-Identity: ZKP Prover Build (Plonky2)
+ZKP_PROVER_DIR="${PROJECT_DIR}/mobile-sensor-microservice/zkp-prover-plonky2"
+echo -e "${CYAN}Checking ZKP Prover (Plonky2) build status...${NC}"
+cd "${ZKP_PROVER_DIR}"
+
+ZKP_NEEDS_REBUILD=false
+if [ ! -f "target/release/zkp-prover" ]; then
+    echo "  ZKP prover binary not found, need to build."
+    ZKP_NEEDS_REBUILD=true
+elif [ "${FORCE_BUILD:-false}" = "true" ]; then
+    echo "  Forced build requested for ZKP prover."
+    ZKP_NEEDS_REBUILD=true
+else
+    # Check if any .rs or Cargo.toml file is newer than the binary
+    if [ -n "$(find src -maxdepth 2 \( -name "*.rs" -o -name "Cargo.toml" \) -newer "target/release/zkp-prover" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ ZKP prover source changes detected, rebuilding...${NC}"
+        ZKP_NEEDS_REBUILD=true
+    fi
+fi
+
+if [ "$ZKP_NEEDS_REBUILD" = "true" ]; then
+    if [ "$NO_BUILD" = "true" ] && [ ! -f "target/release/zkp-prover" ]; then
+        echo -e "${RED}  ✗ ZKP prover binary not found and --no-build specified${NC}"
+        echo "  Build it manually: cd ${ZKP_PROVER_DIR} && cargo build --release"
+        exit 1
+    elif [ "$NO_BUILD" != "true" ]; then
+        echo -e "${YELLOW}  Building ZKP prover (Plonky2)...${NC}"
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        cargo build --release > /tmp/zkp-prover-build.log 2>&1 || {
+            echo -e "${RED}  ✗ Failed to build ZKP prover${NC}"
+            tail -20 /tmp/zkp-prover-build.log
+            exit 1
+        }
+        echo -e "${GREEN}  ✓ ZKP prover (Plonky2) built successfully${NC}"
+    fi
+else
+    echo -e "${GREEN}  ✓ ZKP prover is up to date${NC}"
+fi
+
+# Restore rust-keylime directory for subsequent steps
+cd "${RUST_KEYLIME_DIR}"
 
 # Cleanup existing rust-keylime agent before starting
 echo "  Cleaning up existing rust-keylime Agent..."
@@ -2621,7 +2670,7 @@ AGENT_CONFIG="${PROJECT_DIR}/python-app-demo/spire-agent.conf"
 
     if [ -f "${SPIRE_SERVER}" ] && [ -S "${SERVER_SOCKET}" ]; then
         # Export trust bundle from SPIRE Server
-        if "${SPIRE_SERVER}" bundle show -socketPath "${SERVER_SOCKET}" > "${TRUST_BUNDLE_PATH}" 2>/dev/null; then
+        if "${SPIRE_SERVER}" bundle show -format pem -socketPath "${SERVER_SOCKET}" > "${TRUST_BUNDLE_PATH}" 2>/dev/null; then
             if [ -f "${TRUST_BUNDLE_PATH}" ] && [ -s "${TRUST_BUNDLE_PATH}" ]; then
                 echo -e "${GREEN}    ✓ Trust bundle exported to ${TRUST_BUNDLE_PATH}${NC}"
             else
@@ -2633,7 +2682,7 @@ AGENT_CONFIG="${PROJECT_DIR}/python-app-demo/spire-agent.conf"
             # Wait a bit more for server to be fully ready
             for j in {1..10}; do
                 sleep 1
-                if "${SPIRE_SERVER}" bundle show -socketPath "${SERVER_SOCKET}" > "${TRUST_BUNDLE_PATH}" 2>/dev/null; then
+                if "${SPIRE_SERVER}" bundle show -format pem -socketPath "${SERVER_SOCKET}" > "${TRUST_BUNDLE_PATH}" 2>/dev/null; then
                     if [ -f "${TRUST_BUNDLE_PATH}" ] && [ -s "${TRUST_BUNDLE_PATH}" ]; then
                         echo -e "${GREEN}    ✓ Trust bundle exported to ${TRUST_BUNDLE_PATH}${NC}"
                         break
@@ -3218,12 +3267,12 @@ if [ -f "${SPIRE_SERVER}" ]; then
     if [ -f /tmp/spire-agent.log ]; then
         if [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "true" ]; then
             # unified_identity: agent SVID reattestation only (workload SVIDs use rotation)
-            REATTEST_COUNT=$(grep -c "Successfully reattested node" /tmp/spire-agent.log 2>/dev/null || echo 0)
+            REATTEST_COUNT=$(grep -cE "Successfully reattested node|Node attestation was successful" /tmp/spire-agent.log 2>/dev/null || echo 0)
             # Sanitize: ensure we have a single integer value
             REATTEST_COUNT=$(printf '%s' "$REATTEST_COUNT" | tr -d '\n\r\t ' | grep -oE '^[0-9]+$' | head -1)
             REATTEST_COUNT="${REATTEST_COUNT:-0}"
-            if [ "$REATTEST_COUNT" -gt 0 ] 2>/dev/null; then
-                echo -e "${GREEN}  ✓ SPIRE Agent SVID reattestation active ($REATTEST_COUNT reattestations)${NC}"
+            if [ "$REATTEST_COUNT" -gt 1 ] 2>/dev/null; then
+                echo -e "${GREEN}  ✓ SPIRE Agent SVID reattestation active ($((REATTEST_COUNT - 1)) renewals detected)${NC}"
                 echo -e "${CYAN}    Note: Workload SVIDs use rotation (separate from agent SVID)${NC}"
             else
                 echo -e "${CYAN}  ℹ SPIRE Agent SVID reattestation configured (15s interval for demo)${NC}"
@@ -3341,7 +3390,18 @@ COMPONENTS_OK=true
 
         # Export trust bundle
         "${SPIRE_SERVER}" bundle show -format pem \
-            -socketPath /tmp/spire-server/private/api.sock > /tmp/bundle.pem 2>&1 || true
+            -socketPath /tmp/spire-server/private/api.sock > /tmp/bundle.pem || {
+            echo -e "${RED}  ✗ Failed to export trust bundle from SPIRE Server${NC}"
+        }
+        
+        # Verify bundle is valid
+        if [ ! -s /tmp/bundle.pem ] || ! grep -q "BEGIN CERTIFICATE" /tmp/bundle.pem; then
+            echo -e "${RED}  ✗ Trust bundle export is invalid or empty${NC}"
+            # Try once more with a small delay
+            sleep 2
+            "${SPIRE_SERVER}" bundle show -format pem \
+                -socketPath /tmp/spire-server/private/api.sock > /tmp/bundle.pem || true
+        fi
 
         # Start agent
         rm -f /tmp/spire-agent.log

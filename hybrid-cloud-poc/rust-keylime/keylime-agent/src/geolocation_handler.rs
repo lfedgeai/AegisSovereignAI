@@ -35,6 +35,8 @@ pub struct GeolocationResponse {
     pub mobile: Option<MobileSensor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gnss: Option<GNSSSensor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sovereignty_receipt: Option<String>, // Gen 4 ZKP proof
     pub tpm_attested: bool, // Always true for this endpoint
     pub tpm_pcr_index: u32,  // PCR 15 for geolocation
     pub nonce: String, // Nonce used in attestation (for verification)
@@ -111,6 +113,46 @@ pub(crate) async fn attested_geolocation(
     // Build nested structure (without nonce first)
     let mut response = build_nested_geolocation(raw_sensor);
     
+    // FETCH ZKP from Geolocation Sidecar
+    info!("Unified-Identity: Fetching ZKP Sovereignty Receipt from Geolocation Sidecar...");
+    let sidecar_url = "http://localhost:9050/verify";
+    let client = reqwest::Client::new();
+    
+    // Prepare sidecar request with hardware IDs
+    let mut sidecar_req = serde_json::json!({
+        "sensor_id": response.sensor_type, // simplified mapping
+        "sensor_type": response.sensor_type,
+    });
+    
+    if let Some(mobile) = &response.mobile {
+        sidecar_req["sensor_imei"] = serde_json::Value::String(mobile.sensor_imei.clone());
+        sidecar_req["sensor_imsi"] = serde_json::Value::String(mobile.sensor_imsi.clone());
+    }
+    
+    if let Some(gnss) = &response.gnss {
+        if let Some(serial) = &gnss.sensor_serial_number {
+            sidecar_req["sensor_serial_number"] = serde_json::Value::String(serial.clone());
+        }
+    }
+
+    // Call sidecar synchronously for this POC (actix-web allows block_on or similar if needed, 
+    // but here we are in an async handler, so we can await)
+    match client.post(sidecar_url).json(&sidecar_req).send().await {
+        Ok(resp) => {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                if let Some(receipt) = json.get("sovereignty_receipt").and_then(|v| v.as_str()) {
+                    info!("Unified-Identity: Successfully retrieved ZKP Sovereignty Receipt from sidecar");
+                    response.sovereignty_receipt = Some(receipt.to_string());
+                } else {
+                    warn!("Unified-Identity: Sidecar returned no sovereignty_receipt");
+                }
+            }
+        }
+        Err(e) => {
+            warn!("Unified-Identity: Failed to connect to Geolocation Sidecar: {}", e);
+        }
+    }
+
     // Add nonce to response
     response.nonce = query.nonce.clone();
 
@@ -142,6 +184,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
                 sensor_msisdn: raw.msisdn.unwrap_or_else(|| "unknown".to_string()),
             }),
             gnss: None,
+            sovereignty_receipt: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -157,6 +200,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
                 accuracy: raw.accuracy.unwrap_or(0.0),
                 sensor_signature: None,
             }),
+            sovereignty_receipt: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -165,6 +209,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
             sensor_type: "unknown".to_string(),
             mobile: None,
             gnss: None,
+            sovereignty_receipt: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -378,6 +423,7 @@ fn extend_pcr_15_with_geolocation_and_nonce(
         "sensor_type": geolocation.sensor_type,
         "mobile": geolocation.mobile,
         "gnss": geolocation.gnss,
+        "sovereignty_receipt": geolocation.sovereignty_receipt,
         "tpm_attested": geolocation.tpm_attested,
         "tpm_pcr_index": geolocation.tpm_pcr_index,
     });

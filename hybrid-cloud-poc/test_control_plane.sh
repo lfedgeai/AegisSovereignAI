@@ -108,33 +108,37 @@ stop_control_plane_services_only() {
     # Step 1: Stop control plane processes only
     echo "  1. Stopping control plane processes..."
 
-    # Stop SPIRE Server (not Agent)
+    # 1.1: Stop SPIRE Server (not Agent)
     echo "     Stopping SPIRE Server..."
     pkill -f "spire-server" >/dev/null 2>&1 || true
 
-    # Stop Keylime Verifier and Registrar
+    # 1.2: Stop Keylime Verifier and Registrar
     echo "     Stopping Keylime Verifier and Registrar..."
     pkill -f "keylime_verifier" >/dev/null 2>&1 || true
     pkill -f "keylime\.cmd\.verifier" >/dev/null 2>&1 || true
     pkill -f "keylime_registrar" >/dev/null 2>&1 || true
     pkill -f "keylime\.cmd\.registrar" >/dev/null 2>&1 || true
 
-    sleep 1
+    # 1.3: Wait for processes to fully stop
+    echo "     Waiting for processes to exit..."
+    sleep 3
+
+    # Force kill remaining control plane processes
+    if pgrep -f "spire-server|keylime_verifier|keylime_registrar" >/dev/null 2>&1; then
+        echo "     Force killing remaining control plane processes..."
+        pkill -9 -f "spire-server|keylime_verifier|keylime_registrar" >/dev/null 2>&1 || true
+        sleep 1
+    fi
 
     # Step 2: Clean up only control plane data directories
     echo "  2. Cleaning up control plane data directories..."
 
     # Remove SPIRE Server data (not Agent data)
     echo "     Removing SPIRE Server data directories..."
-    # Stop server first to ensure database is not locked
-    pkill -f "spire-server" >/dev/null 2>&1 || true
-    sleep 1
     rm -rf /tmp/spire-server 2>/dev/null || true
     rm -f /tmp/spire-server.pid 2>/dev/null || true
     rm -f /tmp/spire-server.log 2>/dev/null || true
-    # Also clean up the data directory in the SPIRE folder
     rm -rf "${SPIRE_DIR}/.data" 2>/dev/null || true
-    # Also clean up any SQLite database files that might be in the data directory
     find /tmp -name "*.db" -path "*/spire-server/*" -delete 2>/dev/null || true
     find /tmp -name "*.sqlite" -path "*/spire-server/*" -delete 2>/dev/null || true
 
@@ -1720,7 +1724,7 @@ if [ -f "${SERVER_CONFIG}" ]; then
     # With Unified-Identity, set agent_ttl to 60s so renewals occur every ~30s (with availability_target=30s)
     if [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "true" ] || [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "1" ] || [ "${UNIFIED_IDENTITY_ENABLED:-true}" = "yes" ]; then
         if grep -q "Unified-Identity" "$SERVER_CONFIG" 2>/dev/null || [ -n "${SPIRE_AGENT_SVID_RENEWAL_INTERVAL:-}" ]; then
-            echo "    Configuring agent_ttl for Unified-Identity (60s for effective renewal)..."
+            echo "    Configuring agent_ttl for Unified-Identity (60s for effective renewal testing)..."
             configure_spire_server_agent_ttl "${SERVER_CONFIG}" "60" || {
                 echo -e "${YELLOW}    ⚠ Failed to configure agent_ttl, using config file default${NC}"
             }

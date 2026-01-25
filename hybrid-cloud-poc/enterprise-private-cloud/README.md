@@ -18,15 +18,15 @@ Envoy Proxy (10.1.0.10:8080)
     |
     | 1. Terminates mTLS
     | 2. Verifies SPIRE cert signature (using SPIRE CA bundle)
-    | 3. WASM filter extracts sensor metadata and coordinates from certificate chain
-    |    (Unified Identity extension in agent SVID)
-    | 4. WASM filter behavior:
-    |    - GPS/GNSS sensors: Trusted hardware, bypass mobile location service (allow directly)
-    |    - Mobile sensors: Calls mobile location service with SVID coordinates (blocking)
-    |      - Mobile location service: DB-LESS flow priority; Fallback to DB-BASED
-    |      - CAMARA API caching (15-min TTL, configurable)
-    | 5. If verified: adds X-Sensor-ID and X-Mobile-MSISDN headers and forwards request
-    |    If not verified: returns 403 Forbidden
+| 3. WASM filter extracts sensor metadata and coordinates from certificate chain
+|    (Unified Identity extension in agent SVID)
+| 4. WASM filter behavior (Verification Modes):
+|    - **Trust**: No sidecar call (trust attestation-time verification)
+|    - **Runtime/Strict**: Calls mobile location service with SVID coordinates (blocking)
+|    - **ZKP (Zero-Knowledge)**: Extracts ZKP proof from SVID and calls sidecar for **stateless validation**
+|      (Privacy-preserving: verification without raw coordinates)
+| 5. If verified: adds X-Sensor-ID head and forwards request
+|    If not verified: returns 403 Forbidden
     |
     v
 mTLS Server (10.1.0.10:9443)
@@ -53,10 +53,12 @@ mTLS Server (10.1.0.10:9443)
   - **Coordinate Extraction**: Extracts `latitude`, `longitude`, and `accuracy` (if available) for the **DB-less flow**.
   - **Sensor Type Handling**:
     - **GPS/GNSS sensors**: Trusted hardware, bypass mobile location service entirely.
-    - **Mobile sensors**: Calls mobile location service for CAMARA API verification (blocking).
+    - **Mobile sensors**: 
+      - **Runtime/Strict**: Calls mobile location service for CAMARA API verification.
+      - **ZKP Mode**: Performs stateless verification of geofence proofs (Plonky2).
   - **Caching**: All result caching is handled by the mobile location service (15-minute TTL, configurable).
   - Adds `X-Sensor-ID` and `X-Mobile-MSISDN` headers to verified requests.
-  - Returns 403 Forbidden if verification fails
+  - Returns 403 Forbidden if verification fails.
 
 ### 2. Mobile Location Service
 - **Port**: 9050
@@ -131,7 +133,8 @@ The script will:
    - Mobile Location Service (port 9050)
    - mTLS Server (port 9443)
    - Envoy Proxy (port 8080)
-7. Verifies all services are running
+7. **Automated ZKP Build**: Re-builds the `zkp-prover` if source changes are detected in `src/*.rs`.
+8. Verifies all services are running
 
 ### Manual Setup
 

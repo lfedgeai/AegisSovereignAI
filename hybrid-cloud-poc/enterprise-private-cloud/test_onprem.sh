@@ -51,8 +51,8 @@ AGENTS_HOST="${AGENTS_HOST}"
 ONPREM_HOST="${ONPREM_HOST}"
 
 # Default paths for mTLS server certificates
-export SERVER_CERT_PATH="${SERVER_CERT_PATH:-~/.mtls-demo/server-cert.pem}"
-export SERVER_KEY_PATH="${SERVER_KEY_PATH:-~/.mtls-demo/server-key.pem}"
+export SERVER_CERT_PATH="${SERVER_CERT_PATH:-$HOME/.mtls-demo/server-cert.pem}"
+export SERVER_KEY_PATH="${SERVER_KEY_PATH:-$HOME/.mtls-demo/server-key.pem}"
 
 # Detect current host IP early
 CURRENT_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip addr show 2>/dev/null | grep -oP 'inet \K[\d.]+' | grep -v '127.0.0.1' | head -1 || echo 'unknown')
@@ -136,74 +136,59 @@ cleanup_existing_services() {
     # Temporarily disable exit on error for cleanup
     set +e
 
-    # Stop Envoy
-    printf '  Stopping Envoy...\n'
+    # Phase 1: Stop all processes
+    echo "  1. Stopping processes..."
+
+    # 1.1: Stop Envoy
+    printf '     Stopping Envoy...\n'
     sudo pkill -f "envoy.*envoy.yaml" >/dev/null 2>&1
     sudo pkill -f "^envoy " >/dev/null 2>&1
 
-    # Stop mTLS server
-    printf '  Stopping mTLS server...\n'
+    # 1.2: Stop mTLS server
+    printf '     Stopping mTLS server...\n'
     pkill -f "mtls-server-app.py" >/dev/null 2>&1
 
-    # Stop mobile location service (only if we started it)
-    # Note: Control plane uses /tmp/mobile-sensor-microservice.log
-    # On-prem uses /tmp/mobile-sensor.log - we only kill processes using our log file
-    printf '  Stopping mobile location service...\n'
-    # Only kill processes writing to our specific log file (on-prem log)
-    # This avoids killing the service if it was started by control plane (which uses a different log)
+    # 1.3: Stop mobile location service
+    printf '     Stopping mobile location service...\n'
     if [ -f /tmp/mobile-sensor.log ]; then
         LOG_PIDS=$(lsof -t /tmp/mobile-sensor.log 2>/dev/null || echo "")
         if [ -n "$LOG_PIDS" ]; then
             echo "$LOG_PIDS" | xargs kill >/dev/null 2>&1 || true
         fi
     fi
-    # Also try to kill by pattern matching our specific command (on-prem style)
     pkill -f "service.py.*--port.*9050.*--host.*0.0.0.0.*mobile-sensor.log" >/dev/null 2>&1 || true
 
-    # Free up ports using fuser (if available)
-    printf '  Freeing up ports...\n'
+    # 1.4: Wait for processes to exit
+    printf '     Waiting for processes to exit...\n'
+    sleep 3
+
+    # 1.5: Free up ports (Force kill if needed)
+    printf '     Freeing up ports...\n'
     for port in 9050 9443 8080; do
-        if command -v fuser &> /dev/null; then
-            sudo fuser -k ${port}/tcp >/dev/null 2>&1
-        elif command -v lsof &> /dev/null; then
+        if command -v lsof &> /dev/null; then
             PIDS=$(sudo lsof -ti:${port} 2>/dev/null)
             if [ -n "$PIDS" ]; then
+                printf '     Force killing process on port %s (PID: %s)...\n' "$port" "$PIDS"
                 printf '%s\n' "$PIDS" | xargs -r sudo kill -9 >/dev/null 2>&1
-            fi
-        else
-            # Fallback: try to find and kill processes using netstat/ss
-            if command -v ss &> /dev/null; then
-                PIDS=$(sudo ss -tlnp 2>/dev/null | grep ":${port}" | grep -oP 'pid=\K[0-9]+' 2>/dev/null | head -1)
-                if [ -n "$PIDS" ]; then
-                    printf '%s\n' "$PIDS" | xargs -r sudo kill -9 >/dev/null 2>&1
-                fi
-            elif command -v netstat &> /dev/null; then
-                PIDS=$(sudo netstat -tlnp 2>/dev/null | grep ":${port}" | awk '{print $7}' | cut -d'/' -f1 | head -1)
-                if [ -n "$PIDS" ] && [ "$PIDS" != "-" ]; then
-                    printf '%s\n' "$PIDS" | xargs -r sudo kill -9 >/dev/null 2>&1
-                fi
             fi
         fi
     done
 
-    # Wait a moment for processes to terminate
-    sleep 2
+    # Phase 2: Clean up all data and logs
+    echo "  2. Cleaning up data and logs..."
 
-    # Clean up log files and old temporary files
-    printf '  Cleaning up log files and old temporary files...\n'
-    # Remove all log files
+    # 2.1: Clean up log files
+    printf '     Removing log files...\n'
     sudo rm -f /opt/envoy/logs/envoy.log /tmp/mobile-sensor.log /tmp/mtls-server.log /tmp/mtls-server-app.log >/dev/null 2>&1
-    # Remove any old WASM build artifacts
+
+    # 2.2: Clean up temporary files
+    printf '     Removing temporary files...\n'
     sudo rm -f /opt/envoy/plugins/sensor_verification_wasm.wasm.old >/dev/null 2>&1
-    # Remove old certificate backups if any
     sudo rm -f /opt/envoy/certs/*.pem.old /opt/envoy/certs/*.bak >/dev/null 2>&1
-    # Remove old mTLS server certificates to ensure fresh generation on next start
     rm -f ~/.mtls-demo/server-cert.pem ~/.mtls-demo/server-key.pem >/dev/null 2>&1
-    # Remove old environment files
-    sudo rm -f /etc/mobile-sensor-service.env.old >/dev/null 2>&1
-    # Clean up temporary files in /tmp (using cleanup.sh function)
     cleanup_tmp_files
-    # Recreate log directory and file
+
+    # 2.3: Recreate log metadata
     sudo mkdir -p /opt/envoy/logs >/dev/null 2>&1
     sudo touch /opt/envoy/logs/envoy.log >/dev/null 2>&1
     sudo chmod 666 /opt/envoy/logs/envoy.log >/dev/null 2>&1
@@ -440,6 +425,52 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
     fi
 fi
 
+# Unified-Identity - Verifier: ZKP Prover Build (Plonky2)
+ZKP_PROVER_DIR="$REPO_ROOT/mobile-sensor-microservice/zkp-prover-plonky2"
+ZKP_BINARY="$ZKP_PROVER_DIR/target/release/zkp-prover"
+echo -e "${CYAN}Checking ZKP Prover (Plonky2) build status...${NC}"
+
+ZKP_NEEDS_REBUILD=false
+if [ ! -f "$ZKP_BINARY" ]; then
+    echo "  ZKP prover binary not found, need to build."
+    ZKP_NEEDS_REBUILD=true
+elif [ "${FORCE_BUILD:-false}" = "true" ]; then
+    echo "  Forced build requested for ZKP prover."
+    ZKP_NEEDS_REBUILD=true
+else
+    # Check if any .rs or Cargo.toml file is newer than the binary
+    if [ -n "$(find "$ZKP_PROVER_DIR/src" -maxdepth 2 \( -name "*.rs" -o -name "Cargo.toml" \) -newer "$ZKP_BINARY" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ ZKP prover source changes detected, rebuilding...${NC}"
+        ZKP_NEEDS_REBUILD=true
+    fi
+fi
+
+if [ "$ZKP_NEEDS_REBUILD" = "true" ]; then
+    if [ "$NO_BUILD" != "true" ]; then
+        echo -e "${GREEN}  Building ZKP prover (Plonky2)...${NC}"
+        cd "$ZKP_PROVER_DIR"
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        if cargo build --release > /tmp/zkp-prover-onprem-build.log 2>&1; then
+            echo -e "${GREEN}  ✓ ZKP prover (Plonky2) built successfully${NC}"
+        else
+            echo -e "${RED}  ✗ Failed to build ZKP prover${NC}"
+            tail -20 /tmp/zkp-prover-onprem-build.log
+            exit 1
+        fi
+    else
+        echo -e "${YELLOW}  ⚠ ZKP prover rebuild needed but --no-build specified${NC}"
+        if [ ! -f "$ZKP_BINARY" ]; then
+            echo -e "${RED}  ✗ ZKP prover binary missing!${NC}"
+            exit 1
+        fi
+    fi
+else
+    echo -e "${GREEN}  ✓ ZKP prover is up to date${NC}"
+fi
+
+# Restore on-prem directory for subsequent steps
+cd "$ONPREM_DIR"
+
 # 3. Setup certificates
 echo -e "\n${GREEN}[3/7] Setting up certificates...${NC}"
 
@@ -637,15 +668,16 @@ elif scp -o StrictHostKeyChecking=no -o ConnectTimeout=5 -o BatchMode=yes \
     echo -e "${GREEN}  ✓ SPIRE bundle fetched from ${SPIRE_CLIENT_HOST}${NC}"
     # Check if bundle changed (to determine if Envoy needs restart)
     BUNDLE_CHANGED=false
-    if [ ! -f /opt/envoy/certs/spire-bundle.pem ] || ! cmp -s /tmp/spire-bundle.pem /opt/envoy/certs/spire-bundle.pem; then
-        BUNDLE_CHANGED=true
-    fi
-    sudo cp /tmp/spire-bundle.pem /opt/envoy/certs/spire-bundle.pem
-    sudo chmod 644 /opt/envoy/certs/spire-bundle.pem
-    echo -e "${GREEN}  ✓ SPIRE bundle copied to /opt/envoy/certs/${NC}"
-    if [ "$BUNDLE_CHANGED" = "true" ]; then
-        echo -e "${YELLOW}  ℹ SPIRE bundle was updated - Envoy will need to reload to pick up changes${NC}"
-    fi
+        sudo cp /tmp/spire-bundle.pem /opt/envoy/certs/spire-bundle.pem
+        sudo chmod 644 /opt/envoy/certs/spire-bundle.pem
+        echo -e "${GREEN}  ✓ SPIRE bundle copied to /opt/envoy/certs/${NC}"
+        # Always restart Envoy to ensure it picks up the latest bundle
+        # Envoy with static file paths doesn't reliably reload on file content changes
+        if pgrep -x envoy >/dev/null; then
+            echo -e "${YELLOW}  ℹ Restarting Envoy to ensure latest SPIRE bundle is loaded...${NC}"
+            sudo pkill -x envoy || true
+            sleep 2
+        fi
 elif [ -f /tmp/spire-bundle.pem ]; then
     # If scp failed but file exists locally, use it
     echo -e "${YELLOW}  ⚠ Could not fetch from ${SPIRE_CLIENT_HOST}, using local /tmp/spire-bundle.pem${NC}"

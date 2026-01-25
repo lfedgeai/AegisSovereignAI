@@ -20,7 +20,6 @@ import (
 	"github.com/spiffe/spire/pkg/server/keylime"
 	"github.com/spiffe/spire/pkg/server/policy"
 	"github.com/spiffe/spire/pkg/server/unifiedidentity"
-	"github.com/spiffe/spire/pkg/server/zkp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -64,7 +63,7 @@ type Plugin struct {
 
 	// Gen 4: Cache verified claims for workload inheritance
 	// Key: Agent SPIFFE ID
-	claimsCache map[string]*types.AttestedClaims
+	claimsCache  map[string]*types.AttestedClaims
 	latestClaims *types.AttestedClaims
 }
 
@@ -295,10 +294,10 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 			Type:               keylimeClaims.Geolocation.Type,
 			SensorId:           keylimeClaims.Geolocation.SensorID,
 			Value:              keylimeClaims.Geolocation.Value,
-			SensorImei:         keylimeClaims.Geolocation.SensorIMEI,
-			SensorImsi:         keylimeClaims.Geolocation.SensorIMSI,
-			SensorMsisdn:       keylimeClaims.Geolocation.SensorMSISDN,       // Task 2f: MSISDN from Keylime
-			SensorSerialNumber: keylimeClaims.Geolocation.SensorSerialNumber, // Task 12b: Serial from Keylime
+			SensorImei:         keylimeClaims.Geolocation.IMEI,
+			SensorImsi:         keylimeClaims.Geolocation.IMSI,
+			SensorMsisdn:       keylimeClaims.Geolocation.MSISDN,       // Task 2f: MSISDN from Keylime
+			SensorSerialNumber: keylimeClaims.Geolocation.SerialNumber, // Task 12b: Serial from Keylime
 			Latitude:           keylimeClaims.Geolocation.Latitude,
 			Longitude:          keylimeClaims.Geolocation.Longitude,
 			Accuracy:           keylimeClaims.Geolocation.Accuracy,
@@ -307,7 +306,8 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 
 	// Convert MNO Endorsement to protobuf
 	var protoMNO *types.MNOEndorsement
-	var sovereigntyReceipt string
+	sovereigntyReceipt := keylimeClaims.SovereigntyReceipt
+
 	if keylimeClaims.MNOEndorsement != nil {
 		endorsementJSON, _ := json.Marshal(keylimeClaims.MNOEndorsement.Endorsement)
 		protoMNO = &types.MNOEndorsement{
@@ -316,43 +316,16 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 			Signature:       keylimeClaims.MNOEndorsement.Signature,
 			KeyId:           keylimeClaims.MNOEndorsement.KeyID,
 		}
-
-		// Gen 4: Generate ZKP Sovereignty Receipt if MNO endorsement is verified
-		if keylimeClaims.MNOEndorsement.Verified && keylimeClaims.Geolocation != nil {
-			prover, err := zkp.GetProver()
-			if err != nil {
-				logrus.Errorf("Unified-Identity: Failed to get ZKP prover: %v", err)
-			} else {
-				// Extract coarse location from MNO endorsement
-				var tlat, tlong, radius float64
-				if coarse, ok := keylimeClaims.MNOEndorsement.Endorsement["coarse_location"].(map[string]interface{}); ok {
-					tlat, _ = coarse["latitude"].(float64)
-					tlong, _ = coarse["longitude"].(float64)
-					radius, _ = coarse["accuracy_meters"].(float64)
-				}
-
-				// Generate receipt: Prove device location (private) fits inside MNO coarse location (public)
-				receipt, err := prover.GenerateReceipt(
-					keylimeClaims.Geolocation.Latitude,
-					keylimeClaims.Geolocation.Longitude,
-					tlat,
-					tlong,
-					radius,
-				)
-				if err != nil {
-					logrus.Errorf("Unified-Identity: ZKP receipt generation failed: %v", err)
-				} else {
-					sovereigntyReceipt = receipt
-					logrus.Infof("Unified-Identity: Generated ZKP Sovereignty Receipt (len=%d)", len(receipt))
-				}
-			}
-		}
 	}
 
 	claims := &types.AttestedClaims{
 		Geolocation:        protoGeo,
 		MnoEndorsement:     protoMNO,
 		SovereigntyReceipt: sovereigntyReceipt,
+	}
+
+	if sovereigntyReceipt != "" {
+		logrus.Infof("Unified-Identity: Generated ZKP Sovereignty Receipt (len=%d) from Keylime", len(sovereigntyReceipt))
 	}
 
 	// Build unified identity JSON

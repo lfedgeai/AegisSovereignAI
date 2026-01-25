@@ -521,6 +521,116 @@ def create_app(db_path: Path) -> Flask:
 
     verifiers = {"mobile": CamaraVerifier(camara_client, bypass)}
 
+    @app.route("/metrics", methods=["GET"])
+    def metrics():
+        """Prometheus metrics endpoint."""
+        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+
+    # =========================================================================
+    # Fresh ZKP Prover Integration
+    # =========================================================================
+
+    class ZKPProver:
+        """Helper to invoke the Go ZKP prover binary."""
+        def __init__(self, binary_path: Path):
+            self.binary_path = binary_path
+
+        def _get_id_int(self, sensor_id: str, imei: Optional[str]) -> int:
+            """Map sensor string ID/IMEI to a 64-bit integer for the ZK circuit."""
+            # Use IMEI if available, otherwise hash the sensor_id
+            ident = imei if imei else sensor_id
+            # Simple hash to int64 for POC
+            return int(hashlib.sha256(ident.encode()).hexdigest()[:15], 16)
+
+        def generate_receipt(self, sensor: Dict[str, Any], clat: float, clon: float, radius: float) -> Optional[str]:
+            if not self.binary_path.exists():
+                LOG.error("ZKP prover binary not found at %s", self.binary_path)
+                return None
+            
+            lat = sensor.get("latitude", 0.0)
+            lon = sensor.get("longitude", 0.0)
+            sensor_id_int = self._get_id_int(sensor.get("sensor_id", ""), sensor.get("sensor_imei"))
+            
+            cmd = [
+                str(self.binary_path),
+                "--prove",
+                f"--lat={lat}",
+                f"--lon={lon}",
+                f"--id={sensor_id_int}",
+                f"--clat={clat}",
+                f"--clon={clon}",
+                f"--radius={radius}",
+                f"--idhash={sensor_id_int}" # In this POC, the hash IS the ID for identity check
+            ]
+            
+            try:
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=self.binary_path.parent)
+                proof = result.stdout.strip()
+                LOG.info("Unified-Identity: Generated ZKP Sovereignty Receipt (len=%d) via sidecar prover", len(proof))
+                return proof
+            except Exception as e:
+                LOG.error("Failed to generate ZKP receipt: %v", e)
+                return None
+
+        def verify_receipt(self, proof: str, clat: float, clon: float, radius: float, idhash: int) -> bool:
+            if not self.binary_path.exists():
+                LOG.error("ZKP prover binary not found at %s", self.binary_path)
+                return False
+            
+            cmd = [
+                str(self.binary_path),
+                "--verify",
+                f"--proof={proof}",
+                f"--clat={clat}",
+                f"--clon={clon}",
+                f"--radius={radius}",
+                f"--idhash={idhash}"
+            ]
+            
+            try:
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=self.binary_path.parent)
+                valid = "Proof VALID" in result.stdout
+                if valid:
+                    LOG.info("ZKP proof verified SUCCESSFULLY")
+                else:
+                    LOG.warning("ZKP proof verification FAILED: %s", result.stdout)
+                return valid
+            except Exception as e:
+                LOG.error("Failed to verify ZKP receipt: %v", e)
+                return False
+
+        def verify_receipt(self, proof: str, clat: float, clon: float, radius: float, idhash: int) -> bool:
+            if not self.binary_path.exists():
+                LOG.error("ZKP prover binary not found at %s", self.binary_path)
+                return False
+            
+            cmd = [
+                str(self.binary_path),
+                "--verify",
+                f"--proof={proof}",
+                f"--clat={clat}",
+                f"--clon={clon}",
+                f"--radius={radius}",
+                f"--idhash={idhash}"
+            ]
+            
+            try:
+                import subprocess
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=self.binary_path.parent)
+                valid = "Proof VALID" in result.stdout
+                if valid:
+                    LOG.info("ZKP proof verified SUCCESSFULLY")
+                else:
+                    LOG.warning("ZKP proof verification FAILED: %s", result.stdout)
+                return valid
+            except Exception as e:
+                LOG.error("Failed to verify ZKP receipt: %v", e)
+                return False
+
+    prover = ZKPProver(Path(__file__).parent / "zkp-prover-plonky2" / "target" / "release" / "zkp-prover")
+
     @app.route("/verify", methods=["POST"])
     def verify():
         # Increment request total (Task 18: Observability)
@@ -559,6 +669,8 @@ def create_app(db_path: Path) -> Flask:
                 LOG.error("Sensor not found in DB: %s", sensor_id)
                 REQUEST_COUNT.labels(result='error').inc()
                 return jsonify({"error": "sensor_not_found"}), 404
+            # Ensure required fields are present even if not in DB
+            sensor["sensor_type"] = sensor.get("sensor_type", "mobile")
 
         verifier = verifiers.get(sensor.get("sensor_type"))
         if not verifier:
@@ -567,6 +679,16 @@ def create_app(db_path: Path) -> Flask:
 
         result = verifier.verify(sensor, skip_cache=payload.get("skip_cache", False))
         
+        # Fresh ZKP: Generate sovereignty receipt if verification passed and geofence inputs provided
+        # For the POC, we simulate the geofence check against the sensor's own location if no center is provided
+        sovereignty_receipt = None
+        if result:
+            clat = payload.get("center_latitude", sensor.get("latitude", 0.0))
+            clon = payload.get("center_longitude", sensor.get("longitude", 0.0))
+            radius = payload.get("radius", 0.1) # 100m default
+            
+            sovereignty_receipt = prover.generate_receipt(sensor, clat, clon, radius)
+
         # Record metrics
         if result:
             REQUEST_COUNT.labels(result='success').inc()
@@ -575,28 +697,38 @@ def create_app(db_path: Path) -> Flask:
             REQUEST_COUNT.labels(result='failure').inc()
             VERIFICATION_FAILURE.inc()
         
-        return jsonify({"verification_result": result, **sensor})
-
-    @app.route("/lookup_msisdn", methods=["POST"])
-    def lookup():
-        payload = request.get_json(force=True) or {}
-        sensor = database.get_sensor(payload.get("sensor_id"), payload.get("sensor_imei"), payload.get("sensor_imsi"), payload.get("sensor_serial_number"))
-        if not sensor or not sensor.get("msisdn"):
-            return jsonify({"found": False})
-        msisdn = sensor["msisdn"]
         return jsonify({
-            "found": True,
-            "sensor_msisdn": msisdn if msisdn.startswith("tel:") else f"tel:{msisdn}",
-            "sensor_id": sensor["sensor_id"],
-            "latitude": sensor.get("latitude", 0.0),
-            "longitude": sensor.get("longitude", 0.0),
-            "accuracy": sensor.get("accuracy", 0.0),
+            "verification_result": result, 
+            "sovereignty_receipt": sovereignty_receipt,
+            **sensor
         })
 
-    @app.route("/metrics", methods=["GET"])
-    def metrics():
-        """Prometheus metrics endpoint."""
-        return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
+    @app.route("/verify_zkp", methods=["POST"])
+    def verify_zkp():
+        """
+        Endpoint for Envoy WASM filter to verify a ZKP proof.
+        """
+        payload = request.get_json(force=True) or {}
+        proof = payload.get("proof")
+        clat = payload.get("center_latitude")
+        clon = payload.get("center_longitude")
+        radius = payload.get("radius")
+        
+        # Determine ID Hash from components if not provided directly
+        idhash = payload.get("idhash")
+        if idhash is None:
+            sensor_id = payload.get("sensor_id", "")
+            imei = payload.get("sensor_imei")
+            idhash = prover._get_id_int(sensor_id, imei)
+        
+        if not all([proof, clat is not None, clon is not None, radius is not None, idhash is not None]):
+            return jsonify({"error": "missing_parameters"}), 400
+            
+        is_valid = prover.verify_receipt(proof, clat, clon, radius, idhash)
+        
+        return jsonify({
+            "valid": is_valid
+        })
 
     # =========================================================================
     # Gen 4: Mock MNO Signing Endpoints

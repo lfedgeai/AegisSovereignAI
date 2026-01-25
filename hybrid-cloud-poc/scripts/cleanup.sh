@@ -87,12 +87,12 @@ stop_all_instances_and_cleanup() {
     # Step 1: Stop all processes
     echo "  1. Stopping all processes..."
 
-    # Stop SPIRE processes
+    # 1.1: Stop SPIRE processes
     echo "     Stopping SPIRE Server and Agent..."
     pkill -f "spire-server" >/dev/null 2>&1 || true
     pkill -f "spire-agent" >/dev/null 2>&1 || true
 
-    # Stop Keylime processes
+    # 1.2: Stop Keylime processes
     echo "     Stopping Keylime Verifier and Registrar..."
     pkill -f "keylime_verifier" >/dev/null 2>&1 || true
     pkill -f "keylime\.cmd\.verifier" >/dev/null 2>&1 || true
@@ -100,17 +100,17 @@ stop_all_instances_and_cleanup() {
     pkill -f "keylime\.cmd\.registrar" >/dev/null 2>&1 || true
     pkill -f "python.*keylime" >/dev/null 2>&1 || true
 
-    # Stop rust-keylime Agent
+    # 1.3: Stop rust-keylime Agent
     echo "     Stopping rust-keylime Agent..."
     pkill -f "keylime_agent" >/dev/null 2>&1 || true
     pkill -f "rust-keylime" >/dev/null 2>&1 || true
     pkill -f "target/release/keylime_agent" >/dev/null 2>&1 || true
 
-    # Stop TPM Plugin Server
+    # 1.4: Stop TPM Plugin Server
     echo "     Stopping TPM Plugin Server..."
     pkill -f "tpm_plugin_server" >/dev/null 2>&1 || true
 
-    # Stop mobile location verification microservice
+    # 1.5: Stop mobile location verification microservice
     echo "     Stopping Mobile Location Verification microservice..."
     pkill -f "mobile-sensor-microservice" >/dev/null 2>&1 || true
     pkill -f "mobile_sensor_service" >/dev/null 2>&1 || true
@@ -119,128 +119,27 @@ stop_all_instances_and_cleanup() {
     pkill -f "service.py.*--host.*127.0.0.1" >/dev/null 2>&1 || true
     pkill -f "python3.*service.py.*--port" >/dev/null 2>&1 || true
 
-    # Wait a moment for processes to stop before unmounting
-    sleep 1
-
-    # Unmount tmpfs secure directory if mounted (try multiple methods)
-    SECURE_DIR="/tmp/keylime-agent/secure"
-    KEYLIME_AGENT_DIR="/tmp/keylime-agent"
-    if mountpoint -q "$SECURE_DIR" 2>/dev/null; then
-        echo "     Unmounting tmpfs secure directory..."
-        # Try multiple unmount methods
-        sudo umount "$SECURE_DIR" 2>/dev/null || \
-        sudo umount -l "$SECURE_DIR" 2>/dev/null || \
-        sudo umount -f "$SECURE_DIR" 2>/dev/null || true
-        # Verify it's unmounted
-        if mountpoint -q "$SECURE_DIR" 2>/dev/null; then
-            echo -e "${YELLOW}     ⚠ Warning: tmpfs still mounted, may need manual cleanup${NC}"
-        else
-            echo -e "${GREEN}     ✓ tmpfs unmounted successfully${NC}"
-        fi
-    fi
-
-    # Also check for any other tmpfs mounts in keylime-agent directory
-    if mount | grep -q "$KEYLIME_AGENT_DIR"; then
-        echo "     Unmounting any remaining mounts in keylime-agent directory..."
-        mount | grep "$KEYLIME_AGENT_DIR" | awk '{print $3}' | while read -r mount_point; do
-            sudo umount "$mount_point" 2>/dev/null || \
-            sudo umount -l "$mount_point" 2>/dev/null || true
-        done
-    fi
-
-    # Stop TPM resource manager and any software TPM emulators
+    # 1.6: Stop TPM resource manager and any software TPM emulators
     pkill -f "tpm2-abrmd" >/dev/null 2>&1 || true
     pkill -f "swtpm" >/dev/null 2>&1 || true
 
-    # Clear and initialize TPM state
-    echo "     Clearing and initializing TPM state..."
-    if [ -c /dev/tpm0 ] || [ -c /dev/tpmrm0 ]; then
-        # Ensure tpm2-abrmd is running for TPM operations (if using tpmrm0)
-        if [ -c /dev/tpmrm0 ]; then
-            if ! pgrep -x tpm2-abrmd >/dev/null 2>&1; then
-                echo "       Starting tpm2-abrmd for TPM operations..."
-                if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet tpm2-abrmd 2>/dev/null; then
-                    sudo systemctl start tpm2-abrmd 2>/dev/null || true
-                    sleep 2
-                elif command -v tpm2-abrmd >/dev/null 2>&1; then
-                    tpm2-abrmd --tcti=device 2>/dev/null &
-                    sleep 2
-                fi
-            fi
-        fi
-
-        if command -v tpm2_clear >/dev/null 2>&1 && command -v tpm2_startup >/dev/null 2>&1; then
-            # Use tpmrm0 if available (resource manager), otherwise tpm0
-            TPM_DEVICE="/dev/tpmrm0"
-            if [ ! -c "$TPM_DEVICE" ]; then
-                TPM_DEVICE="/dev/tpm0"
-            fi
-            # Clear TPM state (resets TPM to clean state, fixes quote hang issues)
-            # This is safe and doesn't require platform authorization on most systems
-            echo "       Clearing TPM..."
-            if timeout 10 env TCTI="device:${TPM_DEVICE}" tpm2_clear 2>/dev/null; then
-                echo "       ✓ TPM cleared"
-            else
-                echo "       ⚠ TPM clear failed or timed out (continuing anyway)"
-            fi
-            # Initialize TPM after clear
-            if TCTI="device:${TPM_DEVICE}" tpm2_startup -c 2>/dev/null; then
-                echo "       ✓ TPM initialized"
-            else
-                echo "       ⚠ TPM initialization skipped"
-            fi
-        elif command -v tpm2_startup >/dev/null 2>&1; then
-            # Fallback to just startup if clear is not available
-            TPM_DEVICE="/dev/tpmrm0"
-            if [ ! -c "$TPM_DEVICE" ]; then
-                TPM_DEVICE="/dev/tpm0"
-            fi
-            if TCTI="device:${TPM_DEVICE}" tpm2_startup -c 2>/dev/null; then
-                echo "     TPM initialized (clear not available)"
-            else
-                echo "     TPM initialization skipped"
-            fi
-        fi
-    fi
-
-    # Kill processes using ports
+    # 1.7: Free up ports
     if command -v lsof >/dev/null 2>&1; then
         echo "     Freeing up ports..."
-        lsof -ti:8881 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:9002 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:8080 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:8081 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:8890 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:8891 | xargs kill -9 >/dev/null 2>&1 || true
-        lsof -ti:9050 | xargs kill -9 >/dev/null 2>&1 || true
-    fi
-    if command -v fuser >/dev/null 2>&1; then
-        fuser -k 8881/tcp >/dev/null 2>&1 || true
-        fuser -k 9002/tcp >/dev/null 2>&1 || true
-        fuser -k 8080/tcp >/dev/null 2>&1 || true
-        fuser -k 8081/tcp >/dev/null 2>&1 || true
-        fuser -k 8890/tcp >/dev/null 2>&1 || true
-        fuser -k 8891/tcp >/dev/null 2>&1 || true
-        fuser -k 9050/tcp >/dev/null 2>&1 || true
+        lsof -ti:8881,9002,8080,8081,8890,8891,9050 | xargs kill -9 >/dev/null 2>&1 || true
     fi
 
-    # Wait for processes to fully stop
-    sleep 2
+    # 1.8: Wait for processes to fully stop before cleaning data
+    echo "     Waiting for processes to exit..."
+    sleep 3
 
-    # Force kill any remaining processes
-    RUNNING_COUNT=0
+    # Force kill any remaining processes if they didn't exit gracefully
     if pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" >/dev/null 2>&1; then
-        RUNNING_COUNT=$(pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" | wc -l)
-        if [ "$RUNNING_COUNT" -gt 0 ]; then
-            echo "     Force killing $RUNNING_COUNT remaining process(es)..."
-            pkill -9 -f "spire-server" >/dev/null 2>&1 || true
-            pkill -9 -f "spire-agent" >/dev/null 2>&1 || true
-            pkill -9 -f "keylime" >/dev/null 2>&1 || true
-            pkill -9 -f "tpm_plugin" >/dev/null 2>&1 || true
-            pkill -9 -f "service.py.*--port" >/dev/null 2>&1 || true
-            sleep 1
-        fi
+        echo "     Force killing remaining processes..."
+        pkill -9 -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" >/dev/null 2>&1 || true
+        sleep 1
     fi
+
 
     # Step 2: Clean up all data directories and databases
     echo "  2. Cleaning up all data directories and databases..."

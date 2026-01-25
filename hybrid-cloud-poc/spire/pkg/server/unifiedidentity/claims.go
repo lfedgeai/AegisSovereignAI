@@ -127,7 +127,7 @@ func BuildClaimsJSON(spiffeID, keySource, workloadPublicKeyPEM string, sovereign
 		if attestedClaims.SovereigntyReceipt != "" {
 			claims["grc.sovereignty_receipt"] = map[string]any{
 				"proof_b64": attestedClaims.SovereigntyReceipt,
-				"format":    "gnark-groth16-bn254",
+				"format":    "plonky2",
 			}
 		}
 	}

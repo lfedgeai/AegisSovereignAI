@@ -48,16 +48,18 @@ A "Sovereign" system that only secures the output is a broken chain. For Tier-1 
 3.  **Verifiable Egress**: Hardware-rooted verification ensuring insights are released only to identity-verified and geofenced endpoints.
     *   *Customer Value:* **Security of Outcome**—guaranteeing that sensitive financial insights are delivered only to the authorized user's verified device.
 
+## The Privacy-Preserving Story: Compliance without Tracking
+
+A core pillar of AegisSovereignAI is **Privacy-Preserving Geofencing**. Traditional geofencing relies on capturing and storing raw GPS coordinates, which creates a significant privacy risk and tracking liability.
+
+AegisSovereignAI solves this by implementing **Zero-Knowledge Proof (ZKP) Geofencing**:
+- **Prover-Side (User Device)**: The mobile sensor sidecar generates a mathematical proof (using Plonky2) that the device is within an authorized zone.
+- **Verifier-Side (Sovereign Cloud)**: The verifier validates the proof's mathematical correctness without ever seeing, storing, or processing the raw latitude and longitude.
+- **The Result**: Total privacy for the user, and mathematical certainty for the regulator. Location is verified at the point of issuance, but raw movement history is never created.
+
+---
+
 ## Enterprise Use Cases
-
-This PoC demonstrates the technical implementation for the 4 enterprise use cases described in the [main AegisSovereignAI README](../README.md#enterprise-sovereign-use-cases-focus-financial-services):
-
-1. **Enterprise Customer** - Private Wealth Gen-AI Advisory (Unmanaged Devices)
-2. **Enterprise Employee** - Secure Remote Branch Operations  
-3. **Enterprise Tenant** - Secure Sandboxing for Line-of-Business (LOB) units
-4. **Regulator** - Automated Regulatory Audit
-
-For full use case descriptions, value propositions, and regulatory context, see the [main README](../README.md).
 
 ### PoC Implementation Coverage
 
@@ -65,20 +67,21 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 
 | Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
 |----------|---------------------------|-------------------------|------------|
-| **Enterprise Customer** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Egress ready |
-| **Enterprise Employee** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Egress ready |
+| **Enterprise Customer** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Privacy-Preserving) |
+| **Enterprise Employee** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Privacy-Preserving) |
 | **Enterprise Tenant** | N/A (Internal workload isolation) | ✅ Implemented | Full |
-| **Regulator** | Roadmap (Ingress architecture defined) | ✅ Implemented | Partial - Data center audit ready |
+| **Regulator** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Data center audit ready) |
 
 **What This PoC Currently Demonstrates:**
 - ✅ Hardware-rooted identity (TPM attestation via Keylime)
 - ✅ Hardware-Rooted Geofencing (Egress): Unified SPIFFE/SPIRE identity with geolocation claims (sensor metadata in SVID)
-- ✅ Envoy-based policy enforcement (fail-closed WASM filtering)
+- ✅ **Privacy-preserving Geofencing (ZKP):** Plonky2-based geofence proofs (Rust sidecar) integrated into SVIDs.
+- ✅ **Stateless Verification:** Verification of ZKPs without trusted setup or shared secrets (transparent proofs).
+- ✅ Envoy-based policy enforcement (fail-closed WASM filtering with real-time ZKP verification)
 - ✅ Degraded SVID detection (insider threat protection)
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
 **Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving Geofencing (Ingress & Egress): ZKP-based Reg-K compliance without storing GPS or Mobile Network location data - See Architecture Documentation section below
 - 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 ---
@@ -293,7 +296,14 @@ cd ..
 cd rust-keylime
 cargo build --release
 cd ..
+
+# Build ZKP prover (Plonky2)
+cd mobile-sensor-microservice/zkp-prover-plonky2
+cargo build --release
+cd ../..
 ```
+
+**Note:** The test scripts (`test_agents.sh`, `test_onprem.sh`) also provide **automated build-if-needed** logic for these components, detecting source changes in `src/*.rs` to ensure the latest circuit logic is always deployed.
 
 **Note:** Building SPIRE and rust-keylime may take several minutes the first time. Subsequent builds will be faster due to caching.
 

@@ -129,8 +129,8 @@ def wait_for_agent_svid_in_logs(agent_log_path="/tmp/spire-agent.log", max_wait_
                     print(f"  ✓ Found SVID indicator in agent logs after {elapsed}s")
                     # Wait a bit more to allow registration entries to propagate
                     # Agent syncs with server every ~5 seconds, so wait longer to ensure entry propagation
-                    print("  Waiting additional 15s for registration entries to propagate...")
-                    time.sleep(15)
+                    print("  Waiting additional 3s for registration entries to propagate...")
+                    time.sleep(3)
                     return True
         except Exception as e:
             # If we can't read the log, continue waiting
@@ -148,7 +148,7 @@ def wait_for_agent_svid_in_logs(agent_log_path="/tmp/spire-agent.log", max_wait_
     print("  Will proceed anyway - agent may have SVID but not logged it yet")
     return False  # Timeout, but we'll still try
 
-def fetch_from_workload_api_grpc(max_wait_seconds=60):
+def fetch_from_workload_api_grpc(max_wait_seconds=5):
     """
     Unified-Identity - Verification: Fetch SVID from SPIRE Agent Workload API using gRPC directly.
 
@@ -159,7 +159,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
         max_wait_seconds: Maximum time to wait for agent SVID in logs (default: 60)
 
     Returns:
-        tuple: (cert_pem, attested_claims_json) or (None, None) on error
+        tuple: (cert_pem, key_pem, attested_claims_json) or (None, None, None) on error
     """
     socket_path = "/tmp/spire-agent/public/api.sock"
 
@@ -311,6 +311,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
 
         # Get the first SVID
         svid = response.svids[0]
+        key_pem = svid.x509_svid_key
 
         # Unified-Identity - Verification: Check bundle for agent SVID
         # The bundle field contains the trust domain bundle (root CA)
@@ -585,7 +586,30 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
             claims_json = None
 
         channel.close()
-        return cert_pem_chain, claims_json
+
+        # Convert key to PEM string (handle DER format)
+        try:
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.backends import default_backend
+            
+            # Try parsing as DER private key
+            private_key = serialization.load_der_private_key(
+                key_pem, 
+                password=None, 
+                backend=default_backend()
+            )
+            
+            key_pem_str = private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            ).decode('utf-8')
+        except Exception as e:
+            # Fallback: try decoding as utf-8 (if already PEM or text)
+            print(f"  ⚠ Warning: Failed to parse key as DER, attempting text decode: {e}")
+            key_pem_str = key_pem.decode('utf-8')
+
+        return cert_pem_chain, key_pem_str, claims_json
 
     except Exception as e:
         print(f"Error fetching SVID via gRPC: {e}")
@@ -603,7 +627,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=60):
         print("     tail -20 /tmp/spire-agent.log")
         print("  5. If protobuf import fails, generate stubs:")
         print("     python -m grpc_tools.protoc --proto_path=../go-spiffe/proto --python_out=generated --grpc_python_out=generated ../go-spiffe/proto/spiffe/workload/workload.proto")
-        return None, None
+        return None, None, None
 
 def main():
     print("=" * 70)
@@ -619,13 +643,16 @@ def main():
 
     # Fetch SVID from Workload API using gRPC
     print("Fetching SVID from SPIRE Agent Workload API via gRPC...")
-    cert_pem, claims_json = fetch_from_workload_api_grpc()
+    cert_pem, key_pem, claims_json = fetch_from_workload_api_grpc(max_wait_seconds=5)
 
     if cert_pem:
         cert_file = output_dir / "svid.pem"
+        key_file = output_dir / "svid-key.pem"
         # Write the full certificate chain (workload + agent if available)
         cert_file.write_text(cert_pem)
-
+        # Write private key
+        key_file.write_text(key_pem)
+                
         # Save AttestedClaims if available (for reference, but claims are in certificate extension)
         if claims_json:
             claims_file = output_dir / "attested_claims.json"

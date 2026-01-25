@@ -149,12 +149,23 @@ class SPIREmTLSClient:
             except Exception as e:
                 self.log(f"  ⚠ Could not extract agent SVID from chain: {e}")
 
-            # Save to file
+            # Save certificate to file
             svid_path = os.path.join(svid_dump_dir, 'svid.pem')
             with open(svid_path, 'wb') as f:
                 f.write(cert_pem)
 
+            # Save private key to file
+            key_path = os.path.join(svid_dump_dir, 'svid-key.pem')
+            key_pem = svid.private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            with open(key_path, 'wb') as f:
+                f.write(key_pem)
+
             self.log(f"  ✓ SVID certificate chain saved to {svid_path}")
+            self.log(f"  ✓ SVID private key saved to {key_path}")
         except Exception as e:
             self.log(f"  ⚠ Warning: Failed to save SVID: {e}")
 
@@ -809,7 +820,8 @@ class SPIREmTLSClient:
                 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
                 # Wrap with TLS and connect
-                tls_socket = context.wrap_socket(client_socket, server_hostname=self.server_host)
+                # Use 'localhost' for SNI to match OpenSSL behavior and avoid IP address issues in SNI
+                tls_socket = context.wrap_socket(client_socket, server_hostname='localhost')
                 tls_socket.connect((self.server_host, self.server_port))
 
                 # Detect and log server certificate type (only once per connection session)

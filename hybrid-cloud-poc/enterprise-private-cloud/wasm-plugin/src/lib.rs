@@ -45,9 +45,21 @@ struct VerifyRequest {
     accuracy: Option<f64>,
 }
 
+#[derive(Serialize, Deserialize)]
+struct VerifyZkpRequest {
+    proof: String,
+    center_latitude: f64,
+    center_longitude: f64,
+    radius: f64,
+    sensor_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sensor_imei: Option<String>,
+}
+
 #[derive(Deserialize)]
 struct VerifyResponse {
-    verification_result: Option<bool>,
+    verification_result: Option<bool>, // For /verify
+    valid: Option<bool>,               // For /verify_zkp
     error: Option<String>,
     #[serde(flatten)]
     extra: serde_json::Map<String, serde_json::Value>,
@@ -305,8 +317,8 @@ impl Context for SensorVerificationFilter {
                     return;
                 }
 
-                // Get verification result
-                let verified = response.verification_result.unwrap_or(false);
+                // Get verification result (handle both /verify and /verify_zkp)
+                let verified = response.verification_result.unwrap_or(false) || response.valid.unwrap_or(false);
 
                 proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Verification result for sensor_id: {}, sensor_imei: {}, sensor_imsi: {} - result: {}", sensor_id, sensor_imei, sensor_imsi, verified));
 
@@ -539,13 +551,52 @@ impl HttpContext for SensorVerificationFilter {
                     }
                 }
                 VerificationMode::Zkp => {
-                    // Gen 4: ZKP mode - verify presence of sovereignty receipt in SVID
+                    // Gen 4: ZKP mode - verify presence of sovereignty receipt in SVID and call sidecar for proof validation
                     if let Some(receipt) = &self.sensor_sovereignty_receipt {
-                        proxy_wasm::hostcalls::log(LogLevel::Info, &format!(
-                            "Mobile sensor (sensor_id={}): ZKP Sovereignty Receipt verified (len={}) - allowing request",
-                            sensor_id, receipt.len()
-                        ));
-                        Action::Continue
+                        let verify_body = serde_json::to_string(&VerifyZkpRequest {
+                            proof: receipt.clone(),
+                            center_latitude: self.sensor_latitude.unwrap_or(0.0),
+                            center_longitude: self.sensor_longitude.unwrap_or(0.0),
+                            radius: 0.1, // 100m default in POC
+                            sensor_id: sensor_id.clone(),
+                            sensor_imei: self.sensor_imei.clone(),
+                        }).unwrap_or_default();
+
+                        let headers = vec![
+                            (":method", "POST"),
+                            (":path", "/verify_zkp"),
+                            (":authority", "localhost:9050"),
+                            ("content-type", "application/json"),
+                        ];
+
+                        match self.dispatch_http_call(
+                            "mobile_location_service",
+                            headers,
+                            Some(verify_body.as_bytes()),
+                            vec![],
+                            Duration::from_secs(5),
+                        ) {
+                            Ok(_) => {
+                                self.sidecar_call_start_ms = Some(self.get_current_time().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64);
+                                let _ = proxy_wasm::hostcalls::increment_metric(self.metrics.sidecar_call_total, 1);
+                                proxy_wasm::hostcalls::log(LogLevel::Info, &format!(
+                                    "Mobile sensor (sensor_id={}): execution of ZKP sidecar validation launched",
+                                    sensor_id
+                                ));
+                                Action::Pause
+                            }
+                            Err(e) => {
+                                proxy_wasm::hostcalls::log(LogLevel::Warn, &format!(
+                                    "Failed to call ZKP sidecar for sensor_id {}: {:?}", sensor_id, e
+                                ));
+                                self.send_http_response(
+                                    503,
+                                    vec![("content-type", "text/plain")],
+                                    Some(b"ZKP verification service unavailable"),
+                                );
+                                Action::Pause
+                            }
+                        }
                     } else {
                         proxy_wasm::hostcalls::log(LogLevel::Warn, &format!(
                             "Mobile sensor (sensor_id={}): ZKP Sovereignty Receipt MISSING - rejecting request",
@@ -664,8 +715,13 @@ fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
                                         longitude: None,
                                         accuracy: None,
                                         sovereignty_receipt: json.get("grc.sovereignty_receipt")
-                                            .and_then(|v| v.get("proof_b64"))
-                                            .and_then(|v| v.as_str())
+                                            .and_then(|v| {
+                                                if v.is_string() {
+                                                    v.as_str()
+                                                } else {
+                                                    v.get("proof_b64").and_then(|p| p.as_str())
+                                                }
+                                            })
                                             .map(|s| s.to_string()),
                                     });
                                 }
@@ -687,8 +743,13 @@ fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
                                             longitude: mobile.get("location_verification").and_then(|v| v.get("longitude")).and_then(|v| v.as_f64()),
                                             accuracy: mobile.get("location_verification").and_then(|v| v.get("accuracy")).and_then(|v| v.as_f64()),
                                             sovereignty_receipt: json.get("grc.sovereignty_receipt")
-                                                .and_then(|v| v.get("proof_b64"))
-                                                .and_then(|v| v.as_str())
+                                                .and_then(|v| {
+                                                    if v.is_string() {
+                                                        v.as_str()
+                                                    } else {
+                                                        v.get("proof_b64").and_then(|p| p.as_str())
+                                                    }
+                                                })
                                                 .map(|s| s.to_string()),
                                         });
                                     }

@@ -9,6 +9,8 @@ This standalone microservice implements the flow described in the Sovereign Unif
 - **Fallback DB-BASED Flow**: Looks up a `sensor_id` in a local SQLite database to resolve parameters if they are missing from the request.
 - **Enhanced Mapping**: Database includes `sensor_imei`, `sensor_imsi`, and `sensor_serial` for improved sensor-to-subscriber mapping.
 - **CAMARA Integration**: Executes the standard CAMARA Device Location verification sequence with intelligent caching.
+- **Privacy-Preserving ZKPs**: Generates and verifies geofence proofs using **Plonky2**.
+- **Transparent Verification**: No trusted setup required; uses shared Rust circuit logic between prover and verifier.
 - **UNIX Domain Socket Support**: Designed for secure, local consumption by the Keylime Verifier.
 
 ### Quick Setup
@@ -87,7 +89,14 @@ python mobile-sensor-microservice/service.py --port 5000 --host 0.0.0.0
 export CAMARA_BYPASS=true
 export DEMO_MODE=false
 python mobile-sensor-microservice/service.py --port 5000 --host 0.0.0.0
+
+# Build ZKP Prover (Plonky2)
+cd mobile-sensor-microservice/zkp-prover-plonky2
+cargo build --release
 ```
+
+### ZKP Verification Logic
+The microservice exposes a `/verify_zkp` endpoint that uses the Rust-based `zkp-prover` to validategeofence memberships without revealing the raw coordinates. This logic is shared between the cloud sidecar (prover) and the on-prem sidecar (verifier).
 
 ### CAMARA API Caching
 

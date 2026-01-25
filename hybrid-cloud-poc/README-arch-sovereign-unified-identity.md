@@ -54,6 +54,24 @@ For unmanaged devices, AegisSovereignAI replaces permanent "Trust" with **Verifi
 
 ---
 
+## The Aegis Verifier: The Trust Bridge
+
+A core innovation of the AegisSovereignAI framework is the **Aegis Verifier**, which serves as a cryptographic **Trust Bridge**. It solves the "Identity Fragmentation" problem by normalizing heterogeneous hardware attestation signals into a unified, enterprise-standard identity format (SPIFFE SVID).
+
+### Normalization of Trust
+The Verifier acts as the translation layer between:
+- **OEM Roots of Trust**: Apple (App Attest), Google (Android Key Attestation), TPM Manufacturers (Endorsement Keys).
+- **Enterprise Internal PKI**: The bank's internal SPIRE installation.
+
+By validating the high-entropy hardware evidence device-side and emitting an Enterprise-signed SVID, the Verifier allows downstream microservices to verify "Trust" using standard mTLS without needing to understand the complexities of individual hardware roots.
+
+### The Identity Pipeline
+1. **Appraisal**: Verifier receives raw evidence (TPM Quote, EAT, or App Attest blob).
+2. **Verification**: Verifier validates the evidence against OEM public keys and local policy (e.g., location ZKP).
+3. **Issuance**: Verifier signals the SPIRE Server to issue a Unified SVID containing the normalized claims.
+
+---
+
 ## End-to-End Flow Visualization
 
 ### Detailed Flow Diagram (Full View)
@@ -146,7 +164,12 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
   - New API: `/v2.2/agent/attested_geolocation` (nonce-bound geolocation)
     - **Standalone Value**: Geolocation API provides TPM-bound host location **independent of Unified Identity**
     - Can be used by any verifier for location-aware attestation
-    - Backward compatible - existing functionality unaffected
+   - Backward compatible - existing functionality unaffected
+  - **Geolocation Sidecar**: Collects location data (GNSS/Mobile Network) and generates ZKP proofs
+    - Runs in same trust boundary as agent
+    - Supports three sensor modes: (1) GNSS local, (2.1) CAMARA direct, (2.2) CAMARA boundary verify
+    - Agent handles TPM operations (PCR 15 extend, quote generation)
+    - See **[Privacy-Preserving Geolocation](../docs/auditor-privacy-preserving-geolocation.md)** for architecture details
 - **Keylime Verifier**: TPM attestation verification, geolocation verification
   - New API: `/v2.2/verify/sovereignattestation` (unified verification)
   - Optional feature - gated by `unified_identity_enabled` flag
@@ -260,7 +283,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 - **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
 
 > [!IMPORTANT]
-> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated infrastructure blind spot exploits on unmanaged devices, see the **[Threat Model: Unmanaged Device Security](THREAT-MODEL-unmanaged-device.md)**.
+> **Deep Defense Deep-Dive**: For a full technical analysis of how Aegis defeats sophisticated infrastructure blind spot exploits on unmanaged devices, see the **[Threat Model: Runtime Perception Gap](THREAT-MODEL-runtime-perception-gap.md)**.
 
 ---
 
@@ -1743,7 +1766,7 @@ POST http://localhost:9050/verify
 > **Implementation Status**:
 > - ✅ **Implemented**: Mock MNO Signing Service (EdDSA) for lab testing
 > - ✅ **Implemented**: WASM filter `Zkp` mode (checks for sovereignty_receipt presence)
-> - 🔮 **Future**: Full ZK-SNARK prover (gnark Groth16-BN254)
+- [x] **Implemented**: High-performance ZK-SNARK prover (Plonky2) - [See Migration Guide](../docs/auditor-privacy-preserving-geolocation.md)
 >
 > **Related Proposals:**
 > - [Verifiable Policy Enforcement (VPE)](../proposals/verifiable-policy-enforcement.md) — Full Gen 4 workflow, ZKP circuit design, dual-SVID pattern
@@ -1795,7 +1818,7 @@ sequenceDiagram
     MNO-->>Verifier: Signed MNO Endorsement
     Verifier-->>Server: Attested Claims + MNO Anchor
     
-    Server->>Server: Run gnark ZKP Prover
+    Server->>Server: Run Plonky2 ZKP Prover
     Note right of Server: Prove: Location matches MNO Radius<br/>(Privacy-preserving)
     
     Server-->>Agent: Agent SVID + grc.sovereignty_receipt
@@ -1844,14 +1867,15 @@ Verify proof against PolicyZone commitment
 Allow/Deny (no raw coordinates exposed)
 ```
 
-### ZKP Technology: gnark (Recommended)
+### ZKP Technology: Plonky2 (Rust) - Implemented
 
-For SPIRE Server plugin compatibility, we recommend [gnark](https://github.com/Consensys/gnark)—a Go-native ZK-SNARK library:
+We use [Plonky2](https://github.com/PolymerLabs/plonky2)—a high-performance Rust-native ZK-SNARK library optimized for recursion and fast proof generation:
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **gnark (Go)** | Native SPIRE Plugin SDK; no FFI | Circuit written in Go |
-| Noir → ACIR → gnark | Portable Noir circuits | FFI complexity (Rust → Go) |
+| Feature | Plonky2 (Rust) | Status |
+| :--- | :--- | :--- |
+| **Performance** | Sub-second proof generation; hardware-optimized | ✅ Implemented |
+| **Logic** | Circuit written in Rust (Plonky2 DSL) | ✅ Implemented |
+| **SPIRE Integration** | Native binary sidecar with CLI interface | ✅ Implemented | FFI complexity (Rust → Go) |
 
 ### MNO Integration via Keylime Verifier API Extension
 
@@ -1878,7 +1902,7 @@ SPIRE Server ──▶ Keylime Verifier `/v2.2/verify/sovereignattestation`
                         └─▶ Return AttestedClaims + MNO Anchor
                                       │
                                       ▼
-                        SPIRE Server gnark Plugin
+                        SPIRE Server Plonky2 Plugin
                                       │
                         Generate ZKP from (TPM evidence + MNO Anchor)
                                       │
@@ -1941,7 +1965,7 @@ Gen 4 (Target):     Keylime Verifier → CAMARA API (attestation-time, signed)
 │  ┌────────────────┐   ┌────────────────┐   ┌────────────────────┐  │
 │  │    Keylime     │   │  AegisSovereignAI  │   │  unifiedidentity   │  │
 │  │    Verifier    │   │   ZKP Plugin   │   │  CredentialComposer│  │
-│  │    Plugin      │   │ (gnark Prover) │   │                    │  │
+│  │    Plugin      │   │ (Plonky2 Prover) │   │                    │  │
 │  └───────┬────────┘   └───────┬────────┘   └─────────┬──────────┘  │
 │          │                    │                      │             │
 │          │ AttestedClaims     │ SNARK                │             │
@@ -1955,32 +1979,27 @@ Gen 4 (Target):     Keylime Verifier → CAMARA API (attestation-time, signed)
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### gnark Circuit: Geofencing Policy
+### Plonky2 Circuit: Geofencing Policy
 
-```go
-// pkg/server/zkpplugin/circuit.go
-type SovereignResidencyCircuit struct {
-    // Private Witnesses (from Gen 3 TPM evidence)
-    SecretLocation frontend.Variable `gnark:",secret"` // e.g., Lat/Lon from device
-    SecretIMEI     frontend.Variable `gnark:",secret"`
-    SecretIMSI     frontend.Variable `gnark:",secret"`
-    
+The circuit uses the **FRI-based Plonky2** framework, providing transparent setup and sub-100ms proving times.
+
+```rust
+// src/circuit.rs (Plonky2)
+pub struct GeofenceCircuit {
+    // Private Witnesses
+    pub latitude: f64,
+    pub longitude: f64,
+    pub sensor_id: u64,
+
     // Public Inputs
-    PolicyZone    frontend.Variable `gnark:",public"`  // Bounding box hash
-    Nonce         frontend.Variable `gnark:",public"`  // Freshness (PCR 15)
-    MNOAnchorHash frontend.Variable `gnark:",public"`  // MNO endorsement
+    pub center_lat: f64,
+    pub center_long: f64,
+    pub radius: f64,
+    pub id_hash: u64,
 }
 
-func (c *SovereignResidencyCircuit) Define(api frontend.API) error {
-    // 1. Verify device binding: H(IMEI || IMSI) == MNO anchor device_id_hash
-    deviceHash := api.Hash(c.SecretIMEI, c.SecretIMSI)
-    api.AssertIsEqual(deviceHash, c.MNOAnchorHash)
-    
-    // 2. Geofencing: Location within PolicyZone
-    api.AssertIsEqual(api.InZone(c.SecretLocation, c.PolicyZone), 1)
-    
-    return nil
-}
+// Logic: (lat - clat)^2 + (lon - clon)^2 <= radius^2
+// Logic: sensor_id == id_hash
 ```
 
 ### WASM Filter Verification Mode Extension

@@ -38,24 +38,33 @@ type Config struct {
 	Logger     logrus.FieldLogger
 }
 
+// MobileNetwork represents mobile-specific geolocation metadata
+type MobileNetwork struct {
+	IMEI   string `json:"sensor_imei,omitempty"`   // Unified-Identity: IMEI for mobile devices
+	IMSI   string `json:"sensor_imsi,omitempty"`   // Unified-Identity: IMSI for mobile devices
+	MSISDN string `json:"sensor_msisdn,omitempty"` // Task 2f: MSISDN (phone number) for mobile devices
+}
+
+// GNSS represents GNSS-specific geolocation metadata
+type GNSS struct {
+	SerialNumber string  `json:"sensor_serial_number,omitempty"`
+	Latitude     float64 `json:"latitude,omitempty"`
+	Longitude    float64 `json:"longitude,omitempty"`
+	Accuracy     float64 `json:"accuracy,omitempty"`
+}
+
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
 // Geolocation represents geolocation sensor metadata
 // type: "mobile" or "gnss"
 // sensor_id: Sensor identifier (e.g., USB device ID for mobile, device path for GNSS)
 // value: Optional for mobile, mandatory for gnss (GNSS coordinates, accuracy, etc.)
-// sensor_imei: Unified-Identity: IMEI (International Mobile Equipment Identity) for mobile devices
-// sensor_imsi: Unified-Identity: IMSI (International Mobile Subscriber Identity) for mobile devices
 type Geolocation struct {
-	Type               string  `json:"type"`                    // "mobile" or "gnss"
-	SensorID           string  `json:"sensor_id"`               // Sensor identifier
-	Value              string  `json:"value"`                   // Optional for mobile, mandatory for gnss
-	SensorIMEI         string  `json:"sensor_imei,omitempty"`   // Unified-Identity: IMEI for mobile devices
-	SensorIMSI         string  `json:"sensor_imsi,omitempty"`   // Unified-Identity: IMSI for mobile devices
-	SensorMSISDN       string  `json:"sensor_msisdn,omitempty"` // Task 2f: MSISDN (phone number) for mobile devices
-	SensorSerialNumber string  `json:"sensor_serial_number,omitempty"`
-	Latitude           float64 `json:"latitude,omitempty"`
-	Longitude          float64 `json:"longitude,omitempty"`
-	Accuracy           float64 `json:"accuracy,omitempty"`
+	Type     string `json:"type"`      // "mobile" or "gnss"
+	SensorID string `json:"sensor_id"` // Sensor identifier
+	Value    string `json:"value"`     // Optional for mobile, mandatory for gnss
+
+	MobileNetwork
+	GNSS
 }
 
 // Gen 4: MNOEndorsement represents a signed endorsement from a carrier
@@ -69,8 +78,9 @@ type MNOEndorsement struct {
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
 // AttestedClaims represents verified facts from Keylime
 type AttestedClaims struct {
-	Geolocation    *Geolocation    `json:"geolocation,omitempty"`
-	MNOEndorsement *MNOEndorsement `json:"grc.mno_endorsement,omitempty"` // Gen 4
+	Geolocation        *Geolocation    `json:"geolocation,omitempty"`
+	MNOEndorsement     *MNOEndorsement `json:"grc.mno_endorsement,omitempty"` // Gen 4
+	SovereigntyReceipt string          `json:"grc.sovereignty_receipt,omitempty"`
 }
 
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
@@ -103,11 +113,12 @@ type VerifyEvidenceResponse struct {
 	Results struct {
 		Verified            bool `json:"verified"`
 		VerificationDetails struct {
-			AppKeyCertificateValid  bool  `json:"app_key_certificate_valid"`
-			AppKeyPublicMatchesCert bool  `json:"app_key_public_matches_cert"`
-			QuoteSignatureValid     bool  `json:"quote_signature_valid"`
-			NonceValid              bool  `json:"nonce_valid"`
-			Timestamp               int64 `json:"timestamp"`
+			AppKeyCertificateValid  bool   `json:"app_key_certificate_valid"`
+			AppKeyPublicMatchesCert bool   `json:"app_key_public_matches_cert"`
+			QuoteSignatureValid     bool   `json:"quote_signature_valid"`
+			NonceValid              bool   `json:"nonce_valid"`
+			Timestamp               int64  `json:"timestamp"`
+			TPMAK                   string `json:"tpm_ak"`
 		} `json:"verification_details"`
 		AttestedClaims AttestedClaims `json:"attested_claims"`
 		AuditID        string         `json:"audit_id"`
@@ -212,6 +223,7 @@ func (c *Client) VerifyEvidence(req *VerifyEvidenceRequest) (*AttestedClaims, er
 		"nonce":           req.Data.Nonce,
 		"submission_type": req.Metadata.SubmissionType,
 		"source":          req.Metadata.Source,
+		"tpm_ak_len":      len(req.Data.TPMAK),
 	}).Info("Unified-Identity - Verification: Calling Keylime Verifier to verify evidence")
 
 	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
@@ -282,19 +294,21 @@ func (c *Client) VerifyEvidence(req *VerifyEvidenceRequest) (*AttestedClaims, er
 		if verifyResp.Results.AttestedClaims.Geolocation.Value != "" {
 			geoLog += fmt.Sprintf(", value=%s", verifyResp.Results.AttestedClaims.Geolocation.Value)
 		}
-		if verifyResp.Results.AttestedClaims.Geolocation.SensorIMEI != "" {
-			geoLog += fmt.Sprintf(", sensor_imei=%s", verifyResp.Results.AttestedClaims.Geolocation.SensorIMEI)
+		if verifyResp.Results.AttestedClaims.Geolocation.IMEI != "" {
+			geoLog += fmt.Sprintf(", sensor_imei=%s", verifyResp.Results.AttestedClaims.Geolocation.IMEI)
 		}
-		if verifyResp.Results.AttestedClaims.Geolocation.SensorIMSI != "" {
-			geoLog += fmt.Sprintf(", sensor_imsi=%s", verifyResp.Results.AttestedClaims.Geolocation.SensorIMSI)
+		if verifyResp.Results.AttestedClaims.Geolocation.IMSI != "" {
+			geoLog += fmt.Sprintf(", sensor_imsi=%s", verifyResp.Results.AttestedClaims.Geolocation.IMSI)
 		}
-		if verifyResp.Results.AttestedClaims.Geolocation.SensorMSISDN != "" {
-			geoLog += fmt.Sprintf(", sensor_msisdn=%s", verifyResp.Results.AttestedClaims.Geolocation.SensorMSISDN)
+		if verifyResp.Results.AttestedClaims.Geolocation.MSISDN != "" {
+			geoLog += fmt.Sprintf(", sensor_msisdn=%s", verifyResp.Results.AttestedClaims.Geolocation.MSISDN)
 		}
 	}
 	c.logger.WithFields(logrus.Fields{
-		"audit_id":    verifyResp.Results.AuditID,
-		"geolocation": geoLog,
+		"audit_id":                verifyResp.Results.AuditID,
+		"geolocation":             geoLog,
+		"sovereignty_receipt_len": len(verifyResp.Results.AttestedClaims.SovereigntyReceipt),
+		"tpm_ak_len_hydrated":     len(verifyResp.Results.VerificationDetails.TPMAK),
 	}).Info("Unified-Identity - Verification: Successfully received AttestedClaims from Keylime")
 
 	// Debug: Log raw response to see what Keylime is actually sending
@@ -327,6 +341,7 @@ func BuildVerifyEvidenceRequest(sovereignAttestation *SovereignAttestationProto,
 	req.Data.HashAlg = "sha256"
 	req.Data.AppKeyPublic = sovereignAttestation.AppKeyPublic
 	req.Data.AgentUUID = sovereignAttestation.KeylimeAgentUuid
+	req.Data.TPMAK = sovereignAttestation.TpmAk
 
 	// Provide agent endpoint details so the Keylime Verifier can look up the AK
 	req.Data.AgentIP = getEnvOrDefault("KEYLIME_AGENT_IP", "127.0.0.1")
@@ -376,4 +391,5 @@ type SovereignAttestationProto struct {
 	ChallengeNonce       string
 	WorkloadCodeHash     string
 	KeylimeAgentUuid     string
+	TpmAk                string
 }

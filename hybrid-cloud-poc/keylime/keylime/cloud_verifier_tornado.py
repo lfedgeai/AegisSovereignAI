@@ -2496,14 +2496,17 @@ class VerifyEvidenceHandler(BaseHandler):
             # For backward compatibility within this file's logic
             attested_claims['geolocation'] = mapped_geo
             
+            # Gen 4: Extract and Verify ZKP Sovereignty Receipt from sidecar
+            sovereignty_receipt = quote_geolocation.get('sovereignty_receipt')
+            if sovereignty_receipt:
+                logger.info("Gen 4: Found ZKP Sovereignty Receipt in geolocation payload, carrying to SPIRE")
+                attested_claims['grc.sovereignty_receipt'] = sovereignty_receipt
+
             sensor_id = mapped_geo.get('sensor_id')
             
             # If we fetched it with nonce, it's definitely from quote (TPM attested)
-            try:
-                if geo_fetched_with_nonce:
-                    mobile_geo_from_quote = True
-            except NameError:
-                pass
+            if geo_fetched_with_nonce:
+                mobile_geo_from_quote = True
             
             if not mobile_geo_from_quote:
                 mobile_geo_from_quote = bool(sensor_id and geo_type in ['mobile', 'gnss'])
@@ -2518,6 +2521,7 @@ class VerifyEvidenceHandler(BaseHandler):
                     "sensor_type": quote_geolocation.get("sensor_type"),
                     "mobile": quote_geolocation.get("mobile"),
                     "gnss": quote_geolocation.get("gnss"),
+                    "sovereignty_receipt": quote_geolocation.get("sovereignty_receipt"),
                     "tpm_attested": quote_geolocation.get("tpm_attested"),
                     "tpm_pcr_index": quote_geolocation.get("tpm_pcr_index"),
                 }
@@ -2583,6 +2587,7 @@ class VerifyEvidenceHandler(BaseHandler):
                 'nonce_valid': True,
                 'timestamp': int(time.time()),
                 'agent_uuid': agent_uuid,
+                'tpm_ak': tpm_ak,
             },
             'attested_claims': attested_claims,
             'audit_id': audit_id,

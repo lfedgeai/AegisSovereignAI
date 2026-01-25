@@ -650,10 +650,19 @@ main() {
     fi
 
     echo ""
+    echo ""
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BOLD}Step 5: Testing mTLS Client with IMEI/IMSI Validation${NC}"
     echo -e "${BOLD}Script: test_mtls_client.sh${NC}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    # Unified-Identity: Critical Fix - Sync trust bundle again before mTLS test
+    # The SPIRE root may have rotated during agent attestation.
+    echo -e "${CYAN}Syncing trust bundle to Envoy one last time before mTLS test...${NC}"
+    run_on_onprem "cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --cleanup-only && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --no-pause --no-build" > /dev/null 2>&1
+    echo -e "${GREEN}  ✓ Trust bundle synchronized and Envoy restarted${NC}"
+    echo ""
     echo ""
 
     # Prepare environment variables - SERVER_HOST should be ONPREM_HOST where Envoy is running
