@@ -478,7 +478,7 @@ When geolocation verification succeeds, the claims are embedded in the **SPIFFE 
 
 ### Scenario (Use Case 1 - Enterprise Customer)
 
-A high-net-worth client uses the **Private Wealth Gen-AI Advisory** from their personal mobile device. The bank must prove to an EU regulator that the AI inference stayed within the EEA (**Reg-K** compliance), but cannot store raw GPS data (**GDPR** violation).
+A high-net-worth client uses the **Private Wealth Gen-AI Advisory** (or similar high-compliance application) from their personal mobile device. The organization (e.g., bank) must prove to an EU regulator that the AI inference stayed within the EEA (**Reg-K** compliance), but cannot store raw GPS data (**GDPR** violation).
 
 ### The Privacy-Preserving Flow
 
@@ -489,7 +489,7 @@ A high-net-worth client uses the **Private Wealth Gen-AI Advisory** from their p
 5. **AI inference executes** with verified geolocation claim
 6. **Evidence Bundle** includes ZKP proof for auditor
 
-**Result:** The bank proves Reg-K compliance without ever touching raw GPS coordinates.
+**Result:** The organization proves Reg-K compliance without ever touching raw GPS coordinates.
 
 ---
 
