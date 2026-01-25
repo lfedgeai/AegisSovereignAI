@@ -1,5 +1,9 @@
-<!-- Version: 0.2.0 | Last Updated: 2026-01-25 -->
 # End-to-End Sovereign Unified Identity & Trust Framework
+
+**The AegisSovereignAI Unified Identity & Trust Framework creates a contiguous Chain of Trust between public clouds and sovereign private clouds. By binding workload identity, host integrity, and hardware-rooted geolocation into a single cryptographic credential, it satisfies the requirements for verifiable data sovereignty in regulated environments.**
+
+For the operational proof-of-concept (PoC) implementation demonstrating this architecture in a hybrid cloud environment, see:
+👉 **[Sovereign Hybrid Cloud PoC](README.md)**
 
 > [!IMPORTANT]
 > **Implementation Scope**: This documentation covers the complete end-to-end vision. The current PoC implementation focuses on **Stage 2 (Trusted Egress & Managed Infrastructure)**. Sections marked with **[ROADMAP]** describe Stage 1 (Verified Ingress) features.
