@@ -1,5 +1,8 @@
-<!-- Version: 0.1.0 | Last Updated: 2025-12-29 -->
+<!-- Version: 0.2.0 | Last Updated: 2026-01-25 -->
 # End-to-End Sovereign Unified Identity & Trust Framework
+
+> [!IMPORTANT]
+> **Implementation Scope**: This documentation covers the complete end-to-end vision. The current PoC implementation focuses on **Stage 2 (Trusted Egress & Managed Infrastructure)**. Sections marked with **[ROADMAP]** describe Stage 1 (Verified Ingress) features.
 
 ## 🚀 Open Source Upstreaming-Ready Design
 
@@ -45,7 +48,7 @@ The framework treats both internal infrastructure and external end-user devices 
 | **Session Model** | Persistent Workload Identity | Just-in-Time (JIT) AI Session |
 | **Remediation** | MDM Lockdown + Revocation | Gateway Quarantine (403 Forbidden) |
 
-#### The "Point-in-Time" BYOD Loop
+#### The "Point-in-Time" BYOD Loop [ROADMAP]
 For unmanaged devices, AegisSovereignAI replaces permanent "Trust" with **Verifiable Evidence per Session**. 
 1. The Enterprise App instance (e.g., JPM App) generates a hardware-rooted **Entity Attestation Token (EAT)**.
 2. The **Aegis Verifier** appraisals the evidence and registers the device as a temporary workload.
@@ -66,8 +69,8 @@ The Verifier acts as the translation layer between:
 By validating the high-entropy hardware evidence device-side and emitting an Enterprise-signed SVID, the Verifier allows downstream microservices to verify "Trust" using standard mTLS without needing to understand the complexities of individual hardware roots.
 
 ### The Identity Pipeline
-1. **Appraisal**: Verifier receives raw evidence (TPM Quote, EAT, or App Attest blob).
-2. **Verification**: Verifier validates the evidence against OEM public keys and local policy (e.g., location ZKP).
+1. **Appraisal**: Verifier receives raw evidence (TPM Quote or **[ROADMAP]** EAT/App Attest blob).
+2. **Verification**: Keylime Verifier validates the **TPM Attestation Key (AK)** and hardware integrity. Envoy/Gateway performs mathematical verification of location ZKPs.
 3. **Issuance**: Verifier signals the SPIRE Server to issue a Unified SVID containing the normalized claims.
 
 ---
@@ -123,18 +126,18 @@ SPIRE AGENT ATTESTATION PHASE:
 └──────────────┘       └──────────────┘       │  App Key)    │       └──────────────┘       └──────────────┘       └──────────────┘
                                               └──────────────┘
 
-SPIRE SERVER and KEYLIME VERIFIER VERIFICATION PHASE:
+SPIRE SERVER and KEYLIME VERIFIER ATTESTATION PHASE:
 ┌──────────────┐  [8]  ┌──────────────┐  [9]  ┌──────────────┐  [10] ┌──────────────┐  [11] ┌──────────────┐  [12] ┌──────────────┐  [13] ┌──────────────┐  [14] ┌──────────────┐  [15] ┌──────────────┐
 │ SPIRE Server │──────>│ Keylime      │──────>│   Keylime    │──────>│ Keylime      │──────>│ rust-keylime │──────>│ Mobile Sensor│──────>│ rust-keylime │──────>│ Keylime      │──────>│ SPIRE Server │
-│ Extract: App │       │ Verifier     │       │  Registrar   │       │ Verifier     │       │    Agent     │       │ Microservice │       │    Agent     │       │ Verifier     │       │ Issue Agent  │
-│ Key, Cert,   │       │ Verify App   │       │ Return: IP,  │       │ Verify AK    │       │ (Sidecar)    │       │ (Mock MNO)   │       │ (Sidecar)    │       │ Verify ZKP   │       │ SVID with    │
-│ Nonce, UUID  │       │ Key Cert     │       │ Port, AK,    │       │ Registration │       │ Collect Loc  │       │ Return Loc   │       │ Generate ZKP │       │ Verify Quote │       │ BroaderClaims│
-└──────────────┘       │ Signature    │       │ mTLS Cert    │       │ (PoC Check)  │       └──────┬───────┘       └──────────────┘       │ (Plonky2)    │       └──────┬───────┘       └──────────────┘
-                       └──────────────┘       └──────────────┘       └──────────────┘              │                                      └──────────────┘              │
+│ Extract: App │       │ Verifier     │       │  Registrar   │       │ Verifier     │       │ (Sidecar)    │       │ (Mock MNO)   │       │ (Sidecar)    │       │ Verifier     │       │ Issue Agent  │
+│ Key, Cert,   │       │ Verify App   │       │ Return: IP,  │       │ Verify AK    │       │ Collect Loc  │       │ Return Loc   │       │ Generate ZKP │       │ Verify Quote │       │ SVID containing│
+│ Nonce, UUID  │       │ Key Cert     │       │ Port, AK,    │       │ Registration │       └──────┬───────┘       └──────────────┘       │ (Plonky2)    │       │ (Hardware)   │       │ ZKP Receipt  │
+└──────────────┘       │ Signature    │       │ mTLS Cert    │       │ (PoC Check)  │              │                                      └──────────────┘       └──────┬───────┘       └──────────────┘
+                       └──────────────┘       └──────────────┘       └──────────────┘              │                                                                    │
                                                                                                    └─────────────────── [13] ──────────────────────┘              │
                                                                                                                                                                   └──────────────┘
 
-SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
+SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE: (Roadmap)
 ┌──────────────┐  [16] ┌──────────────┐  [17] ┌──────────────┐  [18] ┌──────────────┐  [19] ┌──────────────┐  [20] ┌──────────────┐  [21] ┌──────────────┐
 │ SPIRE Server │──────>│  SPIRE Agent │──────>│   Workload   │──────>│  SPIRE Agent │──────>│ SPIRE Server │──────>│ SPIRE Agent  │──────>│   Workload   │
 │ Issue Agent  │       │ Receive      │       │ (Application)│       │ Match Entry  │       │ Issue        │       │ Forward      │       │ Receive      │
@@ -160,7 +163,7 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 **[12]** Location Detection: Agent (Sidecar) detects mobile sensor / GNSS coordinates
 **[13]** MNO Endorsement: Verifier fetches location from MNO (Mock MNO Microservice) to bind to session
 **[14]** ZKP Generation: Agent (Sidecar) runs Plonky2 circuits to prove: Coordinate-in-Geofence, binding to session nonce
-**[15]** Stateless Verification: Verifier validates ZKP proof and TPM quote result → SPIRE Server
+**[15]** Hardware Verification: Verifier validates TPM hardware integrity result → SPIRE Server
 **[16]** Agent SVID: Server issues agent SVID with BroaderClaims embedded → SPIRE Agent
 **[17]** Workload Request: Workload connects to Agent Workload API
 **[18]** Workload API: Workload requests SVID via Agent Workload API
@@ -195,8 +198,10 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
     - Supports three sensor modes: (1) GNSS local, (2.1) CAMARA direct, (2.2) CAMARA boundary verify
     - Agent handles TPM operations (PCR 15 extend, quote generation)
     - See **[Privacy-Preserving Geolocation](../docs/auditor-privacy-preserving-geolocation.md)** for architecture details
-- **Keylime Verifier**: TPM attestation verification, geolocation verification
+- **Keylime Verifier**: Hardware integrity attestation & AK validation
   - New API: `/v2.2/verify/sovereignattestation` (unified verification)
+  - **AK Validation**: Verifier ensures the TPM **Attestation Key (AK)** is valid (optionally certified against an EK/Manufacturer CA) and originates from a registered host.
+  - **Hardware Integrity**: Verifies the TPM Quote signatures and PCR measurements (e.g., PCR 15 for geolocation binding).
   - Optional feature - gated by `unified_identity_enabled` flag
   - **Geolocation verification works standalone**: Verifier can fetch and validate geolocation independently
 - **Keylime Registrar**: Agent registration database (no changes)
@@ -229,6 +234,9 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE:
 ---
 
 ## Technical Details: Verified Ingress (Edge Workloads)
+
+> [!NOTE]
+> **Implementation Status**: This section describes the **Architectural Roadmap** for Verified Ingress. The current PoC implementation focuses on **Stage 2: Trusted Egress** within the data center.
 
 AegisSovereignAI treats the Enterprise Application (e.g., at JPMC or HSBC) as a **First-Class Edge Workload**. This ensures that the "Chain of Trust" is unbroken from the consumer's glass to the sovereign data center.
 
@@ -1845,9 +1853,9 @@ sequenceDiagram
     Note over KAgent: Prove: Location is in Category Radius
     
     KAgent-->>Verifier: Integrity Quote + ZKP Proof
-    Verifier->>Verifier: Stateless ZKP Verification
+    Verifier->>Verifier: Verify Hardware Integrity (TPM)
     
-    Verifier-->>Server: Attested Claims (compliant) + Proof Receipt
+    Verifier-->>Server: Attested Hardware Claims + Proof Receipt
     
     Server-->>Agent: Agent SVID + grc.sovereignty_receipt
     
@@ -1856,12 +1864,15 @@ sequenceDiagram
     
     Note over Workload, Envoy: 4. RUNTIME VERIFICATION (Stateless)
     Workload->>Envoy: mTLS Request with SVID Chain
+    Note right of Envoy: Envoy verifies ZKP Proof<br/>statelessly during mTLS
     Envoy->>Envoy: Extract & Verify ZKP Receipt (Plonky2)
     Envoy-->>Workload: Allowed (Verified Sovereign)
 ```
 
 > [!IMPORTANT]
-> **Gen 4 Implementation Status**: The ZKP Prover logic (Plonky2) and stateless verification are fully implemented. The remaining dependency for absolute zero-trust is **MNO Local Response Signing**, which ensures the location input to the ZKP circuit is authenticated by the carrier before proof generation.
+> **Gen 4 Implementation Status**: The ZKP Prover logic (Plonky2) and stateless verification are fully implemented. 
+> - **Keylime Verifier**: Focuses on **Hardware Integrity Attestation** (TPM Quote).
+> - **Envoy Proxy**: Performs the **Stateless ZKP Verification** of location claims at runtime.
 
 ### Evolution: Gen 3 → Gen 4
 

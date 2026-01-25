@@ -67,10 +67,10 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 
 | Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
 |----------|---------------------------|-------------------------|------------|
-| **Enterprise Customer** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Privacy-Preserving) |
-| **Enterprise Employee** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Privacy-Preserving) |
-| **Enterprise Tenant** | N/A (Internal workload isolation) | ✅ Implemented | Full |
-| **Regulator** | ✅ Implemented (ZKP-based) | ✅ Implemented | Full (Data center audit ready) |
+| **Enterprise Customer** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
+| **Enterprise Employee** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
+| **Enterprise Tenant** | N/A (Internal isolation) | ✅ Implemented | Full |
+| **Regulator** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
 
 **What This PoC Currently Demonstrates:**
 - ✅ Hardware-rooted identity (TPM attestation via Keylime)
