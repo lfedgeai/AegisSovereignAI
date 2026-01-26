@@ -107,6 +107,10 @@ This document provides detailed architecture for:
 - **Stage 2 (Trusted Processing)** - Confidential Computing (TEEs), Platform Integrity (Keylime), and workload identity
 - **Stage 3 (Verifiable Egress)** - Data center infrastructure attestation, policy enforcement, and hardware-rooted geofencing
 
+![Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture](images/Slide19.PNG)
+
+---
+
 ## Sovereign MCP Gateway: Technical Deep-Dive
 
 The **Sovereign MCP Gateway** serves as the high-assurance connective tissue between modern AI agents and legacy enterprise APIs. This pattern enables zero-refactoring integration of AI agent frameworks (LangGraph, KAgentI) with on-premises systems while maintaining hardware-rooted trust and regulatory compliance.
@@ -249,13 +253,6 @@ The Sovereign MCP Gateway requires the following technical stack:
 2. **Why not API Gateway (Kong/Apigee)?** Traditional gateways lack hardware attestation primitives. Envoy's filter chain allows custom TPM quote validation.
 3. **ZKP vs. Encrypted Attestation?** ZKPs provide cryptographic proof without revealing precise GPS coordinates, satisfying GDPR Art. 25 (Data Protection by Design).
 4. **OCSF vs. Custom Logs?** OCSF ensures interoperability with enterprise SIEM/GRC tools (Splunk, ServiceNow, etc.).
-
-### Architecture Overview
-
-![Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture](images/Slide19.PNG)
-
-**For detailed architecture including component interactions and observability configuration, see:**
-👉 [Unified Identity Architecture](README-arch-sovereign-unified-identity.md)
 
 ---
 
