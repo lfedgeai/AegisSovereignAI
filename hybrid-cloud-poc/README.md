@@ -5,7 +5,6 @@
 This Proof of Concept implements the **AegisSovereignAI** architecture to create a contiguous Chain of Trust between a public cloud and a sovereign private cloud (on-premise).
 
 ## Overview
-
 This directory contains a proof-of-concept implementation demonstrating sovereign hybrid cloud unified identity with hardware-rooted verifiable geofencing and residency proofs using SPIRE, Keylime, and Envoy. This POC addresses the challenges of the traditional non-verifiable security model by providing cryptographically verifiable proofs that bind workload identity, host integrity, and geolocation into unified credentials.
 
 **Slides:** [View Presentation](https://onedrive.live.com/?id=746ADA9DC9BA7CB7%21sa416cb345794427ab085a20f8ccc0edd&cid=746ADA9DC9BA7CB7&redeem=aHR0cHM6Ly8xZHJ2Lm1zL2IvYy83NDZhZGE5ZGM5YmE3Y2I3L0VUVExGcVNVVjNwQ3NJV2lENHpNRHQwQlh6U3djQ01HWDhjQS1xbGxLZm1Zdnc%5FZT1PTnJqZjE&parId=746ADA9DC9BA7CB7%21s95775661177f4ef5a4ba84313cd3795a&o=OneUp)
@@ -17,7 +16,6 @@ This PoC simulates a real-world regulated environment:
 - **The Trust Bridge (AegisSovereignAI):** A unified control plane that issues short-lived, hardware-rooted credentials allowing the two zones to communicate only if strict integrity and location policies are met.
 
 ## The Problem
-
 Current security approaches for AI inference applications, secret stores, system agents, and model repositories face **critical gaps** that are amplified in edge AI deployments. The traditional security model relies on bearer tokens, proof-of-possession tokens, and IP-based geofencing, which are vulnerable to replay attacks, account manipulation, and location spoofing.
 
 ![The Problem: A Fragile and Non-Verifiable Security Model](images/Slide6.PNG)
@@ -33,13 +31,11 @@ The diagram highlights three critical security challenges:
 - **Static and Isolated Security Challenges**: Non-verifiable monitoring systems
 
 ## The Solution: The Sovereign Trust Loop
-
-Our solution provides a **Unified Identity & Trust Framework** that secures the entire AI lifecycle. By binding workload identity, host hardware integrity, and verifiable geolocation into a single cryptographic credential, we satisfy the requirements for Ingress, Processing, and Egress.
+Our solution provides a **Unified Identity & Trust Framework** that secures the entire AI lifecycle. By binding workload identity, host hardware integrity, and verifiable geolocation into a single cryptographic credential, we satisfy the requirements for Ingress, Processing, and Egress. **Privacy-preserving geofencing** using Zero-Knowledge Proofs ensures location compliance without exposing raw GPS data or infrastructure topology—delivering mathematical certainty to regulators while preserving user and enterprise privacy.
 
 ![The Solution: A Zero-Trust, HW-Rooted, Unified, Extensible & Verifiable Identity](images/Slide7.PNG)
 
-### The Sovereign Trust Loop
-A "Sovereign" system that only secures the output is a broken chain. For Tier-1 financial institutions, trust must be established at the source, maintained in the cloud, and verified at the edge.
+A "Sovereign" system that only secures the input or output is a broken chain. For Tier-1 financial institutions, trust must be established at the source, maintained in the cloud, and verified at the edge.
 
 1.  **Verified Ingress**: Hardware-rooted attestation of the originating client device ensuring data provenance and **Regulation K (Reg-K)** geographic compliance via **privacy-preserving techniques** (e.g., Zero-Knowledge Proofs / ZKPs).
     *   *Customer Value:* **Radical Privacy**—verify compliance without tracking movement history.
@@ -48,34 +44,39 @@ A "Sovereign" system that only secures the output is a broken chain. For Tier-1 
 3.  **Verifiable Egress**: Hardware-rooted verification ensuring insights are released only to identity-verified and geofenced endpoints.
     *   *Customer Value:* **Security of Outcome**—guaranteeing that sensitive financial insights are delivered only to the authorized user's verified device.
 
-## The Privacy-Preserving Story: Compliance without Tracking
+### The Privacy-Preserving Story: Compliance without Tracking
 
 A core pillar of AegisSovereignAI is **Privacy-Preserving Geofencing**. Traditional geofencing relies on capturing and storing raw GPS coordinates, which creates a significant privacy risk and tracking liability.
 
-AegisSovereignAI solves this by implementing **Zero-Knowledge Proof (ZKP) Geofencing**:
-- **Prover-Side (User Device)**: The mobile sensor sidecar generates a mathematical proof (using Plonky2) that the device is within an authorized zone.
+AegisSovereignAI solves this by implementing **Zero-Knowledge Proof (ZKP) Geofencing** for both ingress and egress:
+
+#### Ingress (User Device → Sovereign Cloud)
+- **Prover-Side (User Device)**: The mobile sensor sidecar generates a Zero-Knowledge Proof that the device is within an authorized zone.
 - **Verifier-Side (Sovereign Cloud)**: The verifier validates the proof's mathematical correctness without ever seeing, storing, or processing the raw latitude and longitude.
-- **The Result**: Total privacy for the user, and mathematical certainty for the regulator. Location is verified at the point of issuance, but raw movement history is never created.
+- **Customer Value**: Users can prove they are in a compliant region (e.g., EU/EEA for Reg-K) without exposing their precise location.
 
----
+#### Egress (Data Center → User/External System)
+- **Prover-Side (Data Center Workload)**: The AI workload or server proves it is operating within an authorized data sovereignty zone (e.g., "on-prem in NYC" or "Equinix Madrid").
+- **Verifier-Side (Policy Engine/Gateway)**: The Envoy gateway or policy engine validates the ZKP before releasing sensitive data or PII.
+- **Customer Value**: Enterprises can cryptographically prove data residency compliance to regulators without exposing infrastructure topology.
 
-## Enterprise Use Cases
+**The Result**: Total privacy for users and enterprises, with mathematical certainty for regulators. Location is verified at both ingress and egress, but raw movement history or infrastructure details are never created.
 
-### PoC Implementation Coverage
+## PoC Implementation Coverage of Enterprise Use Cases
 
-This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data Center Infrastructure Attestation**. Stage 1 (Verified Ingress) is defined architecturally (see Architecture Documentation section below).
+This PoC provides end-to-end implementation for **Stage 2 (Trusted Processing) and Stage 3 (Verifiable Egress)** of the Sovereign Trust Loop. Stage 1 (Verified Ingress) is defined architecturally (see Architecture Documentation section below).
 
-| Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Egress | PoC Status |
-|----------|---------------------------|-------------------------|------------|
-| **Enterprise Customer** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
-| **Enterprise Employee** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
-| **Enterprise Tenant** | N/A (Internal isolation) | ✅ Implemented | Full |
-| **Regulator** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | Full (Egress Only) |
+| Use Case | Stage 1: Verified Ingress | Stage 2: Trusted Processing | Stage 3: Verifiable Egress | PoC Status |
+|----------|---------------------------|----------------------------|---------------------------|------------|
+| **Enterprise Customer** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | ✅ Implemented | Full (Processing + Egress) |
+| **Enterprise Employee** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | ✅ Implemented | Full (Processing + Egress) |
+| **Enterprise Tenant** | N/A (Internal isolation) | ✅ Implemented | ✅ Implemented | Full |
+| **Regulator** | 🔲 Roadmap (ZKP Pilot) | ✅ Implemented | ✅ Implemented | Full (Processing + Egress) |
 
 **What This PoC Currently Demonstrates:**
 - ✅ Hardware-rooted identity (TPM attestation via Keylime)
 - ✅ Hardware-Rooted Geofencing (Egress): Unified SPIFFE/SPIRE identity with geolocation claims (sensor metadata in SVID)
-- ✅ **Privacy-preserving Geofencing (ZKP):** Plonky2-based geofence proofs (Rust sidecar) integrated into SVIDs.
+- ✅ **Privacy-preserving Geofencing (ZKP):** Zero-Knowledge geofence proofs (Rust sidecar) integrated into SVIDs.
 - ✅ **Stateless Verification:** Verification of ZKPs without trusted setup or shared secrets (transparent proofs).
 - ✅ Envoy-based policy enforcement (fail-closed WASM filtering with real-time ZKP verification)
 - ✅ Degraded SVID detection (insider threat protection)
@@ -83,8 +84,6 @@ This PoC provides end-to-end implementation for **Stage 2: Trusted Egress & Data
 
 **Roadmap (Architecturally Defined):**
 - 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
-
----
 
 ## Operational Implementation Details
 The AegisSovereignAI framework implements this loop through:
@@ -99,37 +98,37 @@ The AegisSovereignAI framework implements this loop through:
 
 ## Architecture Documentation
 
-For the complete technical breakdown of the **Unified Identity & Trust Framework** covering both stages, see:
+For the complete technical breakdown of the **Unified Identity & Trust Framework** covering all three stages, see:
 
 👉 **[Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**
 
 This document provides detailed architecture for:
 - **Stage 1 (Verified Ingress)** - Hardware-rooted attestation of client devices, privacy-preserving (ZKP) geofencing, and data provenance
-- **Stage 2 (Trusted Egress)** - Data center infrastructure attestation, workload identity, policy enforcement, and hardware-rooted geofencing
-
----
+- **Stage 2 (Trusted Processing)** - Confidential Computing (TEEs), Platform Integrity (Keylime), and workload identity
+- **Stage 3 (Verifiable Egress)** - Data center infrastructure attestation, policy enforcement, and hardware-rooted geofencing
 
 ## Sovereign MCP Gateway: Technical Deep-Dive
 
 The **Sovereign MCP Gateway** serves as the high-assurance connective tissue between modern AI agents and legacy enterprise APIs. This pattern enables zero-refactoring integration of AI agent frameworks (LangGraph, KAgentI) with on-premises systems while maintaining hardware-rooted trust and regulatory compliance.
 
-### Use Case: Cross-Geography Legacy Integration
+### Use Case: Multi-Tenant LOB with Cross-Geography Legacy Integration
 
-**Scenario**: A LangGraph AI Agent running in Madrid, Spain (Equinix MD2) needs to call a legacy Credit Card API hosted on-premises in New York. The enterprise (JPMC) requires:
-- **Reg-K Compliance**: Proof the agent is in an authorized EU "Green Zone" (Madrid/Spain)
+**Scenario**: The Credit Card LOB's AI Agent running in Madrid, Spain (Equinix MD2) needs to call a legacy Credit Scoring API hosted in the NYC Sovereign Cloud. The enterprise (JPMC) requires:
+- **Multi-Tenant Isolation**: Cryptographic proof the Credit Card workload cannot access Mortgage LOB data
+- **Reg-K Compliance**: Proof the AI agent is operating in an authorized EU zone
 - **Hardware Attestation**: Verification the agent infrastructure is untampered
-- **Zero Legacy Refactoring**: No changes to the NYC on-prem API
-- **SR 11-7 Audit Trail**: Cryptographic proof of the complete interaction
+- **Zero Legacy Refactoring**: No changes to the NYC on-prem Scoring API
+- **SR 11-7 Audit Trail**: Cryptographic proof of governance policy enforcement
 
 ### Sequence Diagram: The Sovereign MCP Handshake
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Agent as AI Agent<br/>(LangGraph - Madrid, Spain)
+    participant Agent as Credit Card LOB AI Agent<br/>(LangGraph - Madrid, Spain)
     participant Gateway as Sovereign MCP Gateway<br/>(Envoy + AAgate)
     participant Policy as Policy Engine<br/>(Keylime/OPA)
-    participant Legacy as Legacy Credit Card API<br/>(NYC On-Prem)
+    participant Legacy as Legacy Credit Scoring API<br/>(NYC Sovereign Cloud)
     participant Audit as Audit Log<br/>(SIEM/GRC)
 
     Note over Agent,Legacy: Trust Handshake Flow
@@ -250,12 +249,6 @@ The Sovereign MCP Gateway requires the following technical stack:
 2. **Why not API Gateway (Kong/Apigee)?** Traditional gateways lack hardware attestation primitives. Envoy's filter chain allows custom TPM quote validation.
 3. **ZKP vs. Encrypted Attestation?** ZKPs provide cryptographic proof without revealing precise GPS coordinates, satisfying GDPR Art. 25 (Data Protection by Design).
 4. **OCSF vs. Custom Logs?** OCSF ensures interoperability with enterprise SIEM/GRC tools (Splunk, ServiceNow, etc.).
-
----
-
-### Current PoC Implementation Status
-
-The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Stage 2: Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
 
 ### Architecture Overview
 
