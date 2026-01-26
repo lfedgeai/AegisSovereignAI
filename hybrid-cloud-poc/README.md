@@ -252,46 +252,17 @@ The Sovereign MCP Gateway requires the following technical stack:
 
 ### Architecture Overview
 
-**Sovereign Cloud Or Edge Cloud (Client Side):**
-- **Control Plane Identity Services:**
-  - Host Identity (Keylime Verifier & Registrar)
-  - Workload Identity (SPIRE Server)
-- **Agents and Plugins:**
-  - Keylime Agent
-  - SPIRE Agent
-  - SPIRE TPM Plugin
-- **Client Application:**
-  - Client App using unified identity
-- **Hardware/Sensors:**
-  - Mobile location sensor (e.g., USB tethered smartphone)
-  - TPM (Trusted Platform Module)
-
-**Customer on-Prem Private Cloud (Server Side):**
-- **Gateway and Application:**
-  - Envoy (API Gateway) with WASM plugin
-  - Server App
-- **Geolocation Service:**
-  - Mobile Geolocation Service (CAMARA - Common API framework for Mobile network Acceleration and Reachability APIs)
-
 ![Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture](images/Slide19.PNG)
 
-**Sovereign Cloud/Edge Cloud (left, orange boundary):**
-- Control Plane Identity Services: Host Identity (Keylime Verifier & Registrar), Workload Identity (SPIRE Server)
-- Agents and Plugins: Keylime Agent, SPIRE Agent, SPIRE TPM Plugin, Mobile location sensor (USB tethered smartphone), TPM, and Client App using unified identity (SPIRE SVID)
-- System flow: SPIRE agent gets/refreshes unified identity with TPM-attested geolocation from SPIRE server
-- Client App flow: Client app inherits unified identity from SPIRE server – agent SVID included in certificate chain for claim inheritance
+**For detailed architecture including component interactions and observability configuration, see:**
+👉 [Unified Identity Architecture](README-arch-sovereign-unified-identity.md)
 
-**Customer on-Prem Private Cloud (right, blue boundary):**
-- Contains: Envoy (API Gateway) with WASM plugin, Server App, and Mobile Geolocation Service (CAMARA API)
-- System flow: Envoy verifies unified identity signature using configured SPIRE server public key cert and verifies geolocation through Mobile Geolocation Service
-- Server App flow: Envoy communicates to Server App using standard mTLS
+---
 
-- [Unified Identity Architecture](README-arch-sovereign-unified-identity.md) - Includes detailed **Observability & Metrics** configuration
-
-### Implementation Scope
+## Implementation Scope
 
 > [!IMPORTANT]
-> The following Quick Start Guide and the associated code provide the full end-to-end implementation for **Stage 2: Egress Unified Identity**. This includes the hardware-rooted identity bridge between Sovereign and Private clouds. **Stage 1: Ingress Unified Identity** is currently defined as an architectural roadmap.
+> The following Quick Start Guide and the associated code provide the full end-to-end implementation for **Stage 2 (Trusted Processing) and Stage 3 (Verifiable Egress)**. This includes the hardware-rooted identity bridge between Sovereign and Private clouds. **Stage 1 (Verified Ingress)** is currently defined as an architectural roadmap.
 
 ## Quick Start Guide
 
@@ -353,8 +324,6 @@ Two helper scripts are provided to simplify setup:
    ```bash
    ./check_packages.sh
    ```
-
-
 
 ### Installation Steps
 
