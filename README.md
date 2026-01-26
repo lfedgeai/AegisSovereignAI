@@ -137,6 +137,10 @@ AegisSovereignAI is designed to be framework-agnostic, serving as a secure execu
 | **Legacy Systems (via Sovereign MCP Gateway)** | **No-Rewrite Legacy Integration:** Provides a secure bridge to internal JPMC tools that do not natively support hardware attestation or the MCP protocol. | **Sovereign Proxy Pattern:** Aegis acts as a Sovereign MCP Gateway—a "Trust Wrapper" around legacy APIs. It performs the silicon-rooted handshake and residency check (Reg-K) on behalf of the legacy tool, ensuring context is only released to verified agents in verified "Green Zones." |
 | **Cloud Security Alliance (CSA) AAGATE** | **Continuous NIST AI RMF Alignment:** Provides a Kubernetes-native control plane for AI governance, operationalizing the NIST AI RMF through policy-based trusted execution. | **DID-to-Silicon Anchor:** AegisSovereignAI anchors CSA AAGATE's Decentralized Identifier (DID) based identity to the physical TPM (Layer 1). This ensures that governance decisions are executed on hardware-verified platforms, preventing "Ghost Gateways" (unauthorized policy interceptors) and ensuring enforcement is anchored in verifiable silicon. |
 
+**For a detailed technical deep-dive on the Sovereign MCP Gateway pattern—including sequence diagrams, implementation components, and integration timelines—see the [Hybrid Cloud PoC: Sovereign MCP Gateway](./hybrid-cloud-poc/README.md#sovereign-mcp-gateway-technical-deep-dive).**
+
+---
+
 ## Technical & Auditor Resources
 
 *   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering the full AI lifecycle (Ingestion, Training, and Inference), verifiable geofencing (Reg-K), and identity binding. Includes the complete Evidence Bundle structure for regulatory reporting.

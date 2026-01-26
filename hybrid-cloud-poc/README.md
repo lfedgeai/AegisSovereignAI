@@ -107,6 +107,152 @@ This document provides detailed architecture for:
 - **Stage 1 (Verified Ingress)** - Hardware-rooted attestation of client devices, privacy-preserving (ZKP) geofencing, and data provenance
 - **Stage 2 (Trusted Egress)** - Data center infrastructure attestation, workload identity, policy enforcement, and hardware-rooted geofencing
 
+---
+
+## Sovereign MCP Gateway: Technical Deep-Dive
+
+The **Sovereign MCP Gateway** serves as the high-assurance connective tissue between modern AI agents and legacy enterprise APIs. This pattern enables zero-refactoring integration of AI agent frameworks (LangGraph, KAgentI) with on-premises systems while maintaining hardware-rooted trust and regulatory compliance.
+
+### Use Case: Cross-Geography Legacy Integration
+
+**Scenario**: A LangGraph AI Agent running in Madrid, Spain (Equinix MD2) needs to call a legacy Credit Card API hosted on-premises in New York. The enterprise (JPMC) requires:
+- **Reg-K Compliance**: Proof the agent is in an authorized EU "Green Zone" (Madrid/Spain)
+- **Hardware Attestation**: Verification the agent infrastructure is untampered
+- **Zero Legacy Refactoring**: No changes to the NYC on-prem API
+- **SR 11-7 Audit Trail**: Cryptographic proof of the complete interaction
+
+### Sequence Diagram: The Sovereign MCP Handshake
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Agent as AI Agent<br/>(LangGraph - Madrid, Spain)
+    participant Gateway as Sovereign MCP Gateway<br/>(Envoy + AAgate)
+    participant Policy as Policy Engine<br/>(Keylime/OPA)
+    participant Legacy as Legacy Credit Card API<br/>(NYC On-Prem)
+    participant Audit as Audit Log<br/>(SIEM/GRC)
+
+    Note over Agent,Legacy: Trust Handshake Flow
+    
+    Agent->>Agent: Generate SVID with TPM Quote<br/>& Geolocation ZKP
+    Agent->>Gateway: mTLS Request + Sovereign Headers<br/>(SVID, ZKP, MCP tool_call)
+    
+    Note over Gateway: Intercept & Extract
+    Gateway->>Gateway: Extract SVID + Geolocation Claim
+    
+    Gateway->>Policy: Validate Hardware Attestation<br/>"Is silicon untampered?"
+    Policy-->>Gateway: ✓ TPM Quote Verified
+    
+    Gateway->>Policy: Validate Geofence<br/>"Is agent in Madrid Green Zone?"
+    Policy-->>Gateway: ✓ ZKP Verified (Reg-K Compliant)
+    
+    Note over Gateway: Strip Sovereign Headers
+    Gateway->>Legacy: Standard MCP tool_call<br/>(No attestation required)
+    Legacy-->>Gateway: MCP tool_response
+    
+    par Audit Trail
+        Gateway->>Audit: Anchor Evidence Bundle<br/>(SVID + Policy Decision + Timestamp)
+    and Response
+        Gateway-->>Agent: MCP tool_response + Session Token
+    end
+    
+    Note over Agent,Audit: ✓ SR 11-7 Compliant Interaction
+
+    rect rgb(255, 240, 240)
+        Note over Agent,Audit: Failure Scenario: Agent in Morocco (Not EU Green Zone)
+        Agent->>Gateway: mTLS Request (Morocco Geolocation)
+        Gateway->>Policy: Validate Geofence
+        Policy-->>Gateway: ✗ ZKP Failed (Outside EU Green Zone)
+        Gateway->>Audit: Anchor "DENY" Event
+        Gateway-->>Agent: 403 Forbidden (Policy Violation)
+    end
+```
+
+### Implementation Components
+
+The Sovereign MCP Gateway requires the following technical stack:
+
+#### 1. **Gateway Layer (Envoy Proxy + CSA AAgate)**
+- **Envoy Proxy**: L7 proxy with mTLS termination and custom filter extensions
+  - **SPIFFE/SPIRE Integration**: SVID extraction and validation via Envoy External Authorization (ext_authz) filter
+  - **Custom Headers**: Extract `X-Sovereign-SVID`, `X-Geolocation-ZKP`, `X-TPM-Quote` from requests
+- **CSA AAgate**: Policy decision point (PDP) for AI-specific governance
+  - **DID-to-SVID Mapping**: Links Decentralized Identifiers to hardware-rooted SVIDs
+  - **OPA Policy Enforcement**: Evaluates geo-fence, hardware attestation, and tool authorization rules
+
+#### 2. **Policy Engine (Keylime + OPA)**
+- **Keylime Verifier**: Continuous hardware attestation service
+  - **TPM Quote Verification**: Validates PCR (Platform Configuration Register) measurements against golden values
+  - **Runtime Integrity Monitoring**: Uses IMA/EVM to detect runtime tampering
+  - **Autonomous Revocation**: Automatically revokes SPIRE SVIDs on attestation failure
+- **Open Policy Agent (OPA)**: Rego-based policy decision engine
+  - **Geofence Policy**: `allow_eu_green_zone.rego` - validates ZKP proofs against geographic boundaries (e.g., EU/EEA)
+  - **Tool Authorization Policy**: `mcp_tool_filter.rego` - filters MCP `list_tools` based on SVID claims
+  - **Temporal Policies**: Time-based access control (e.g., "only during business hours")
+
+#### 3. **Identity & Attestation (SPIRE + TPM)**
+- **SPIRE Server**: Centralized SVID issuance and rotation
+  - **Node Attestation**: TPM-based node attestation plugin
+  - **Workload Attestation**: Kubernetes/Docker workload attestor for AI agents
+  - **SVID Claims**: Custom claims include `geo.zone` (e.g., "eu-west"), `hw.type` (e.g., "nvidia-h100"), `compliance.reg-k`
+- **SPIRE Agent**: Deployed on AI agent nodes
+  - **TPM Integration**: Uses TPM 2.0 AIK (Attestation Identity Key) for node identity
+  - **Automatic Rotation**: SVID rotation every 1 hour (configurable)
+  - **Geolocation Attestor**: Custom SPIRE plugin for ZKP-based location claims
+
+#### 4. **Audit & Evidence (OCSF + JSON-LD)**
+- **Evidence Bundle Format**: JSON-LD structured as OCSF events
+  ```json
+  {
+    "@context": "https://schema.ocsf.io/1.0.0",
+    "class_uid": 6001,
+    "activity_name": "MCP Tool Invocation",
+    "svid": "spiffe://aegis.example.com/madrid/agent-123",
+    "hardware_attestation": {
+      "tpm_quote": "<base64-encoded-quote>",
+      "pcr_values": ["sha256:abc123...", ...],
+      "verification_status": "VERIFIED"
+    },
+    "geolocation_proof": {
+      "zkp_type": "range-proof",
+      "compliant_zone": "eu-west-spain",
+      "verification_status": "VERIFIED"
+    },
+    "policy_decision": "ALLOW",
+    "timestamp": "2026-01-26T19:55:46Z"
+  }
+  ```
+- **SIEM Integration**: Export to Splunk, Elastic, or Chronicle via OCSF schema
+
+#### 5. **Legacy API Wrapper (Optional: MCP Server SDK)**
+- For legacy APIs that don't natively support MCP:
+  - **MCP Server Shim**: Lightweight wrapper using the MCP Python/TypeScript SDK
+  - **REST-to-MCP Bridge**: Converts REST endpoints to MCP `tool` definitions
+  - **Example**: Wrap `/api/v1/credit/balance` as `mcp.tools.get_credit_balance(customer_id)`
+
+### Implementation Effort & Timeline
+
+| Component | Effort (Engineering Weeks) | Dependencies |
+|-----------|---------------------------|--------------|
+| **Envoy + SPIRE Integration** | 2-3 weeks | Existing Kubernetes cluster, TLS PKI |
+| **Keylime Deployment** | 1-2 weeks | TPM 2.0 on agent nodes |
+| **OPA Policy Development** | 1 week | Business rules for geo-fencing/tool authz |
+| **CSA AAgate Integration** | 2 weeks | DID infrastructure (if not existing) |
+| **Geolocation ZKP Plugin** | 3-4 weeks | Custom SPIRE attestor development |
+| **OCSF Audit Pipeline** | 1 week | Existing SIEM infrastructure |
+| **MCP Legacy Wrappers** | 1 week per API | Legacy API documentation |
+| **End-to-End Testing** | 2 weeks | Staging environment with TPM hardware |
+| **Total** | **10-14 weeks** | Assumes dedicated 2-engineer team |
+
+### Key Technical Decisions
+
+1. **Why Envoy?** Industry-standard L7 proxy with mature ext_authz ecosystem and native SPIFFE support.
+2. **Why not API Gateway (Kong/Apigee)?** Traditional gateways lack hardware attestation primitives. Envoy's filter chain allows custom TPM quote validation.
+3. **ZKP vs. Encrypted Attestation?** ZKPs provide cryptographic proof without revealing precise GPS coordinates, satisfying GDPR Art. 25 (Data Protection by Design).
+4. **OCSF vs. Custom Logs?** OCSF ensures interoperability with enterprise SIEM/GRC tools (Splunk, ServiceNow, etc.).
+
+---
+
 ### Current PoC Implementation Status
 
 The current PoC implementation provides a complete, **upstream-ready** integration demonstrating **Stage 2: Egress Unified Identity**. This stage secures the **Managed Data Center Infrastructure** (Sovereign Cloud) by ensuring that the on-premise servers and AI workloads are attested before they can release sensitive egress data. This provides the "Server-Side" mathematical proof required for **Use Case 4 (Automated Regulatory Audit)**.
