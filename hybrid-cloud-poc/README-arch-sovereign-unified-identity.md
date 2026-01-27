@@ -6,7 +6,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 👉 **[Sovereign Hybrid Cloud PoC](README.md)**
 
 > [!IMPORTANT]
-> **Implementation Scope**: This documentation covers the complete end-to-end vision. The current PoC implementation focuses on **Stage 2 (Trusted Egress & Managed Infrastructure)**. Sections marked with **[ROADMAP]** describe Stage 1 (Verified Ingress) features.
+> **Implementation Scope**: This documentation covers the complete end-to-end vision. The current PoC implementation focuses on **Stage 2 (Trusted Processing)** and **Stage 3 (Verifiable Egress)**. Sections marked with **[ROADMAP]** describe Stage 1 (Verified Ingress) features.
 
 ## 🚀 Open Source Upstreaming-Ready Design
 
@@ -101,6 +101,77 @@ For Tier-1 Enterprises (e.g., high-compliance organizations like Global Banks), 
 | **Category Geofencing** | O(C) Categories | **O(1)** (Stateless cache in Envoy/WASM) | **Low** (100-500 Standardized Policies) |
 
 **The Enterprise Value:** By defining ~100 standard geofence categories (e.g., `FINANCIAL_HUB_NY`, `EU_RESIDENCY_ZONE`), the enterprise can enforce complex geographic compliance (Reg-K) at wire-speed. The ZKP ensures that while the category is public, the *exact* coordinate remains private to the user's hardware.
+
+---
+
+## Governance, Compliance & Standards
+
+To meet the regulatory bar of an "End-to-End Zero Trust" architecture, AegisSovereignAI aligns each stage of the AI pipeline with industry standards and enterprise-grade requirements.
+
+### Sovereign Trust Loop Mapping
+
+| AI Pipeline Stage | AegisSovereignAI Component | Enterprise/Compliance Requirement | IETF Reference |
+| --- | --- | --- | --- |
+| **Stage 1: Ingress** | **ZKP Location/ID** | Privacy-Preserving KYC / Anti-Fraud | `draft-lkspa-wimse-verifiable-geo-fence` |
+| **Stage 2: Processing**| **Confidential TEE / SPIRE Identity** | Data-in-Use Protection & Immutable Identity | `draft-ietf-rats-architecture` / `draft-ni-a2a-ai-agent` |
+| **Stage 3: Egress** | **SPIRE SVID / Open Policy Agent (OPA)** | Service-to-Service Auth / Data Loss Prevention (DLP) | `RFC 9535 (SPIFFE)` |
+
+### IETF Draft Alignment Summary
+
+| Stage | IETF Draft / Standard | Role in Enterprise Architecture |
+| --- | --- | --- |
+| **Ingress** | `draft-lkspa-wimse-verifiable-geo-fence` | Provides the **"Verifiable Geolocation"** framework for SPIFFE/SPIRE. |
+| **Identity** | `draft-ni-a2a-ai-agent` | Establishes the **Agent Certificate Authority (ACA)** for AI workloads. |
+| **Trust Bridge** | `draft-ietf-rats-architecture` | Defines the **Verifier** and **Relying Party** roles. |
+| **Network** | `RFC 9535 (SPIFFE)` | Ensures **mTLS** between cloud and branch is identity-driven. |
+
+### Silicon-to-Audit Trail
+
+> [!IMPORTANT]
+> **Silicon-to-Audit Compliance**: Regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, Federal Reserve) require verifiable "receipts" for security architecture. AegisSovereignAI provides a continuous **Silicon-to-Audit** trail through:
+> - **Keylime Attestation Logs**: Cryptographic proof of host hardware and software integrity over time.
+> - **SPIRE SVID Issuance Logs**: Immutable records of every workload identity issued, bound to specific hardware measurements.
+> - **WASM Filter Logs**: Granular audit of every access request and the specific hardware-rooted claims that allowed or blocked it.
+
+### Attestation Drift & Day 2 Operations
+
+Maintaining a global hardware fleet requires managing **Attestation Drift**, where hardware updates (BIOS/Firmware/Kernel) change the "Known Good" state:
+- **Continuous Lifecycle Management**: Integration with the **Keylime Verifier** allows for automated updates to the "Golden State" policy when patches are deployed, preventing false positives during maintenance windows.
+- **Hardware Revocation**: If a physical TPM is retired or compromised, the corresponding **Endorsement Key (EK)** is blacklisted in the registrar. This immediately prevents any further SPIRE attestation for that hardware ID.
+- **Dynamic Policy Enforcement**: BIOS-level tampering or unauthorized hardware swaps trigger an immediate measurement mismatch, revoking the agent's SVID and blocking all traffic in the Sovereign AI loop.
+
+### Compromise Detection & Remediation (Unmanaged Devices)
+
+For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the organization (e.g., a Global Bank like JPMC, or a Healthcare Provider) does not control relies on three cryptographic feedback loops:
+
+1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the regulated application's (e.g., a banking or healthcare app) code is untampered.
+2.  **App-Level Integrity Proofs**: The framework uses **ZKP-based circuits** to verify that the AI engagement app is running in a secure, non-debuggable memory space. If an attacker attempts to attach a debugger or intercept the AI prompt, the hardware-rooted "Environment Claim" fails, and the attestation quote is rejected by the Sovereign Cloud.
+3.  **Deterministic SVID Revocation**: Once the **Keylime Verifier** or **Ingress Gateway** detects an integrity mismatch (e.g., a "Golden State" deviation), the device's SVID is immediately and automatically flagged for revocation.
+    *   **Remediation**: The Envoy API Gateway, seeing a revoked or "Hardware-Fail" SVID, returns a **403 Forbidden** for all sensitive PII endpoints. This ensures that a compromised device is cryptographically and instantaneously quarantined from the Sovereign AI Loop, regardless of its management status.
+
+> [!NOTE]
+> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the organization's (e.g., JPMC's or a Defense/Government agency's) security requirements.
+
+### Security & Trust Model Assumptions (IETF RATS Alignment)
+
+To provide "Silicon-to-Audit" guarantees, AegisSovereignAI aligns with the **IETF RATS (Remote Attestation Procedures)** architecture:
+
+1.  **The Trust Anchor (Attester Root)**: We assume the **Device Silicon (TPM/Secure Enclave)** and the **Immutable Boot ROM** are uncompromised. This hardware root of trust is the only component that can sign **Evidence** (Quotes/Claims).
+2.  **Verified Integrity (Static Appraisal)**: Any compromise that persists across reboots (e.g., a modified kernel) is caught during the **Evidence Appraisal** stage. The verifier compares the boot-time hardware quote against the **Reference Integrity Manifest (RIM)**—the "Answer Key" signed by the OEM.
+3.  **Runtime Protection (Dynamic Appraisal)**: For volatile "runtime jailbreaks" that occur after boot, the framework uses **Linux IMA (Integrity Measurement Architecture)**. The system continuously measures every binary, script, and kernel module as they are loaded. If an unauthorized rooting tool or exploit payload is executed, the **Evidence** sent to the verifier will deviate from the **Appraisal Policy**, revoking the SVID within seconds.
+4.  **Mathematical Enforcement**: The system moves the security boundary from *Managerial Trust* (MDM) to *Mathematical Trust* (Remote Attestation). A jailbroken device is not "blocked" from existing; it is simply mathematically incapable of producing the cryptographic proof required to access the organization's Sovereign AI Loop.
+
+#### Scaling: Hardware Key Management & OEM Trust
+
+A common question for Tier-1 institutions is: *"Do we have to manually track every OS update and hash for every customer device?"*
+
+The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests (RIM)**:
+
+1.  **OEM Reference Manifests (RIM)**: This is the **"Answer Key"** provided by the manufacturer (Apple, Google, Microsoft). It contains the *expected* hashes of every official OS and firmware component.
+2.  **The TPM Quote**: This is the **"Actual Snapshot"** produced by the customer's hardware. It reflects the *current* state of the device silicon and kernel.
+3.  **Automated Comparison**: The enterprise **Keylime Verifier** ingests the **signed RIM (Answer Key)** and compares it to the **received Quote (Snapshot)**. 
+4.  **Zero-Touch Verification**: The organization doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
+5.  **Scaling**: This allows high-compliance organizations (e.g., banks) to support billions of unmanaged devices without ever having to manually manage an OS hash. The organization trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
 
 ---
 
@@ -491,7 +562,7 @@ unified_identity_enabled = true  # Default: false
 1. **rust-keylime Agent Registration**
    - The rust-keylime agent starts and registers with the Keylime Registrar
    - The agent generates its TPM Endorsement Key (EK) and Attestation Key (AK)
-   - The registrar stores the agent's UUID, IP address, port, TPM keys, and mTLS certificate
+   - The registrar stores the agent's UUID, IP address (e.g., 10.1.0.11), port, TPM keys, and mTLS certificate
    - The agent is now registered and ready to serve attestation requests
 
 2. **TPM Plugin Server (External Process) Startup**
@@ -546,7 +617,7 @@ unified_identity_enabled = true  # Default: false
 
 9. **Verifier Looks Up Agent Information**
    - The verifier uses the agent UUID to query the Keylime Registrar
-   - The registrar returns the agent's IP address, port, TPM AK, and mTLS certificate
+   - The registrar returns the agent's IP address (e.g., 10.1.0.11), port, TPM AK, and mTLS certificate
    - This allows the verifier to contact the agent directly
 
 10. **Verifier Verifies App Key Certificate Signature**
@@ -2440,7 +2511,7 @@ The "Unified Identity" feature is **fully functional** and has been verified on 
 The delegated certification endpoint (`/certify_app_key`) now includes production-grade security controls:
 
 **Features:**
-- **IP Allowlist**: Configurable list of allowed IPs (default: localhost only)
+- **IP Allowlist**: Configurable list of allowed IPs (e.g., 10.1.0.11; default: localhost only)
 - **Rate Limiting**: Per-IP request limiting (default: 10 requests/minute, 60s sliding windows)
 - **Secure Defaults**: Disabled by default, requires explicit configuration
 

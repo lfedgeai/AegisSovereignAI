@@ -127,7 +127,7 @@ This section provides a step-by-step guide to set up and run the complete hybrid
 
 For a smooth installation, your system should meet the core requirements:
 - **OS**: Ubuntu 22.04 LTS (recommended)
-- **Hardware**: Two machines with static IPs, TPM 2.0 (hardware or software)
+- **Hardware**: Two machines with static IPs (e.g., 10.1.0.11), TPM 2.0 (hardware or software)
 - **Toolchains**: Python 3.10+, Go 1.22+, Rust 1.92+
 
 #### Installation Scripts
@@ -630,67 +630,11 @@ cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud
 
 ## Governance, Compliance & Standards
 
-To meet the regulatory bar of an "End-to-End Zero Trust" architecture, AegisSovereignAI aligns each stage of the AI pipeline with industry standards and enterprise-grade requirements.
+AegisSovereignAI aligns with global standards (IETF RATS, WIMSE) to provide a cryptographically verifiable **Silicon-to-Audit** trail for regulated AI workloads.
 
-### Sovereign Trust Loop Mapping
-| AI Pipeline Stage | AegisSovereignAI Component | Enterprise/Compliance Requirement | IETF Reference |
-| --- | --- | --- | --- |
-| **Ingress** | **ZKP Location/ID** | Privacy-Preserving KYC / Anti-Fraud | `draft-lkspa-wimse-verifiable-geo-fence` |
-| **Processing** | **Confidential TEE** | Data-in-Use Protection | `draft-ietf-rats-architecture` |
-| **Identity** | **DID + SVID (SPIFFE)**| Immutable Workload Identity | `draft-ni-a2a-ai-agent` |
-| **Egress** | **SPIRE SVID / Open Policy Agent (OPA)** | Service-to-Service Auth / Data Loss Prevention (DLP) | `RFC 9535 (SPIFFE)` |
+For details on regulatory mapping (Reg-K, OCC 2021-19), IETF draft alignment, and hardware trust scaling (RIM/OEM Manifests), see:
 
-### IETF Draft Alignment Summary
-| Stage | IETF Draft / Standard | Role in Enterprise Architecture |
-| --- | --- | --- |
-| **Ingress** | `draft-lkspa-wimse-verifiable-geo-fence` | Provides the **"Verifiable Geolocation"** framework for SPIFFE/SPIRE. |
-| **Identity** | `draft-ni-a2a-ai-agent` | Establishes the **Agent Certificate Authority (ACA)** for AI workloads. |
-| **Trust Bridge** | `draft-ietf-rats-architecture` | Defines the **Verifier** and **Relying Party** roles. |
-| **Network** | `RFC 9535 (SPIFFE)` | Ensures **mTLS** between cloud and branch is identity-driven. |
-
-### Silicon-to-Audit Trail
-
-> [!IMPORTANT]
-> **Silicon-to-Audit Compliance**: Regulators (e.g., **Office of the Comptroller of the Currency (OCC)**, Federal Reserve) require verifiable "receipts" for security architecture. AegisSovereignAI provides a continuous **Silicon-to-Audit** trail through:
-- **Keylime Attestation Logs**: Cryptographic proof of host hardware and software integrity over time.
-- **SPIRE SVID Issuance Logs**: Immutable records of every workload identity issued, bound to specific hardware measurements.
-- **WASM Filter Logs**: Granular audit of every access request and the specific hardware-rooted claims that allowed or blocked it.
-
-### Attestation Drift & Day 2 Operations
-Maintaining a global hardware fleet requires managing **Attestation Drift**, where hardware updates (BIOS/Firmware/Kernel) change the "Known Good" state:
-- **Continuous Lifecycle Management**: Integration with the **Keylime Verifier** allows for automated updates to the "Golden State" policy when patches are deployed, preventing false positives during maintenance windows.
-- **Hardware Revocation**: If a physical TPM is retired or compromised, the corresponding **Endorsement Key (EK)** is blacklisted in the registrar. This immediately prevents any further SPIRE attestation for that hardware ID.
-- **Dynamic Policy Enforcement**: BIOS-level tampering or unauthorized hardware swaps trigger an immediate measurement mismatch, revoking the agent's SVID and blocking all traffic in the Sovereign AI loop.
-
-### Compromise Detection & Remediation (Unmanaged Devices)
-For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the organization (e.g., a Global Bank like JPMC, or a Healthcare Provider) does not control relies on three cryptographic feedback loops:
-
-1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the regulated application's (e.g., a banking or healthcare app) code is untampered.
-2.  **App-Level Integrity Proofs**: The framework uses **ZKP-based circuits** to verify that the AI engagement app is running in a secure, non-debuggable memory space. If an attacker attempts to attach a debugger or intercept the AI prompt, the hardware-rooted "Environment Claim" fails, and the attestation quote is rejected by the Sovereign Cloud.
-3.  **Deterministic SVID Revocation**: Once the **Keylime Verifier** or **Ingress Gateway** detects an integrity mismatch (e.g., a "Golden State" deviation), the device's SVID is immediately and automatically flagged for revocation.
-    *   **Remediation**: The Envoy API Gateway, seeing a revoked or "Hardware-Fail" SVID, returns a **403 Forbidden** for all sensitive PII endpoints. This ensures that a compromised device is cryptographically and instantaneously quarantined from the Sovereign AI Loop, regardless of its management status.
-
-> [!NOTE]
-> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the organization's (e.g., JPMC's or a Defense/Government agency's) security requirements.
-
-### Security & Trust Model Assumptions (IETF RATS Alignment)
-To provide "Silicon-to-Audit" guarantees, AegisSovereignAI aligns with the **IETF RATS (Remote Attestation Procedures)** architecture:
-
-1.  **The Trust Anchor (Attester Root)**: We assume the **Device Silicon (TPM/Secure Enclave)** and the **Immutable Boot ROM** are uncompromised. This hardware root of trust is the only component that can sign **Evidence** (Quotes/Claims).
-2.  **Verified Integrity (Static Appraisal)**: Any compromise that persists across reboots (e.g., a modified kernel) is caught during the **Evidence Appraisal** stage. The verifier compares the boot-time hardware quote against the **Reference Integrity Manifest (RIM)**—the "Answer Key" signed by the OEM.
-3.  **Runtime Protection (Dynamic Appraisal)**: For volatile "runtime jailbreaks" that occur after boot, the framework uses **Linux IMA (Integrity Measurement Architecture)**. The system continuously measures every binary, script, and kernel module as they are loaded. If an unauthorized rooting tool or exploit payload is executed, the **Evidence** sent to the verifier will deviate from the **Appraisal Policy**, revoking the SVID within seconds.
-4.  **Mathematical Enforcement**: The system moves the security boundary from *Managerial Trust* (MDM) to *Mathematical Trust* (Remote Attestation). A jailbroken device is not "blocked" from existing; it is simply mathematically incapable of producing the cryptographic proof required to access the organization's Sovereign AI Loop.
-
-#### Scaling: Hardware Key Management & OEM Trust
-A common question for Tier-1 institutions is: *"Do we have to manually track every OS update and hash for every customer device?"*
-
-The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests (RIM)**:
-
-1.  **OEM Reference Manifests (RIM)**: This is the **"Answer Key"** provided by the manufacturer (Apple, Google, Microsoft). It contains the *expected* hashes of every official OS and firmware component.
-2.  **The TPM Quote**: This is the **"Actual Snapshot"** produced by the customer's hardware. It reflects the *current* state of the device silicon and kernel.
-3.  **Automated Comparison**: The enterprise **Keylime Verifier** ingests the **signed RIM (Answer Key)** and compares it to the **received Quote (Snapshot)**. 
-4.  **Zero-Touch Verification**: The organization doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
-5.  **Scaling**: This allows high-compliance organizations (e.g., banks) to support billions of unmanaged devices without ever having to manually manage an OS hash. The organization trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
+👉 **[Governance, Compliance & Standards (Architecture Doc)](README-arch-sovereign-unified-identity.md#governance-compliance--standards)**
 
 ## Components
 

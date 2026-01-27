@@ -110,8 +110,8 @@ The core command requires specifying the Agent's details, the Verifier's locatio
 ```bash
 keylime_tenant \
     -c add \
-    -t <AGENT_IP_ADDRESS> \
-    -v <VERIFIER_IP_ADDRESS> \
+    -t 10.1.0.11 \
+    -v 10.1.0.10 \
     -u $AGENT_UUID \
     --tpm_policy '{"17": "0000000000000000000000000000000000000000"}' \
     -f /path/to/secret.txt \
@@ -123,8 +123,8 @@ keylime_tenant \
 | Option | Value | Description |
 | :--- | :--- | :--- |
 | **`-c add`** | | Specifies the command to **add** a new agent. |
-| **`-t`** | `<AGENT_IP_ADDRESS>` | The **IP address** of the machine where the Keylime Agent is running. |
-| **`-v`** | `<VERIFIER_IP_ADDRESS>` | The **IP address** of the Keylime Verifier service. |
+| **`-t`** | `10.1.0.11` | The **IP address** (e.g., 10.1.0.11) of the machine where the Keylime Agent is running. |
+| **`-v`** | `10.1.0.10` | The **IP address** (e.g., 10.1.0.10) of the Keylime Verifier service. |
 | **`-u`** | `$AGENT_UUID` | The unique **UUID** used to identify this specific agent. |
 | **`--tpm_policy`** | `'{"17": "..."}'` | The expected **TPM policy**. This example dictates that PCR 17 must have a specific, known hash value (which is often all zeros in a clean, initial state). If the Agent's PCRs don't match this policy, the secret is not released. |
 | **`-f`** | `/path/to/secret.txt` | The path to a file containing a **secret** (e.g., a cryptographic key, password, or configuration data). Keylime will encrypt this file and only release it to the Agent if attestation is successful. |
@@ -150,7 +150,7 @@ You only need the **IP address of the Agent** and the **Agent's UUID** that you 
 ```bash
 keylime_tenant \
     -c delete \
-    -t <AGENT_IP_ADDRESS> \
+    -t 10.1.0.11 \
     -u <AGENT_UUID>
 ```
 
@@ -159,7 +159,7 @@ keylime_tenant \
 | Option | Value | Description |
 | :--- | :--- | :--- |
 | **`-c delete`** | | Specifies the command to **delete** (decommission) an agent. |
-| **`-t`** | `<AGENT_IP_ADDRESS>` | The **IP address** of the decommissioned Agent. |
+| **`-t`** | `10.1.0.11` | The **IP address** (e.g., 10.1.0.11) of the decommissioned Agent. |
 | **`-u`** | `<AGENT_UUID>` | The **unique UUID** of the Agent to be removed from the Verifier/Registrar. |
 
 ### Confirmation
@@ -270,7 +270,7 @@ The command is identical to the provisioning command, but uses `-c update`:
 ```bash
 keylime_tenant \
     -c update \
-    -t <AGENT_IP_ADDRESS> \
+    -t 10.1.0.11 \
     -u <AGENT_UUID> \
     --tpm_policy '{"17": "<NEW_PCR_17_HASH>", "18": "<NEW_PCR_18_HASH>"}'
 ```
@@ -341,7 +341,7 @@ The Verifier needs the hash values in a JSON format. You'll need to manually ins
 # Example update command using your new policy JSON
 keylime_tenant \
     -c update \
-    -t <AGENT_IP> \
+    -t 10.1.0.11 \
     -u <AGENT_UUID> \
     --tpm_policy '{"0": "1a2b3c...", "1": "4d5e6f...", "7": "7g8h9i..."}'
 ```
@@ -360,7 +360,7 @@ The IMA log is located in a special kernel filesystem path.
 
 ```bash
 # On the Agent machine:
-scp /sys/kernel/security/ima/ascii_runtime_measurements <USER>@<SECURE_SYSTEM_IP>:/tmp/ima_log.txt
+scp /sys/kernel/security/ima/ascii_runtime_measurements <USER>@10.1.0.10:/tmp/ima_log.txt
 ```
 
 ### **Step 2: Generate the Runtime Policy** (on the Secure System/Tenant)
