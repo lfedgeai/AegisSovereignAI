@@ -175,11 +175,6 @@ After running the installation script:
    source ~/.bashrc
    ```
 
-5. **Verify installation:**
-   ```bash
-   ./check_packages.sh
-   ```
-
 #### Build SPIRE and Keylime Components
 
 After prerequisites are installed, build the required components:
