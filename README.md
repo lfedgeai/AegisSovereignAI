@@ -26,8 +26,6 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ### 4. The Regulator (e.g., Office of the Comptroller of the Currency (OCC), European Central Bank (ECB), or Securities and Exchange Commission (SEC))
 *   **Core Use Case:** **Automated Regulatory Audit.** While traditional audit models provide visibility through coarse data logging, applying this to AI creates a **Privacy Liability Paradox**: the more granular the audit (e.g., logging raw prompts/outputs), the higher the ingestion risk of sensitive PII and proprietary secrets. The **Regulator** requires real-time, cryptographically verifiable proof-of-compliance—demonstrating that: (1) all data ingested into AI systems (training data, Retrieval-Augmented Generation / RAG vector stores) was properly redacted and provenance-verified; (2) every AI interaction across the Enterprise strictly followed mandatory policy (trusted hardware, untampered models, and data residency); all without the liability of raw data ingestion or the exposure of proprietary prompt logic. This supports the reproducibility and documentation principles required by the **Model Risk Management (MRM)** regulatory framework and **Federal Reserve/OCC Supervisory Letter SR 11-7** (Interagency Guidance on Model Risk Management).
 
----
-
 ## Technical Challenges for Addressing Use Cases
 
 To address the above use cases, we must solve the unique technical problems below. Note that the below technical problems are not unique to AI or Financial Services but are especially critical for the security, privacy, and compliance of the above use cases. 
@@ -62,8 +60,6 @@ BYOD devices are unmanaged and unverified, making them a significant security ri
 ### 7. Edge Security Gaps
 Edge nodes are often in untrusted physical locations, making them vulnerable to physical tampering and unauthorized environment modification.
 * **Example (Use Case 2 - Enterprise Employee):** A branch server used by Relationship Managers is physically compromised or stolen. Traditional software-based security cannot detect hardware tampering, allowing attackers to extract AI model weights and sensitive customer PII.
-
----
 
 ## The Three-Layer Trust Architecture: Fusing Silicon, Identity, and Governance
 
