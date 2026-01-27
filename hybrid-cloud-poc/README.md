@@ -82,20 +82,6 @@ This PoC provides end-to-end implementation for **Stage 2 (Trusted Processing) a
 - ✅ Degraded SVID detection (insider threat protection)
 - ✅ mTLS with hardware-bound certificates (workload attestation)
 
-**Roadmap (Architecturally Defined):**
-- 🔲 Privacy-preserving data center audit trail (batch & purge proofs) - See main [README](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
-
-## Operational Implementation Details
-The AegisSovereignAI framework implements this loop through:
-- **Workload Identity Manager** (SPIRE Server) and **Host Identity/Policy Manager** (Keylime) for continuous attestation
-- Cryptographic binding of workload identity, host hardware identity (TPM), platform policy, and location hardware identity (GNSS/mobile sensor) into unified SVIDs
-- Replacement of fragile bearer tokens with hardware-rooted **Proof of Residency (PoR)**, **Proof of Geofencing (PoG)**, and **Zero-Knowledge Proofs (ZKP)** (Gen 4).
-- **Standardization Alignment**: Explicit alignment with **IETF WIMSE (Workload Identity in Multi-Service Environments)**, specifically **`draft-lkspa-wimse-verifiable-geo-fence`**, and **IETF RATS (Remote Attestation Procedures)**. This ensures interoperability with emerging global standards for hardware-rooted geofencing and verifiable proof of residency.
-- **LOB Multi-Tenancy**: This framework enables cryptographically enforced multi-tenancy, ensuring that a Mortgage AI workload cannot access Credit Card data even when running on shared sovereign hardware.
-
-> [!NOTE]
-> **Implementation Status**: The Verified Ingress (Stage 1) architecture is defined and the technical implementation is slated for the immediate roadmap. This PoC currently provides the end-to-end implementation for the Trusted Egress (Stage 2).
-
 ## Architecture Documentation
 
 For the complete technical breakdown of the **Unified Identity & Trust Framework** covering all three stages, see:
@@ -109,150 +95,23 @@ This document provides detailed architecture for:
 
 ![Hybrid Cloud Unified Identity PoC End-to-End Solution Architecture](images/Slide19.PNG)
 
----
+### Future Architectural Components (Roadmap)
 
-## Sovereign MCP Gateway: Technical Deep-Dive
+#### Privacy-Preserving Data Center Audit Trail
+**Status**: 🔲 Architecturally defined, implementation pending
 
-The **Sovereign MCP Gateway** serves as the high-assurance connective tissue between modern AI agents and legacy enterprise APIs. This pattern enables zero-refactoring integration of AI agent frameworks (LangGraph, KAgentI) with on-premises systems while maintaining hardware-rooted trust and regulatory compliance.
+Provide cryptographic proof of compliance without logging sensitive PII or proprietary AI prompts/outputs using batch & purge proofs with Zero-Knowledge techniques.
 
-### Use Case: Multi-Tenant LOB with Cross-Geography Legacy Integration
+👉 **See**: Main [README - Layer 3: AI Governance](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
-**Scenario**: The Credit Card LOB's AI Agent running in Madrid, Spain (Equinix MD2) needs to call a legacy Credit Scoring API hosted in the NYC Sovereign Cloud. The enterprise (JPMC) requires:
-- **Multi-Tenant Isolation**: Cryptographic proof the Credit Card workload cannot access Mortgage LOB data
-- **Reg-K Compliance**: Proof the AI agent is operating in an authorized EU zone
-- **Hardware Attestation**: Verification the agent infrastructure is untampered
-- **Zero Legacy Refactoring**: No changes to the NYC on-prem Scoring API
-- **SR 11-7 Audit Trail**: Cryptographic proof of governance policy enforcement
+#### Sovereign MCP Gateway
+**Status**: 🔲 Foundational infrastructure implemented (~40%), MCP protocol integration pending
 
-### Sequence Diagram: The Sovereign MCP Handshake
+Enable zero-refactoring integration of AI agent frameworks with legacy enterprise APIs. See [MCP Gateway Gap Analysis](MCP-GATEWAY-GAP-ANALYSIS.md) for detailed implementation roadmap (~10-14 weeks estimated effort).
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Agent as Credit Card LOB AI Agent<br/>(LangGraph - Madrid, Spain)
-    participant Gateway as Sovereign MCP Gateway<br/>(Envoy + AAgate)
-    participant Policy as Policy Engine<br/>(Keylime/OPA)
-    participant Legacy as Legacy Credit Scoring API<br/>(NYC Sovereign Cloud)
-    participant Audit as Audit Log<br/>(SIEM/GRC)
+**Use Case**: Credit Card LOB AI Agent (Madrid) → Legacy Credit Scoring API (NYC Sovereign Cloud)
 
-    Note over Agent,Legacy: Trust Handshake Flow
-    
-    Agent->>Agent: Generate SVID with TPM Quote<br/>& Geolocation ZKP
-    Agent->>Gateway: mTLS Request + Sovereign Headers<br/>(SVID, ZKP, MCP tool_call)
-    
-    Note over Gateway: Intercept & Extract
-    Gateway->>Gateway: Extract SVID + Geolocation Claim
-    
-    Gateway->>Policy: Validate Hardware Attestation<br/>"Is silicon untampered?"
-    Policy-->>Gateway: ✓ TPM Quote Verified
-    
-    Gateway->>Policy: Validate Geofence<br/>"Is agent in Madrid Green Zone?"
-    Policy-->>Gateway: ✓ ZKP Verified (Reg-K Compliant)
-    
-    Note over Gateway: Strip Sovereign Headers
-    Gateway->>Legacy: Standard MCP tool_call<br/>(No attestation required)
-    Legacy-->>Gateway: MCP tool_response
-    
-    par Audit Trail
-        Gateway->>Audit: Anchor Evidence Bundle<br/>(SVID + Policy Decision + Timestamp)
-    and Response
-        Gateway-->>Agent: MCP tool_response + Session Token
-    end
-    
-    Note over Agent,Audit: ✓ SR 11-7 Compliant Interaction
-
-    rect rgb(255, 240, 240)
-        Note over Agent,Audit: Failure Scenario: Agent in Morocco (Not EU Green Zone)
-        Agent->>Gateway: mTLS Request (Morocco Geolocation)
-        Gateway->>Policy: Validate Geofence
-        Policy-->>Gateway: ✗ ZKP Failed (Outside EU Green Zone)
-        Gateway->>Audit: Anchor "DENY" Event
-        Gateway-->>Agent: 403 Forbidden (Policy Violation)
-    end
-```
-
-### Implementation Components
-
-The Sovereign MCP Gateway requires the following technical stack:
-
-#### 1. **Gateway Layer (Envoy Proxy + CSA AAgate)**
-- **Envoy Proxy**: L7 proxy with mTLS termination and custom filter extensions
-  - **SPIFFE/SPIRE Integration**: SVID extraction and validation via Envoy External Authorization (ext_authz) filter
-  - **Custom Headers**: Extract `X-Sovereign-SVID`, `X-Geolocation-ZKP`, `X-TPM-Quote` from requests
-- **CSA AAgate**: Policy decision point (PDP) for AI-specific governance
-  - **DID-to-SVID Mapping**: Links Decentralized Identifiers to hardware-rooted SVIDs
-  - **OPA Policy Enforcement**: Evaluates geo-fence, hardware attestation, and tool authorization rules
-
-#### 2. **Policy Engine (Keylime + OPA)**
-- **Keylime Verifier**: Continuous hardware attestation service
-  - **TPM Quote Verification**: Validates PCR (Platform Configuration Register) measurements against golden values
-  - **Runtime Integrity Monitoring**: Uses IMA/EVM to detect runtime tampering
-  - **Autonomous Revocation**: Automatically revokes SPIRE SVIDs on attestation failure
-- **Open Policy Agent (OPA)**: Rego-based policy decision engine
-  - **Geofence Policy**: `allow_eu_green_zone.rego` - validates ZKP proofs against geographic boundaries (e.g., EU/EEA)
-  - **Tool Authorization Policy**: `mcp_tool_filter.rego` - filters MCP `list_tools` based on SVID claims
-  - **Temporal Policies**: Time-based access control (e.g., "only during business hours")
-
-#### 3. **Identity & Attestation (SPIRE + TPM)**
-- **SPIRE Server**: Centralized SVID issuance and rotation
-  - **Node Attestation**: TPM-based node attestation plugin
-  - **Workload Attestation**: Kubernetes/Docker workload attestor for AI agents
-  - **SVID Claims**: Custom claims include `geo.zone` (e.g., "eu-west"), `hw.type` (e.g., "nvidia-h100"), `compliance.reg-k`
-- **SPIRE Agent**: Deployed on AI agent nodes
-  - **TPM Integration**: Uses TPM 2.0 AIK (Attestation Identity Key) for node identity
-  - **Automatic Rotation**: SVID rotation every 1 hour (configurable)
-  - **Geolocation Attestor**: Custom SPIRE plugin for ZKP-based location claims
-
-#### 4. **Audit & Evidence (OCSF + JSON-LD)**
-- **Evidence Bundle Format**: JSON-LD structured as OCSF events
-  ```json
-  {
-    "@context": "https://schema.ocsf.io/1.0.0",
-    "class_uid": 6001,
-    "activity_name": "MCP Tool Invocation",
-    "svid": "spiffe://aegis.example.com/madrid/agent-123",
-    "hardware_attestation": {
-      "tpm_quote": "<base64-encoded-quote>",
-      "pcr_values": ["sha256:abc123...", ...],
-      "verification_status": "VERIFIED"
-    },
-    "geolocation_proof": {
-      "zkp_type": "range-proof",
-      "compliant_zone": "eu-west-spain",
-      "verification_status": "VERIFIED"
-    },
-    "policy_decision": "ALLOW",
-    "timestamp": "2026-01-26T19:55:46Z"
-  }
-  ```
-- **SIEM Integration**: Export to Splunk, Elastic, or Chronicle via OCSF schema
-
-#### 5. **Legacy API Wrapper (Optional: MCP Server SDK)**
-- For legacy APIs that don't natively support MCP:
-  - **MCP Server Shim**: Lightweight wrapper using the MCP Python/TypeScript SDK
-  - **REST-to-MCP Bridge**: Converts REST endpoints to MCP `tool` definitions
-  - **Example**: Wrap `/api/v1/credit/balance` as `mcp.tools.get_credit_balance(customer_id)`
-
-### Implementation Effort & Timeline
-
-| Component | Effort (Engineering Weeks) | Dependencies |
-|-----------|---------------------------|--------------|
-| **Envoy + SPIRE Integration** | 2-3 weeks | Existing Kubernetes cluster, TLS PKI |
-| **Keylime Deployment** | 1-2 weeks | TPM 2.0 on agent nodes |
-| **OPA Policy Development** | 1 week | Business rules for geo-fencing/tool authz |
-| **CSA AAgate Integration** | 2 weeks | DID infrastructure (if not existing) |
-| **Geolocation ZKP Plugin** | 3-4 weeks | Custom SPIRE attestor development |
-| **OCSF Audit Pipeline** | 1 week | Existing SIEM infrastructure |
-| **MCP Legacy Wrappers** | 1 week per API | Legacy API documentation |
-| **End-to-End Testing** | 2 weeks | Staging environment with TPM hardware |
-| **Total** | **10-14 weeks** | Assumes dedicated 2-engineer team |
-
-### Key Technical Decisions
-
-1. **Why Envoy?** Industry-standard L7 proxy with mature ext_authz ecosystem and native SPIFFE support.
-2. **Why not API Gateway (Kong/Apigee)?** Traditional gateways lack hardware attestation primitives. Envoy's filter chain allows custom TPM quote validation.
-3. **ZKP vs. Encrypted Attestation?** ZKPs provide cryptographic proof without revealing precise GPS coordinates, satisfying GDPR Art. 25 (Data Protection by Design).
-4. **OCSF vs. Custom Logs?** OCSF ensures interoperability with enterprise SIEM/GRC tools (Splunk, ServiceNow, etc.).
+**Current Implementation**: ✅ SPIRE/Keylime, ✅ Envoy/WASM, ⚠️ OPA (partial), ❌ MCP SDK/AAgate/OCSF
 
 ---
 
@@ -272,10 +131,8 @@ For a smooth installation, your system should meet the core requirements:
 - **Hardware**: Two machines with static IPs, TPM 2.0 (hardware or software)
 - **Toolchains**: Python 3.10+, Go 1.22+, Rust 1.92+
 
-A comprehensive helper script is provided to automate the installation of all system packages, toolchains, and configurations:
-👉 **[`install_prerequisites.sh`](install_prerequisites.sh)**
-
 #### Installation Scripts
+
 Two helper scripts are provided to simplify setup:
 
 1. **`check_packages.sh`** - Check installed packages and versions:
@@ -298,7 +155,9 @@ Two helper scripts are provided to simplify setup:
 - Install required Python packages
 - Set up TSS group and add user to it
 
-**Important:** After running the installation script, you may need to:
+#### Post-Installation Configuration
+
+After running the installation script:
 
 1. **For Rust:** Run `source $HOME/.cargo/env` or add to `~/.bashrc`:
    ```bash
@@ -310,7 +169,7 @@ Two helper scripts are provided to simplify setup:
    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
    ```
 
-3. **For TSS group:** Log out and back in if you were added to the `tss` group
+3. **For TSS group:** Log out and back in if you were added to the `tss` group (required for TPM access)
 
 4. **Reload shell configuration:**
    ```bash
@@ -322,74 +181,9 @@ Two helper scripts are provided to simplify setup:
    ./check_packages.sh
    ```
 
-### Installation Steps
+#### Build SPIRE and Keylime Components
 
-#### Step 1: Check Current Package Status
-
-Before installing, check what's already installed:
-
-```bash
-# Check local system
-./check_packages.sh
-
-# Check remote system (if needed)
-./check_packages.sh 10.1.0.10
-```
-
-#### Step 2: Install Prerequisites
-
-Install all required packages using the automated script:
-
-```bash
-# Install on local system
-./install_prerequisites.sh
-
-# Install on remote system via SSH
-./install_prerequisites.sh 10.1.0.10
-```
-
-**Note:** The installation script requires sudo access and will prompt for your password.
-
-#### Step 3: Post-Installation Configuration
-
-After installation, configure your environment:
-
-```bash
-# Add Rust to PATH (if Rust was just installed)
-echo 'source $HOME/.cargo/env' >> ~/.bashrc
-
-# Add Go to PATH (if Go was just installed/updated)
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-
-# Reload shell configuration
-source ~/.bashrc
-```
-
-**Important:** If you were added to the `tss` group during installation, **log out and back in** for the group changes to take effect. This is required for TPM access.
-
-#### Step 4: Verify Prerequisites
-
-Ensure all prerequisites are installed correctly:
-
-```bash
-# Verify system packages
-dpkg -l | grep -E "(tpm2|swtpm|libtss2|libssl-dev|python3-dev|build-essential|libclang)"
-
-# Verify toolchains
-python3 --version    # Should show 3.10+
-rustc --version      # Should show 1.91+ (if installed)
-go version           # Should show go1.22+ (if installed)
-
-# Verify Python packages
-python3 -m pip list | grep -E "(spiffe|cryptography|grpcio|protobuf)"
-
-# Verify TPM access
-groups | grep tss    # Should show tss group
-```
-
-#### Step 5: Build SPIRE and Keylime Components
-
-After prerequisites are installed, build the required components (if not already built):
+After prerequisites are installed, build the required components:
 
 ```bash
 # Build SPIRE server and agent
@@ -402,19 +196,15 @@ cd rust-keylime
 cargo build --release
 cd ..
 
-# Build ZKP prover (Plonky2)
+# Build ZKP prover
 cd mobile-sensor-microservice/zkp-prover-plonky2
 cargo build --release
 cd ../..
 ```
 
-**Note:** The test scripts (`test_agents.sh`, `test_onprem.sh`) also provide **automated build-if-needed** logic for these components, detecting source changes in `src/*.rs` to ensure the latest circuit logic is always deployed.
-
-**Note:** Building SPIRE and rust-keylime may take several minutes the first time. Subsequent builds will be faster due to caching.
+**Note:** The test scripts (`test_agents.sh`, `test_onprem.sh`) provide automated build-if-needed logic, detecting source changes to ensure the latest code is always deployed. Building may take several minutes the first time; subsequent builds will be faster due to caching.
 
 #### Troubleshooting Installation
-
-If you encounter issues during installation:
 
 **Rust not found after installation:**
 ```bash
@@ -936,7 +726,7 @@ The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests 
 - **Open Source**: [Envoy Proxy](https://www.envoyproxy.io/)
 ## Documentation
 
-- **[End-to-End Sovereign Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**: The core technical spec for Stage 1 (Ingress) and the Unified Identity pipeline.
+- **[End-to-End Sovereign Unified Identity & Trust Framework](README-arch-sovereign-unified-identity.md)**: The core technical spec for Stage 1 (Verified Ingress) and the Unified Identity pipeline.
 - [Enterprise Private Cloud README](enterprise-private-cloud/README.md) - Detailed setup and architecture
 - [Python App Demo README](python-app-demo/README.md) - Client/server usage
 - [test_agents.sh](test_agents.sh) - Agent services integration test script
@@ -987,66 +777,13 @@ This creates a tmux session with 3 panes showing all logs simultaneously.
 
 ## Demo Script: 3-Act Presentation
 
-For a guided demonstration following the slide deck structure, use the 3-Act demo script:
+For a guided demonstration following the slide deck structure:
 
 ```bash
 ./demo-3-act-presentation.sh
 ```
 
-This script guides the audience through the presentation slides:
+This script automates the 3-Act demonstration flow (Setup → Happy Path → Defense) described in the Demo Act sections above, with automatic pauses and slide references for presentations.
 
-### **Introduction: The Sovereign Challenge**
-*Refer to Slides 1-6*
+**Prerequisites:** All services running on both machines (see Demo Act 1-3 above for details).
 
-- **Slide 1-5**: Introduction and context
-- **Slide 6**: The Problem - A Fragile and Non-Verifiable Security Model
-  - Explains the problem: fragile IP-based geofencing and insider threats
-  - Introduces the Unified Identity solution
-
-### **Act 1: The Setup (Trusted Infrastructure)**
-*Refer to Slide 12: Implementation Architecture*
-
-- Shows the architecture (Sovereign Cloud ↔ On-Prem Private Cloud)
-- Demonstrates Keylime Verifier establishing hardware root of trust with TPM
-- Verifies all services are running
-- **Slide 12** displays the complete end-to-end solution architecture
-
-### **Act 2: The Happy Path (Proof of Geofencing)**
-*Refer to Slides 7 and 19*
-
-- **Slide 7**: The Solution - Zero-Trust, HW-Rooted, Unified Identity
-- Shows SPIRE Agent fetching Unified SVID with:
-  - Workload Attestation (Software identity)
-  - Host Attestation (TPM proof)
-  - Geolocation Proof (From Keylime Agent Plugin)
-- Decodes and displays the SVID certificate structure
-- Demonstrates successful client connection with 200 OK from Envoy
-- Shows WASM Plugin verification of Proof of Geofencing (PoG)
-- **Slide 19** shows the implementation flow
-
-### **Act 3: The Defense (The Rogue Admin)**
-*Refer to Slide 6: Problem - Insider Threats*
-
-- Simulates rogue admin disconnecting USB Mobile Sensor
-- Shows Keylime Agent detecting the USB disconnect event
-- Demonstrates Degraded SVID issuance (valid for network, missing PoR)
-- Shows client reconnection attempt
-- **Key demonstration**: Envoy WASM Plugin returns **403 Forbidden** with error **"Geo Claim Missing"**
-- Proves the system blocks requests when geolocation proof is missing
-- Addresses the insider threat scenario from **Slide 6**
-
-### **Conclusion: Value Delivered**
-*Refer to Slides 13-18*
-
-- Summarizes the move from Phase I (replayable credentials) to Phase II (HW-anchored proofs)
-- Highlights three key achievements:
-  1. Strong Residency Guarantees (auditable)
-  2. Protection against Insider Threats
-  3. Unified Identity bound to physical hardware
-
-**Prerequisites for Demo:**
-- All services running on both machines (see Quick Start Guide above)
-- USB Mobile Sensor connected (for Act 2)
-- Root/sudo access for sensor toggle script
-
-**Note:** The demo script automatically handles sensor disconnection/reconnection for Act 3.
