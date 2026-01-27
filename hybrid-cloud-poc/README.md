@@ -105,15 +105,14 @@ Provide cryptographic proof of compliance without logging sensitive PII or propr
 👉 **See**: Main [README - Layer 3: AI Governance](../README.md#layer-3-ai-governance-verifiable-logic--privacy)
 
 #### Sovereign MCP Gateway
-**Status**: 🔲 Foundational infrastructure implemented (~40%), MCP protocol integration pending
+**Status**: 🔲 Identity infrastructure complete (protocol-agnostic), MCP protocol integration pending
 
 Enable zero-refactoring integration of AI agent frameworks with legacy enterprise APIs. See [MCP Gateway Gap Analysis](MCP-GATEWAY-GAP-ANALYSIS.md) for detailed implementation roadmap (~10-14 weeks estimated effort).
 
 **Use Case**: Credit Card LOB AI Agent (Madrid) → Legacy Credit Scoring API (NYC Sovereign Cloud)
 
-**Current Implementation**: ✅ SPIRE/Keylime, ✅ Envoy/WASM, ⚠️ OPA (partial), ❌ MCP SDK/AAgate/OCSF
-
----
+**Foundation (Protocol-Agnostic)**: ✅ SPIRE/Keylime identity & attestation, ✅ Envoy/WASM gateway  
+**MCP-Specific (Pending)**: ❌ MCP SDK/protocol, ❌ CSA AAgate, ❌ OCSF audit, ⚠️ OPA policies (partial)
 
 ## Implementation Scope
 
