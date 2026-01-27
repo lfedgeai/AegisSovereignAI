@@ -124,8 +124,6 @@ The AegisSovereignAI architecture provides a direct implementation path for glob
 | **Layer 2: Identity** | **Transparency Obligations:** Cryptographic proof of "Who" and "Where" without PII exposure. | **Accountability (MANAGE):** Precise workload/human identity mapping. |
 | **Layer 1: Infrastructure** | **Cybersecurity Standards:** hardware-enforced isolation and TEE-based confidentiality. | **Secure (RESILIENT):** TEE-based model/context shielding from privileged admins. |
 
----
-
 ## Interoperability: The Sovereign Fabric for AI Agent Frameworks
 
 AegisSovereignAI is designed to be framework-agnostic, serving as a secure execution substrate for leading AI Agent orchestrators. While tools like LangGraph and KAgentI manage the reasoning logic and multi-step workflows, AegisSovereignAI provides the **Hardware-Rooted Trust** and **Data Governance** required to move these agents from experimental PoCs to production-ready assets in regulated environments.
@@ -136,10 +134,6 @@ AegisSovereignAI is designed to be framework-agnostic, serving as a secure execu
 | **KAgentI (Sovereign MCP Client)** | **Replay-Proof Agent & Tool Authorization:** Standard MCP implementations rely on replayable Bearer Tokens. Aegis ensures each agent invocation and subsequent MCP tool call is bound to the physical silicon, preventing token replay, impersonation, and "Shadow AI" tool discovery. | **Hardware-Rooted SVID:** Extends KAgentI's native SPIRE support by binding SVIDs to TPM-attested credentials and privacy-preserving geolocation (Layer 2). This ensures the agent identity is cryptographically bound to a specific node, protecting the complete MCP tool execution chain from the orchestrator to the data source. |
 | **Legacy Systems (via Sovereign MCP Gateway)** | **No-Rewrite Legacy Integration:** Provides a secure bridge to internal JPMC tools that do not natively support hardware attestation or the MCP protocol. | **Sovereign Proxy Pattern:** Aegis acts as a Sovereign MCP Gateway—a "Trust Wrapper" around legacy APIs. It performs the silicon-rooted handshake and residency check (Reg-K) on behalf of the legacy tool, ensuring context is only released to verified agents in verified "Green Zones." |
 | **Cloud Security Alliance (CSA) AAGATE** | **Continuous NIST AI RMF Alignment:** Provides a Kubernetes-native control plane for AI governance, operationalizing the NIST AI RMF through policy-based trusted execution. | **DID-to-Silicon Anchor:** AegisSovereignAI anchors CSA AAGATE's Decentralized Identifier (DID) based identity to the physical TPM (Layer 1). This ensures that governance decisions are executed on hardware-verified platforms, preventing "Ghost Gateways" (unauthorized policy interceptors) and ensuring enforcement is anchored in verifiable silicon. |
-
-**For a detailed technical deep-dive on the Sovereign MCP Gateway pattern—including sequence diagrams, implementation components, and integration timelines—see the [Hybrid Cloud PoC: Sovereign MCP Gateway](./hybrid-cloud-poc/README.md#sovereign-mcp-gateway).**
-
----
 
 ## Technical & Auditor Resources
 
