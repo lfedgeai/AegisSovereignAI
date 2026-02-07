@@ -31,6 +31,16 @@ message AegisSovereignAttestation {
 // AttestedClaims contains verified facts from Keylime about the host.
 message AegisAttestedClaims {
     optional AegisGeolocation geolocation = 1;    // Geolocation object with type, sensor_id, and optional value
+    optional AegisMNOEndorsement mno_endorsement = 2; // Gen 4: Signed MNO endorsement
+    optional string sovereignty_receipt = 3;     // Gen 4: ZKP proof of proximity
+}
+
+// Gen 4: MNOEndorsement represents a signed endorsement from a carrier
+message AegisMNOEndorsement {
+    optional bool verified = 1;
+    optional string endorsement_json = 2; // JSON-encoded endorsement data
+    optional string signature = 3;        // EdDSA signature
+    optional string key_id = 4;           // Signing key ID
 }
 
 // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
