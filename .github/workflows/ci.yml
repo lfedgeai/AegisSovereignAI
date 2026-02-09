@@ -149,15 +149,25 @@ jobs:
             - name: Build SPIRE Components
               timeout-minutes: 10
               run: |
-                  echo "=== Building SPIRE ==="
-                  cd hybrid-cloud-poc
-
-                  if [ -f "spire/bin/spire-server" ] && [ -f "spire/bin/spire-agent" ]; then
+                  echo "=== Building SPIRE with Overlay ==="
+                  
+                  # Use SPIRE overlay build system instead of building from fork
+                  if [ -f "build/spire-binaries/spire-server" ] && [ -f "build/spire-binaries/spire-agent" ]; then
                       echo "SPIRE binaries already exist."
                   else
-                      cd spire
-                      make bin/spire-server bin/spire-agent
+                      chmod +x scripts/spire-build.sh
+                      ./scripts/spire-build.sh
                   fi
+                  
+                  # Create symlink for backward compatibility with test scripts
+                  mkdir -p hybrid-cloud-poc/spire/bin
+                  ln -sf "$PWD/build/spire-binaries/spire-server" hybrid-cloud-poc/spire/bin/spire-server
+                  ln -sf "$PWD/build/spire-binaries/spire-agent" hybrid-cloud-poc/spire/bin/spire-agent
+                  
+                  echo "✓ SPIRE binaries available at:"
+                  echo "  - build/spire-binaries/spire-server"
+                  echo "  - build/spire-binaries/spire-agent"
+                  echo "  - hybrid-cloud-poc/spire/bin/ (symlinked)"
 
             - name: Build Rust-Keylime Agent
               timeout-minutes: 15
