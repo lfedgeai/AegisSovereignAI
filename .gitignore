@@ -98,3 +98,7 @@ hybrid-cloud-poc/keylime/cv_data.sqlite
 !hybrid-cloud-poc/**/test/**/testdata/*.pem
 !hybrid-cloud-poc/**/test/**/testdata/*.crt
 !hybrid-cloud-poc/**/test/**/testdata/*.key
+
+# SPIRE Development Environment (temporary, created by spire-dev-setup.sh)
+build/spire-dev/
+spire-overlay/.backup-*/

@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "extraction_date": "2026-01-29T15:21:19Z",
+  "base_spire_version": "unknown",
+  "base_spire_commit": "99e151a1e620e2e7ecf204bc93f5fc931de3107e",
+  "proto_files": 4,
+  "core_patches": 3,
+  "plugin_files": 9,
+  "modules": [
+    {
+      "name": "keylime",
+      "path": "plugins/server-keylime",
+      "type": "server-module",
+      "description": "Keylime verifier integration"
+    },
+    {
+      "name": "policy",
+      "path": "plugins/server-policy",
+      "type": "server-module",
+      "description": "Policy engine for attestation"
+    },
+    {
+      "name": "unifiedidentity-server",
+      "path": "plugins/server-unifiedidentity",
+      "type": "server-module",
+      "description": "Unified identity context and claims"
+    },
+    {
+      "name": "unifiedidentity-agent",
+      "path": "plugins/agent-nodeattestor-unifiedidentity",
+      "type": "agent-plugin",
+      "description": "Unified identity agent attestor"
+    },
+    {
+      "name": "unifiedidentity-composer",
+      "path": "plugins/server-credentialcomposer-unifiedidentity",
+      "type": "server-plugin",
+      "description": "Sovereign SVID credential composer"
+    }
+  ]
+}
