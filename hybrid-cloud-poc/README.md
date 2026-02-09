@@ -119,6 +119,35 @@ Enable zero-refactoring integration of AI agent frameworks with legacy enterpris
 > [!IMPORTANT]
 > The following Quick Start Guide and the associated code provide the full end-to-end implementation for **Stage 2 (Trusted Processing) and Stage 3 (Verifiable Egress)**. This includes the hardware-rooted identity bridge between Sovereign and Private clouds. **Stage 1 (Verified Ingress)** is currently defined as an architectural roadmap.
 
+## SPIRE Overlay Architecture
+
+This project uses a **SPIRE overlay system** to maintain custom modifications without forking the entire SPIRE codebase (99.7% reduction: 50 patch files instead of 17,315 fork files).
+
+### Quick Overview
+
+**Production Build:**
+```bash
+./scripts/spire-build.sh          # Builds SPIRE v1.10.3 with Aegis patches
+ls build/spire-binaries/          # Output: spire-server, spire-agent
+```
+
+**What's Modified:**
+- **Proto API extensions**: Hardware attestation types, sovereign attestation parameters
+- **Core patches**: Attestation endpoints, credential composition, feature flags
+- **Aegis plugins**: Keylime integration, policy engine, unified identity
+
+**Development Workflow** (modifying SPIRE code):
+```bash
+./scripts/spire-dev-setup.sh      # 1. Setup dev environment
+cd build/spire-dev/spire && vim pkg/server/api/agent/v1/service.go  # 2. Make changes
+cd ../../.. && ./scripts/spire-dev-extract.sh   # 3. Extract to patches
+./scripts/spire-dev-cleanup.sh    # 4. Cleanup temp files
+./scripts/spire-build.sh          # 5. Build & test
+```
+*Full guide: [spire-overlay/README.md](../spire-overlay/README.md)*
+
+---
+
 ## Quick Start Guide
 
 This section provides a step-by-step guide to set up and run the complete hybrid cloud unified identity demonstration.
