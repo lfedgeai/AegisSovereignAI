@@ -1640,7 +1640,8 @@ export KEYLIME_AGENT_PORT="${KEYLIME_AGENT_PORT:-9002}"
 echo "  Using rust-keylime agent endpoint: ${KEYLIME_AGENT_IP}:${KEYLIME_AGENT_PORT}"
 
 # Check if SPIRE Server binary exists or needs a rebuild
-SPIRE_SERVER="${PROJECT_DIR}/spire/bin/spire-server"
+# Using SPIRE overlay build system - binaries are in build/spire-binaries/
+SPIRE_SERVER="${PROJECT_DIR}/../build/spire-binaries/spire-server"
 NEEDS_REBUILD=false
 
 if [ ! -f "${SPIRE_SERVER}" ]; then
@@ -1650,10 +1651,10 @@ elif [ "${FORCE_BUILD:-false}" = "true" ]; then
     echo "  Forced build requested."
     NEEDS_REBUILD=true
 else
-    # Check if any .go file in spire directory is newer than the binary
-    # We limit to last 30 days to avoid scanning too many files if something is weird
-    if [ -n "$(find "${PROJECT_DIR}/spire" -name "*.go" -newer "${SPIRE_SERVER}" -print -quit 2>/dev/null)" ]; then
-        echo -e "${YELLOW}  ⚠ SPIRE Source code changes detected, rebuilding...${NC}"
+    # Check if SPIRE overlay patches are newer than binary
+    OVERLAY_DIR="${PROJECT_DIR}/../spire-overlay"
+    if [ -d "${OVERLAY_DIR}" ] && [ -n "$(find "${OVERLAY_DIR}" -name "*.patch" -newer "${SPIRE_SERVER}" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ SPIRE overlay patches modified, need rebuild...${NC}"
         NEEDS_REBUILD=true
     fi
 fi
@@ -1669,44 +1670,35 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         echo -e "${GREEN}============================================================${NC}"
         echo ""
         echo "To complete control plane setup:"
-        echo "  1. Build SPIRE Server: cd ${PROJECT_DIR}/spire && make bin/spire-server"
+        echo "  1. Build SPIRE with overlay: cd ${PROJECT_DIR}/.. && ./scripts/spire-build.sh"
         echo "  2. Run this script again"
         exit 0
     else
-        echo -e "${YELLOW}  ⚠ SPIRE Server binary not found, building...${NC}"
-        cd "${PROJECT_DIR}/spire"
+        echo -e "${YELLOW}  ⚠ SPIRE Server binary not found, building with overlay system...${NC}"
+        cd "${PROJECT_DIR}/.."
 
-        # Ensure required files exist for Makefile
-        if [ ! -f ".go-version" ]; then
-            echo "1.25.3" > .go-version
-        fi
-        if [ ! -f ".spire-tool-versions" ]; then
-            cat > .spire-tool-versions << 'EOF'
-golangci-lint v1.60.0
-markdown_lint v0.40.0
-protoc 30.2
-EOF
-        fi
-
-        # Try building with Makefile first
-        if make bin/spire-server > /tmp/spire-server-build.log 2>&1; then
-            echo -e "${GREEN}  ✓ SPIRE Server built successfully${NC}"
+        # Use SPIRE overlay build system
+        echo "    Building SPIRE with overlay system..."
+        if [ -x "./scripts/spire-build.sh" ]; then
+            ./scripts/spire-build.sh 2>&1 | tee /tmp/spire-overlay-build.log
+            BUILD_EXIT_CODE=${PIPESTATUS[0]}
         else
-            echo -e "${YELLOW}  ⚠ Makefile build failed, trying direct go build...${NC}"
-            # Fallback to direct go build if Makefile fails
-            mkdir -p bin
-            if go build -o bin/spire-server ./cmd/spire-server > /tmp/spire-server-build.log 2>&1; then
-                echo -e "${GREEN}  ✓ SPIRE Server built successfully (using go build)${NC}"
-            else
-                echo -e "${RED}  ✗ Failed to build SPIRE Server${NC}"
-                echo "  Build log:"
-                tail -30 /tmp/spire-server-build.log
-                echo ""
-                echo "  Troubleshooting:"
-                echo "    1. Ensure Go 1.25.3 is installed: go version"
-                echo "    2. Try building manually: cd ${PROJECT_DIR}/spire && make bin/spire-server"
-                exit 1
-            fi
+            echo -e "${RED}    ✗ Build script not found: ./scripts/spire-build.sh${NC}"
+            exit 1
+        fi
+
+        if [ ${BUILD_EXIT_CODE} -eq 0 ] && [ -f "build/spire-binaries/spire-server" ]; then
+            echo -e "${GREEN}    ✓ SPIRE Server built successfully with overlay system${NC}"
+            SPIRE_SERVER="${PROJECT_DIR}/../build/spire-binaries/spire-server"
+        else
+            echo -e "${RED}    ✗ SPIRE overlay build failed${NC}"
+            echo "    Check /tmp/spire-overlay-build.log for details"
+            echo ""
+            echo "  Troubleshooting:"
+            echo "    1. Check if Go is installed: go version"
+            echo "    2. Try building manually: ./scripts/spire-build.sh"
+            echo "    3. Check logs: cat /tmp/spire-overlay-build.log"
+            exit 1
         fi
         cd "${PROJECT_DIR}"
     fi
@@ -1766,19 +1758,21 @@ if [ -f "${SERVER_CONFIG}" ]; then
     # Clean up SPIRE Server data directory and database to ensure fresh start
     echo "    Cleaning up SPIRE Server data and database..."
     rm -rf /tmp/spire-server 2>/dev/null || true
-    # Also clean up database files that might be in the server's working directory
+    # Also clean up database files that might be in working directories
     # The server uses ./data/datastore.sqlite3 relative to where it's run from
-    SERVER_WORK_DIR="${PROJECT_DIR}/spire"
-    if [ -d "${SERVER_WORK_DIR}/.data" ]; then
-        echo "    Removing SPIRE Server database directory: ${SERVER_WORK_DIR}/.data"
-        rm -rf "${SERVER_WORK_DIR}/.data" 2>/dev/null || true
-    fi
-    # Clean up any SQLite database files in the spire directory
-    find "${SERVER_WORK_DIR}" -maxdepth 2 -name "*.sqlite3" -o -name "*.db" 2>/dev/null | while read -r db_file; do
-        if [ -f "$db_file" ]; then
-            echo "    Removing database file: $db_file"
-            rm -f "$db_file" 2>/dev/null || true
+    # Check both old location (if symlinked) and build directory
+    for work_dir in "${PROJECT_DIR}/spire" "${PROJECT_DIR}/../build/spire" "${PROJECT_DIR}" ; do
+        if [ -d "${work_dir}/.data" ]; then
+            echo "    Removing SPIRE Server database directory: ${work_dir}/.data"
+            rm -rf "${work_dir}/.data" 2>/dev/null || true
         fi
+        # Clean up any SQLite database files
+        find "${work_dir}" -maxdepth 2 -name "*.sqlite3" -o -name "*.db" 2>/dev/null | while read -r db_file; do
+            if [ -f "$db_file" ]; then
+                echo "    Removing database file: $db_file"
+                rm -f "$db_file" 2>/dev/null || true
+            fi
+        done
     done
 
     # Create SPIRE Server data directory (required for SQLite database)
