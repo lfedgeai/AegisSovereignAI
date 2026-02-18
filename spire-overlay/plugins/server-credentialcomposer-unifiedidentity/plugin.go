@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -16,7 +18,6 @@ import (
 	configv1 "github.com/spiffe/spire-plugin-sdk/proto/spire/service/common/config/v1"
 	"github.com/spiffe/spire/pkg/common/catalog"
 	"github.com/spiffe/spire/pkg/common/pluginconf"
-	"github.com/spiffe/spire/pkg/server/credtemplate"
 	"github.com/spiffe/spire/pkg/server/keylime"
 	"github.com/spiffe/spire/pkg/server/policy"
 	"github.com/spiffe/spire/pkg/server/unifiedidentity"
@@ -130,7 +131,7 @@ func (p *Plugin) ComposeAgentX509SVID(ctx context.Context, req *credentialcompos
 	}
 
 	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := credtemplate.AttestedClaimsExtension(claims, unifiedJSON)
+		ext, err := attestedClaimsExtension(claims, unifiedJSON)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
 		}
@@ -160,7 +161,7 @@ func (p *Plugin) ComposeWorkloadX509SVID(ctx context.Context, req *credentialcom
 	}
 
 	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := credtemplate.AttestedClaimsExtension(claims, unifiedJSON)
+		ext, err := attestedClaimsExtension(claims, unifiedJSON)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
 		}
@@ -307,6 +308,7 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 		Geolocation:        protoGeo,
 		MnoEndorsement:     protoMNO,
 		SovereigntyReceipt: keylimeClaims.SovereigntyReceipt,
+	}
 
 	// Build unified identity JSON
 	var workloadKeyPEM string
@@ -330,6 +332,26 @@ func buildLocalWorkloadClaims(sa *types.SovereignAttestation, spiffeID string, k
 	// For workload SVIDs, we inherit the attestation evidence from the agent SVID
 	// but don't send it to Keylime for verification (scalability)
 	unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, nil)
+	return unifiedJSON, err
+}
+
+// attestedClaimsOID is the OID for the AegisSovereignAI attested claims X.509 extension.
+// Arc: 1.3.6.1.4.1 (private enterprise), 57264 (Sigstore arc used as placeholder).
+// Production deployments should register a formal IANA Private Enterprise Number.
+var attestedClaimsOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 57264, 1, 100}
+
+// attestedClaimsExtension encodes unified identity attestation data as a pkix.Extension.
+// The extension value is the raw unifiedJSON bytes (JSON-encoded sovereign identity claims).
+func attestedClaimsExtension(_ *types.AttestedClaims, unifiedJSON []byte) (pkix.Extension, error) {
+	if len(unifiedJSON) == 0 {
+		// Return a zero-value extension; callers check ext.Id != nil before appending.
+		return pkix.Extension{}, nil
+	}
+	return pkix.Extension{
+		Id:       attestedClaimsOID,
+		Critical: false,
+		Value:    unifiedJSON,
+	}, nil
 }
 
 func publicKeyToPEM(pub crypto.PublicKey) (string, error) {

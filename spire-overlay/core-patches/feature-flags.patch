@@ -1,84 +1,71 @@
-diff --git a/hybrid-cloud-poc/spire/pkg/common/fflag/fflag.go b/hybrid-cloud-poc/spire/pkg/common/fflag/fflag.go
-new file mode 100644
-index 00000000..022c950a
---- /dev/null
-+++ b/hybrid-cloud-poc/spire/pkg/common/fflag/fflag.go
-@@ -0,0 +1,138 @@
-+// The fflag package implements a basic singleton pattern for the purpose of
-+// providing SPIRE with a system-wide feature flagging facility. Feature flags
-+// can be easily added here, in a single central location, and be consumed
-+// throughout the codebase.
-+package fflag
-+
-+import (
-+	"errors"
-+	"fmt"
-+	"sort"
+--- a/pkg/common/fflag/fflag.go	2026-02-18 20:52:47
++++ b/pkg/common/fflag/fflag.go	2026-02-18 20:51:53
+@@ -8,6 +8,7 @@
+ 	"errors"
+ 	"fmt"
+ 	"sort"
 +	"strings"
-+	"sync"
-+)
-+
-+// Flag represents a feature flag and its configuration name
-+type Flag string
-+
-+// RawConfig is a list of feature flags that should be flipped on, in their string
-+// representations. It is loaded directly from the config file.
-+type RawConfig []string
-+
-+// To add a feature flag, decleare it here along with its config name.
-+// Then, add it to the `flags` package-level singleton map below, setting the
+ 	"sync"
+ )
+ 
+@@ -20,16 +21,23 @@
+ 
+ // To add a feature flag, decleare it here along with its config name.
+ // Then, add it to the `flags` package-level singleton map below, setting the
+-// appropriate default value. Flags should always be opt-in and default to
+-// false, with the only exception being flags that are in the process of being
+-// deprecated.
 +// appropriate default value. Flags should generally be opt-in and default to
 +// false, with exceptions for flags that are enabled by default (e.g., Unified-Identity).
 +// Flags that default to true can be explicitly disabled via config using "-FlagName" syntax.
-+const (
-+	// FlagTestFlag is defined purely for testing purposes.
-+	FlagTestFlag Flag = "i_am_a_test_flag"
-+
+ const (
+ 	// FlagTestFlag is defined purely for testing purposes.
+ 	FlagTestFlag Flag = "i_am_a_test_flag"
+ 
+-	// FlagWITSVID controls if WIT-SVID and the APIs for it are enabled. When set
+-	// to false all WIT-SVID APIs will return Unimplemented.
 +	// Unified-Identity - Setup: SPIRE API & Policy Staging (Stubbed Keylime)
 +	// FlagUnifiedIdentity enables the Unified Identity feature for Sovereign AI,
 +	// which includes SPIRE API changes for SovereignAttestation and policy
 +	// evaluation logic. This flag is enabled by default but can be explicitly
 +	// disabled via configuration for backward compatibility.
++	// FlagWITSVID controls if WIT-SVID and the APIs for it are enabled.
++	// When set to false all WIT-SVID APIs will return Unimplemented.
+ 	FlagWITSVID Flag = "wit-svid"
++
 +	FlagUnifiedIdentity Flag = "Unified-Identity"
-+)
-+
-+var (
-+	singleton = struct {
-+		flags  map[Flag]bool
-+		loaded bool
-+		mtx    *sync.RWMutex
-+	}{
-+		flags: map[Flag]bool{
+ )
+ 
+ var (
+@@ -39,8 +47,9 @@
+ 		mtx    *sync.RWMutex
+ 	}{
+ 		flags: map[Flag]bool{
+-			FlagTestFlag: false,
+-			FlagWITSVID:  false,
 +			FlagTestFlag:        false,
++			FlagWITSVID:         false,
 +			FlagUnifiedIdentity: true, // Unified-Identity - Setup: SPIRE API & Policy Staging (Stubbed Keylime) - Enabled by default
-+		},
-+		loaded: false,
-+		mtx:    new(sync.RWMutex),
-+	}
-+)
-+
-+// Load initializes the fflag package and configures its feature flag state
-+// based on the configuration input. Feature flags are designed to be
-+// Write-Once-Read-Many, and as such, Load can be called only once (except when Using Unload function
-+// for test scenarios, which will reset states enabling Load to be called again).
-+// Load will return an error if it is called more than once, if the configuration input
-+// cannot be parsed, or if an unrecognized flag is set.
+ 		},
+ 		loaded: false,
+ 		mtx:    new(sync.RWMutex),
+@@ -53,6 +62,9 @@
+ // for test scenarios, which will reset states enabling Load to be called again).
+ // Load will return an error if it is called more than once, if the configuration input
+ // cannot be parsed, or if an unrecognized flag is set.
 +// 
 +// Unified-Identity: Flags can be explicitly disabled by prefixing with "-" (e.g., "-Unified-Identity")
 +// to disable a flag that defaults to enabled.
-+func Load(rc RawConfig) error {
-+	singleton.mtx.Lock()
-+	defer singleton.mtx.Unlock()
-+
-+	if singleton.loaded {
-+		return errors.New("feature flags have already been loaded")
-+	}
-+
-+	badFlags := []string{}
-+	goodFlags := []Flag{}
+ func Load(rc RawConfig) error {
+ 	singleton.mtx.Lock()
+ 	defer singleton.mtx.Unlock()
+@@ -63,7 +75,20 @@
+ 
+ 	badFlags := []string{}
+ 	goodFlags := []Flag{}
 +	disabledFlags := []Flag{}
 +	
-+	for _, rawFlag := range rc {
+ 	for _, rawFlag := range rc {
 +		// Unified-Identity: Support explicit disabling with "-" prefix
 +		if strings.HasPrefix(rawFlag, "-") {
 +			flagName := rawFlag[1:]
@@ -90,221 +77,48 @@ index 00000000..022c950a
 +			continue
 +		}
 +		
-+		if _, ok := singleton.flags[Flag(rawFlag)]; !ok {
-+			badFlags = append(badFlags, rawFlag)
-+			continue
-+		}
-+
-+		goodFlags = append(goodFlags, Flag(rawFlag))
-+	}
-+
-+	if len(badFlags) > 0 {
-+		sort.Strings(badFlags)
-+		return fmt.Errorf("unknown feature flag(s): %v", badFlags)
-+	}
-+
+ 		if _, ok := singleton.flags[Flag(rawFlag)]; !ok {
+ 			badFlags = append(badFlags, rawFlag)
+ 			continue
+@@ -77,9 +102,15 @@
+ 		return fmt.Errorf("unknown feature flag(s): %v", badFlags)
+ 	}
+ 
 +	// Set explicitly enabled flags to true
-+	for _, f := range goodFlags {
-+		singleton.flags[f] = true
-+	}
+ 	for _, f := range goodFlags {
+ 		singleton.flags[f] = true
+ 	}
 +	
 +	// Unified-Identity: Explicitly disable flags that were prefixed with "-"
 +	for _, f := range disabledFlags {
 +		singleton.flags[f] = false
 +	}
-+
-+	singleton.loaded = true
-+	return nil
-+}
-+
-+// Unload resets the feature flags states to its default values. This function is intended to be used for testing
-+// purposes only, it is not expected to be called by the normal execution of SPIRE.
+ 
+ 	singleton.loaded = true
+ 	return nil
+@@ -87,18 +118,18 @@
+ 
+ // Unload resets the feature flags states to its default values. This function is intended to be used for testing
+ // purposes only, it is not expected to be called by the normal execution of SPIRE.
 +// If called before Load, it will reset flags to their defaults (useful for test setup).
-+func Unload() error {
-+	singleton.mtx.Lock()
-+	defer singleton.mtx.Unlock()
-+
+ func Unload() error {
+ 	singleton.mtx.Lock()
+ 	defer singleton.mtx.Unlock()
+ 
+-	if !singleton.loaded {
+-		return errors.New("feature flags have not been loaded")
+-	}
 +	// Unified-Identity: Reset flags to their default values
 +	// FlagTestFlag defaults to false
 +	// FlagUnifiedIdentity defaults to true (enabled by default)
 +	singleton.flags[FlagTestFlag] = false
++	singleton.flags[FlagWITSVID] = false
 +	singleton.flags[FlagUnifiedIdentity] = true
-+
-+	singleton.loaded = false
-+	return nil
-+}
-+
-+// IsSet can be used to determine whether a particular feature flag is
-+// set.
-+func IsSet(f Flag) bool {
-+	singleton.mtx.RLock()
-+	defer singleton.mtx.RUnlock()
-+
-+	return singleton.flags[f]
-+}
-diff --git a/hybrid-cloud-poc/spire/pkg/common/fflag/fflag_test.go b/hybrid-cloud-poc/spire/pkg/common/fflag/fflag_test.go
-new file mode 100644
-index 00000000..7b90ef33
---- /dev/null
-+++ b/hybrid-cloud-poc/spire/pkg/common/fflag/fflag_test.go
-@@ -0,0 +1,160 @@
-+package fflag
-+
-+import (
-+	"testing"
-+
-+	"github.com/spiffe/spire/test/spiretest"
-+	"github.com/stretchr/testify/assert"
-+)
-+
-+func TestLoadOnce(t *testing.T) {
-+	reset()
-+
-+	config := []string{}
-+	err := Load(config)
-+	if err != nil {
-+		t.Fatalf("unexpected error: %v", err)
-+	}
-+
-+	config = append(config, "i_am_a_test_flag")
-+	err = Load(config)
-+	if err == nil {
-+		t.Fatal("expected an error when loading for the second time but got none")
-+	}
-+
-+	if IsSet(FlagTestFlag) {
-+		t.Fatalf("expected test flag to be undisturbed after error but it was not")
-+	}
-+
-+	reset()
-+}
-+
-+func TestLoad(t *testing.T) {
-+	cases := []struct {
-+		name        string
-+		config      []string
-+		expectError bool
-+		expectSet   []Flag
-+		expectUnset []Flag
-+	}{
-+		{
-+			name:        "loads with no flags set",
-+			config:      []string{},
-+			expectError: false,
-+		},
-+		{
-+			name:        "loads with the test flag set",
-+			config:      []string{"i_am_a_test_flag"},
-+			expectError: false,
-+			expectSet:   []Flag{FlagTestFlag},
-+		},
-+		{
-+			name:        "does not load when bad flags are set",
-+			config:      []string{"non_existent_flag"},
-+			expectError: true,
-+		},
-+		{
-+			name:        "does not load when bad flags are set alongside good ones",
-+			config:      []string{"i_am_a_test_flag", "non_existent_flag"},
-+			expectError: true,
-+			expectUnset: []Flag{FlagTestFlag},
-+		},
-+		{
-+			name:        "does not change the default value",
-+			config:      []string{},
-+			expectError: false,
-+			expectUnset: []Flag{FlagTestFlag},
-+		},
-+	}
-+
-+	for _, c := range cases {
-+		reset()
-+
-+		t.Run(c.name, func(t *testing.T) {
-+			err := Load(c.config)
-+			if err != nil && !c.expectError {
-+				t.Errorf("unexpected error: %v", err)
-+			}
-+
-+			if err == nil && c.expectError {
-+				t.Error("expected error but got none")
-+			}
-+
-+			for _, f := range c.expectSet {
-+				if !IsSet(f) {
-+					t.Errorf("expected flag %q to be set but it was not", f)
-+				}
-+			}
-+
-+			for _, f := range c.expectUnset {
-+				if IsSet(f) {
-+					t.Errorf("expected flag %q to be unset but it was set", f)
-+				}
-+			}
-+		})
-+	}
-+
-+	reset()
-+}
-+
-+func TestUnload(t *testing.T) {
-+	type want struct {
-+		errStr        string
-+		unloadedFlags []Flag
-+	}
-+	tests := []struct {
-+		name  string
-+		setup func()
-+		want  want
-+	}{
-+		{
-+			name: "unload without loading",
-+			setup: func() {
-+				singleton.mtx.Lock()
-+				defer singleton.mtx.Unlock()
-+				singleton.loaded = false
-+			},
-+			want: want{
-+				// Unload now allows unloading even when not loaded (resets to defaults)
-+				errStr: "",
-+			},
-+		},
-+		{
-+			name: "unload after loading",
-+			setup: func() {
-+				singleton.mtx.Lock()
-+				defer singleton.mtx.Unlock()
-+				singleton.loaded = true
-+				singleton.flags[FlagTestFlag] = true
-+			},
-+			want: want{
-+				unloadedFlags: []Flag{FlagTestFlag},
-+			},
-+		},
-+	}
-+	for _, testCase := range tests {
-+		t.Run(testCase.name, func(t *testing.T) {
-+			testCase.setup()
-+			err := Unload()
-+			if testCase.want.errStr == "" {
-+				assert.NoError(t, err)
-+			} else {
-+				spiretest.AssertErrorContains(t, err, testCase.want.errStr)
-+			}
-+			for _, flag := range testCase.want.unloadedFlags {
-+				assert.False(t, IsSet(flag))
-+			}
-+		})
-+	}
-+}
-+
-+func reset() {
-+	singleton.mtx.Lock()
-+	defer singleton.mtx.Unlock()
-+
-+	for k := range singleton.flags {
-+		singleton.flags[k] = false
-+	}
-+
-+	singleton.loaded = false
-+}
+ 
+-	for f := range singleton.flags {
+-		singleton.flags[f] = false
+-	}
+-
+ 	singleton.loaded = false
+ 	return nil
+ }

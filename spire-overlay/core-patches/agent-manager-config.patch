@@ -1,0 +1,19 @@
+--- a/pkg/agent/manager/config.go	2026-02-18 20:04:06
++++ b/pkg/agent/manager/config.go	2026-02-03 02:43:23
+@@ -35,7 +35,7 @@
+ 	Metrics                  telemetry.Metrics
+ 	ServerAddr               string
+ 	Storage                  storage.Storage
+-	TrustBundleSources       trustbundlesources.Bundle
++	TrustBundleSources       *trustbundlesources.Bundle
+ 	RebootstrapMode          string
+ 	RebootstrapDelay         time.Duration
+ 	WorkloadKeyType          workloadkey.KeyType
+@@ -90,6 +90,7 @@
+ 		Reattestable:     c.Reattestable,
+ 		RotationStrategy: c.RotationStrategy,
+ 		TLSPolicy:        c.TLSPolicy,
++		Catalog:          c.Catalog,
+ 	}
+ 	svidRotator, client := svid.NewRotator(rotCfg)
+ 
