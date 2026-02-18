@@ -1758,22 +1758,8 @@ if [ -f "${SERVER_CONFIG}" ]; then
     # Clean up SPIRE Server data directory and database to ensure fresh start
     echo "    Cleaning up SPIRE Server data and database..."
     rm -rf /tmp/spire-server 2>/dev/null || true
-    # Also clean up database files that might be in working directories
-    # The server uses ./data/datastore.sqlite3 relative to where it's run from
-    # Check both old location (if symlinked) and build directory
-    for work_dir in "${PROJECT_DIR}/spire" "${PROJECT_DIR}/../build/spire" "${PROJECT_DIR}" ; do
-        if [ -d "${work_dir}/.data" ]; then
-            echo "    Removing SPIRE Server database directory: ${work_dir}/.data"
-            rm -rf "${work_dir}/.data" 2>/dev/null || true
-        fi
-        # Clean up any SQLite database files
-        find "${work_dir}" -maxdepth 2 -name "*.sqlite3" -o -name "*.db" 2>/dev/null | while read -r db_file; do
-            if [ -f "$db_file" ]; then
-                echo "    Removing database file: $db_file"
-                rm -f "$db_file" 2>/dev/null || true
-            fi
-        done
-    done
+    # The server config uses data_dir = "/tmp/spire-data/server" - clean that directly
+    rm -rf /tmp/spire-data/server 2>/dev/null || true
 
     # Create SPIRE Server data directory (required for SQLite database)
     # Config file uses data_dir = "/tmp/spire-data/server"
