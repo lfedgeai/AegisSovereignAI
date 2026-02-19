@@ -1734,6 +1734,28 @@ class VerifyEvidenceHandler(BaseHandler):
         agent_uuid = data.get('agent_uuid')
         agent_mtls_cert = data.get('agent_mtls_cert')
 
+        # Diagnostic: log exact values received from SPIRE server
+        logger.info(
+            "Unified-Identity: Received verify/evidence request - "
+            "nonce_len=%d quote_len=%d app_key_public_len=%d "
+            "app_key_certificate_len=%d tpm_ak_len=%d tpm_ek_len=%d "
+            "agent_uuid=%s agent_ip=%s agent_port=%s",
+            len(nonce) if nonce else 0,
+            len(quote) if quote else 0,
+            len(app_key_public) if app_key_public else 0,
+            len(app_key_certificate) if app_key_certificate else 0,
+            len(tpm_ak) if tpm_ak else 0,
+            len(tpm_ek) if tpm_ek else 0,
+            agent_uuid, agent_ip, agent_port,
+        )
+        if app_key_certificate:
+            logger.info(
+                "Unified-Identity: app_key_certificate preview (first 100): %.100s",
+                app_key_certificate,
+            )
+        else:
+            logger.warning("Unified-Identity: app_key_certificate is EMPTY in incoming request from SPIRE server")
+
         if not nonce:
             logger.error("Unified-Identity: Missing required field 'nonce'")
             web_util.echo_json_response(self, 400, 'missing required field: data.nonce')

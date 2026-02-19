@@ -226,7 +226,9 @@ class DelegatedCertificationClient:
                         agent_uuid = self._fetch_agent_uuid()
                     if cert_b64:
                         logger.info(
-                            "Unified-Identity: App Key certificate received successfully from rust-keylime agent"
+                            "Unified-Identity: App Key certificate received successfully from rust-keylime agent (cert_b64 len=%d, preview=%.80s)",
+                            len(cert_b64),
+                            cert_b64,
                         )
                         return (True, cert_b64, agent_uuid, None)
                     logger.error(
@@ -355,7 +357,12 @@ class DelegatedCertificationClient:
 
         # Try to find the verifier's client certificate
         # The verifier's client cert is in the Keylime cv_ca directory
-        keylime_dir = os.getenv("KEYLIME_DIR", "/home/mw/AegisSovereignAI/hybrid-cloud-poc/keylime")
+        # Derive keylime dir relative to this file's location (hybrid-cloud-poc/tpm-plugin/ -> hybrid-cloud-poc/keylime/)
+        # Override via KEYLIME_DIR env var if needed
+        _file_based_keylime_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "keylime"
+        )
+        keylime_dir = os.getenv("KEYLIME_DIR", _file_based_keylime_dir)
         client_cert_path = os.path.join(keylime_dir, "cv_ca", "client-cert.crt")
         client_key_path = os.path.join(keylime_dir, "cv_ca", "client-private.pem")
         ca_cert_path = os.path.join(keylime_dir, "cv_ca", "cacert.crt")

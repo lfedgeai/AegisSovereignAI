@@ -225,6 +225,17 @@ else
     # Send HTTP Request via OpenSSL
     # We pipe the request body to emulate the client request
     # GET /hello is what the python app sends
+    # Pre-flight check: verify TLS is active on the target port before attempting mTLS.
+    # A plain-HTTP response (any HTTP status) means a non-TLS service is on the port.
+    _PLAIN_STATUS=$(curl -s -m 3 --max-filesize 2000 \
+        -o /tmp/_port_probe_body.txt \
+        -w '%{http_code}' \
+        "http://${SERVER_HOST}:${SERVER_PORT}/" 2>/dev/null || echo '000')
+    if [ "${_PLAIN_STATUS}" != "000" ]; then
+        echo -e "${YELLOW}  ⚠ WARNING: ${SERVER_HOST}:${SERVER_PORT} responded to plain HTTP (HTTP ${_PLAIN_STATUS}) — Envoy may be down or replaced${NC}"
+        head -3 /tmp/_port_probe_body.txt 2>/dev/null | sed 's/^/    /'
+    fi
+
     echo "Sending request via OpenSSL..."
     HTTP_RESPONSE=$(echo -e "GET /hello HTTP/1.1\r\nHost: localhost\r\nUser-Agent: OpenSSL-Test\r\nConnection: close\r\n\r\n" | openssl s_client -connect ${SERVER_HOST}:${SERVER_PORT} -cert /tmp/svid-dump/svid.pem -key /tmp/svid-dump/svid-key.pem -CAfile ${CA_CERT_PATH} -quiet 2>&1)
     HTTP_EXIT_CODE=0
