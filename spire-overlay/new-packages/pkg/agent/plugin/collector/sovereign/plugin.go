@@ -111,6 +111,14 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 }
 
 func (p *Plugin) CollectSovereignAttestation(ctx context.Context, nonce string) (*types.SovereignAttestation, error) {
+	// When no nonce is provided (e.g. workload SVID renewal, not a server challenge),
+	// there is nothing to attest against — return nil without error so the caller
+	// can proceed without sovereign attestation data.
+	if nonce == "" {
+		p.log.Debug("CollectSovereignAttestation: no nonce provided, skipping TPM attestation")
+		return nil, nil
+	}
+
 	p.mu.RLock()
 	tpmPlugin := p.tpmPlugin
 	p.mu.RUnlock()
