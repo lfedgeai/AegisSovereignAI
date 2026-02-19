@@ -127,7 +127,7 @@ This project uses a **SPIRE overlay system** to maintain custom modifications wi
 
 **Production Build:**
 ```bash
-./scripts/spire-build.sh          # Builds SPIRE v1.10.3 with Aegis patches
+./scripts/spire-build.sh          # Builds SPIRE v1.14.1 with Aegis patches
 ls build/spire-binaries/          # Output: spire-server, spire-agent
 ```
 

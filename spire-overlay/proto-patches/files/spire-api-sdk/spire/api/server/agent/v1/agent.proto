@@ -183,7 +183,7 @@ message AttestAgentResponse {
 	bool reattestable = 2;
 
 	// Unified-Identity - Phase 1: Optional AttestedClaims returned from Keylime and policy evaluation.
-	repeated spire.api.types.AegisAttestedClaims aegis_attested_claims = 3;
+	repeated spire.api.types.AttestedClaims attested_claims = 3;
     }
 
     oneof step {
@@ -207,13 +207,13 @@ message RenewAgentResponse {
 
     // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
     // Optional AttestedClaims returned from Keylime and policy evaluation.
-    repeated spire.api.types.AegisAttestedClaims aegis_attested_claims = 2;
+    repeated spire.api.types.AttestedClaims attested_claims = 2;
 
     // Unified-Identity - Phase 3: Hardware Integration & Delegated Certification
     // Optional challenge nonce for TPM Quote generation. If present, the agent
-    // should use this nonce to build AegisSovereignAttestation and call RenewAgent again.
+    // should use this nonce to build SovereignAttestation and call RenewAgent again.
     // This enables the server to ensure freshness of TPM attestation.
-    optional bytes aegis_challenge_nonce = 3;
+    bytes challenge_nonce = 3;
 }
 
 message CreateJoinTokenRequest {
@@ -237,8 +237,8 @@ message AgentX509SVIDParams {
     bytes csr = 1;
 
     // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-    // Optional AegisSovereignAttestation payload sent by the agent during bootstrap/renewal.
-    optional spire.api.types.AegisSovereignAttestation aegis_sovereign_attestation = 2;
+    // Optional SovereignAttestation payload sent by the agent during bootstrap/renewal.
+    spire.api.types.SovereignAttestation sovereign_attestation = 2;
 }
 
 message PostStatusRequest {

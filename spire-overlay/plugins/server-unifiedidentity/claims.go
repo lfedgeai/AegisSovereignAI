@@ -73,87 +73,32 @@ func BuildClaimsJSON(spiffeID, keySource, workloadPublicKeyPEM string, sovereign
 				"tpm-attested-pcr-index": pcrIndex,
 			}
 
-			// Gen 4: Add ZKP sovereignty receipt if present
-			if attestedClaims.SovereigntyReceipt != "" {
-				geoObj["sovereignty_receipt"] = attestedClaims.SovereigntyReceipt
-			}
-
-			// Gen 4: Add MNO endorsement if present
-			if attestedClaims.MnoEndorsement != nil {
-				mnoObj := map[string]any{
-					"verified": attestedClaims.MnoEndorsement.Verified,
-				}
-				if attestedClaims.MnoEndorsement.EndorsementJson != "" {
-					mnoObj["endorsement_json"] = attestedClaims.MnoEndorsement.EndorsementJson
-				}
-				if attestedClaims.MnoEndorsement.Signature != "" {
-					mnoObj["signature"] = attestedClaims.MnoEndorsement.Signature
-				}
-				if attestedClaims.MnoEndorsement.KeyId != "" {
-					mnoObj["key_id"] = attestedClaims.MnoEndorsement.KeyId
-				}
-				geoObj["mno_endorsement"] = mnoObj
-			}
-
 			// 1. Mobile-Specific Claims (Nested)
 			if geo.Type == "mobile" {
-				mobileObj := map[string]any{}
-				if geo.SensorId != "" {
-					mobileObj["sensor_id"] = geo.SensorId
+				geoObj["mobile"] = map[string]any{
+					"sensor_id":   geo.SensorId,
+					"sensor_imei": geo.SensorImei,
+					"sim_imsi":    geo.SensorImsi,
+					"sim_msisdn":  geo.SensorMsisdn,
+					"location_verification": map[string]any{
+						"latitude":  geo.Latitude,
+						"longitude": geo.Longitude,
+						"accuracy":  geo.Accuracy,
+					},
 				}
-				if geo.SensorImei != "" {
-					mobileObj["sensor_imei"] = geo.SensorImei
-				}
-				if geo.SensorImsi != "" {
-					mobileObj["sim_imsi"] = geo.SensorImsi
-				}
-				if geo.SensorMsisdn != "" {
-					mobileObj["sim_msisdn"] = geo.SensorMsisdn
-				}
-				locationVerif := map[string]any{}
-				if geo.Latitude != 0 {
-					locationVerif["latitude"] = geo.Latitude
-				}
-				if geo.Longitude != 0 {
-					locationVerif["longitude"] = geo.Longitude
-				}
-				if geo.Accuracy != 0 {
-					locationVerif["accuracy"] = geo.Accuracy
-				}
-				if len(locationVerif) > 0 {
-					mobileObj["location_verification"] = locationVerif
-				}
-				geoObj["mobile"] = mobileObj
 			}
 
 			// 2. GNSS-Specific Claims (Nested)
 			if geo.Type == "gnss" {
-				gnssObj := map[string]any{}
-				if geo.SensorId != "" {
-					gnssObj["sensor_id"] = geo.SensorId
+				geoObj["gnss"] = map[string]any{
+					"sensor_id":            geo.SensorId,
+					"sensor_serial_number": geo.SensorSerialNumber,
+					"retrieved_location": map[string]any{
+						"latitude":  geo.Latitude,
+						"longitude": geo.Longitude,
+						"accuracy":  geo.Accuracy,
+					},
 				}
-				if geo.SensorSerialNumber != "" {
-					gnssObj["sensor_serial_number"] = geo.SensorSerialNumber
-				}
-				retrievedLoc := map[string]any{}
-				if geo.Latitude != 0 {
-					retrievedLoc["latitude"] = geo.Latitude
-				}
-				if geo.Longitude != 0 {
-					retrievedLoc["longitude"] = geo.Longitude
-				}
-				if geo.Accuracy != 0 {
-					retrievedLoc["accuracy"] = geo.Accuracy
-				}
-				if len(retrievedLoc) > 0 {
-					gnssObj["retrieved_location"] = retrievedLoc
-				}
-				geoObj["gnss"] = gnssObj
-			}
-
-			// Add sensor signature (required field in proto)
-			if geo.SensorSignature != "" {
-				geoObj["sensor_signature"] = geo.SensorSignature
 			}
 
 			claims["grc.geolocation"] = geoObj
@@ -163,7 +108,29 @@ func BuildClaimsJSON(spiffeID, keySource, workloadPublicKeyPEM string, sovereign
 			claims["grc.tpm-attestation"] = tpm
 		}
 	}
-	// For KeySourceWorkload: Only include grc.workload (no TPM attestation, no geolocation)
+	// For KeySourceWorkload: Include grc.workload AND Gen 4 ZKP claims if present (inherited from node)
+
+	if attestedClaims != nil {
+		// Gen 4: Add MNO endorsement claim if present
+		// This serves as the public anchor for the ZKP circuit
+		if attestedClaims.MnoEndorsement != nil && attestedClaims.MnoEndorsement.Verified {
+			mno := attestedClaims.MnoEndorsement
+			claims["grc.mno_endorsement"] = map[string]any{
+				"verified":  mno.Verified,
+				"signature": mno.Signature,
+				"key_id":    mno.KeyId,
+				"data_b64":  base64.StdEncoding.EncodeToString([]byte(mno.EndorsementJson)),
+			}
+		}
+
+		// Gen 4: Add sovereignty receipt (ZKP Proof) if present
+		if attestedClaims.SovereigntyReceipt != "" {
+			claims["grc.sovereignty_receipt"] = map[string]any{
+				"proof_b64": attestedClaims.SovereigntyReceipt,
+				"format":    "plonky2",
+			}
+		}
+	}
 
 	return json.Marshal(claims)
 }

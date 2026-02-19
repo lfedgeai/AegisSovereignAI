@@ -1,0 +1,916 @@
+diff --git a/cmd/spire-agent/cli/run/run.go b/cmd/spire-agent/cli/run/run.go
+index 374c344..ae71c39 100644
+--- a/cmd/spire-agent/cli/run/run.go
++++ b/cmd/spire-agent/cli/run/run.go
+@@ -51,7 +51,11 @@ const (
+ 	defaultDefaultAllBundlesName       = "ALL"
+ 	defaultDisableSPIFFECertValidation = false
+ 
+-	minimumAvailabilityTarget = 24 * time.Hour
++	// Unified-Identity: Flexible availability target minimum
++	// When Unified-Identity is enabled, allow 30s minimum for testing
++	// Otherwise, maintain backward compatibility with 24h minimum
++	minimumAvailabilityTargetLegacy = 24 * time.Hour
++	minimumAvailabilityTargetFlexible = 30 * time.Second
+ )
+ 
+ // Config contains all available configurables, arranged by section
+@@ -67,6 +71,7 @@ type agentConfig struct {
+ 	DataDir                       string    `hcl:"data_dir"`
+ 	AdminSocketPath               string    `hcl:"admin_socket_path"`
+ 	InsecureBootstrap             bool      `hcl:"insecure_bootstrap"`
++	RetryBootstrap                *bool     `hcl:"retry_bootstrap"`
+ 	RebootstrapMode               string    `hcl:"rebootstrap_mode"`
+ 	RebootstrapDelay              string    `hcl:"rebootstrap_delay"`
+ 	JoinToken                     string    `hcl:"join_token"`
+@@ -336,6 +341,7 @@ func parseFlags(name string, args []string, output io.Writer) (*agentConfig, err
+ 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+ 	flags.SetOutput(output)
+ 	c := &agentConfig{}
++	retryBootstrap := false
+ 
+ 	flags.StringVar(&c.ConfigPath, "config", defaultConfigPath, "Path to a SPIRE config file")
+ 	flags.StringVar(&c.DataDir, "dataDir", "", "A directory the agent can use for its runtime data")
+@@ -353,6 +359,7 @@ func parseFlags(name string, args []string, output io.Writer) (*agentConfig, err
+ 	flags.StringVar(&c.TrustBundleFormat, "trustBundleFormat", "", fmt.Sprintf("Format of the bootstrap trust bundle, %q or %q", trustbundlesources.BundleFormatPEM, trustbundlesources.BundleFormatSPIFFE))
+ 	flags.BoolVar(&c.AllowUnauthenticatedVerifiers, "allowUnauthenticatedVerifiers", false, "If true, the agent permits the retrieval of X509 certificate bundles by unregistered clients")
+ 	flags.BoolVar(&c.InsecureBootstrap, "insecureBootstrap", false, "If true, the agent bootstraps without verifying the server's identity")
++	flags.BoolVar(&retryBootstrap, "retryBootstrap", true, "If true, the agent retries bootstrap with backoff")
+ 	flags.StringVar(&c.RebootstrapMode, "rebootstrapMode", "", "Can be one of 'never', 'auto', or 'always'")
+ 	flags.StringVar(&c.RebootstrapDelay, "rebootstrapDelay", "", "The time to delay after seeing a x509 cert mismatch from the server before rebootstrapping")
+ 	flags.BoolVar(&c.ExpandEnv, "expandEnv", false, "Expand environment variables in SPIRE config file")
+@@ -364,6 +371,12 @@ func parseFlags(name string, args []string, output io.Writer) (*agentConfig, err
+ 		return nil, err
+ 	}
+ 
++	flags.Visit(func(f *flag.Flag) {
++		if f.Name == "retryBootstrap" {
++			c.RetryBootstrap = &retryBootstrap
++		}
++	})
++
+ 	return c, nil
+ }
+ 
+@@ -409,6 +422,9 @@ func NewAgentConfig(c *Config, logOptions []log.Option, allowUnknownConfig bool)
+ 	if ac.RebootstrapMode != agent.RebootstrapNever && c.Agent.InsecureBootstrap {
+ 		return nil, errors.New("insecure_bootstrap option can not be used with rebootstrapping")
+ 	}
++	if ac.RebootstrapMode != agent.RebootstrapNever && c.Agent.RetryBootstrap != nil {
++		return nil, errors.New("you can not set retry_bootstrap when using reboostrap_mode")
++	}
+ 
+ 	if c.Agent.RebootstrapDelay == "" {
+ 		c.Agent.RebootstrapDelay = "10m"
+@@ -456,6 +472,12 @@ func NewAgentConfig(c *Config, logOptions []log.Option, allowUnknownConfig bool)
+ 		ac.LogReopener = log.ReopenOnSignal(logger, reopenableFile)
+ 	}
+ 
++	ac.RetryBootstrap = true
++	if c.Agent.RetryBootstrap != nil {
++		ac.Log.Warn("The 'retry_bootstrap' configuration is deprecated. It will be removed in SPIRE 1.14. Please test without the flag before upgrading.")
++		ac.RetryBootstrap = *c.Agent.RetryBootstrap
++	}
++
+ 	ac.UseSyncAuthorizedEntries = true
+ 	if c.Agent.Experimental.UseSyncAuthorizedEntries != nil {
+ 		ac.Log.Warn("The 'use_sync_authorized_entries' configuration is deprecated. The option to disable it will be removed in SPIRE 1.13.")
+@@ -571,6 +593,16 @@ func NewAgentConfig(c *Config, logOptions []log.Option, allowUnknownConfig bool)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("unable to parse availability_target: %w", err)
+ 		}
++		
++		// Unified-Identity: Use flexible minimum (30s) when feature flag is enabled
++		// Otherwise, use legacy minimum (24h) for backward compatibility
++		var minimumAvailabilityTarget time.Duration
++		if fflag.IsSet(fflag.FlagUnifiedIdentity) {
++			minimumAvailabilityTarget = minimumAvailabilityTargetFlexible
++		} else {
++			minimumAvailabilityTarget = minimumAvailabilityTargetLegacy
++		}
++		
+ 		if t < minimumAvailabilityTarget {
+ 			return nil, fmt.Errorf("availability_target must be at least %s", minimumAvailabilityTarget.String())
+ 		}
+diff --git a/pkg/agent/agent.go b/pkg/agent/agent.go
+index ceda18d..1030812 100644
+--- a/pkg/agent/agent.go
++++ b/pkg/agent/agent.go
+@@ -26,6 +26,7 @@ import (
+ 	"github.com/spiffe/spire/pkg/agent/svid/store"
+ 	"github.com/spiffe/spire/pkg/common/backoff"
+ 	"github.com/spiffe/spire/pkg/common/diskutil"
++	"github.com/spiffe/spire/pkg/common/fflag"
+ 	"github.com/spiffe/spire/pkg/common/health"
+ 	"github.com/spiffe/spire/pkg/common/nodeutil"
+ 	"github.com/spiffe/spire/pkg/common/profiling"
+@@ -109,9 +110,18 @@ func (a *Agent) Run(ctx context.Context) error {
+ 	taskRunner := util.NewTaskRunner(ctx, cancel)
+ 	taskRunner.StartTasks(metrics.ListenAndServe)
+ 
+-	nodeAttestor := nodeattestor.JoinToken(a.c.Log, a.c.JoinToken)
+-	if a.c.JoinToken == "" {
++	// Unified-Identity: Use TPM-based proof of residency when Unified-Identity is enabled
++	// and no join_token is provided. The agent config should specify unified_identity node attestor.
++	var nodeAttestor nodeattestor.NodeAttestor
++	if a.c.JoinToken != "" {
++		// Use join_token if provided (for backward compatibility)
++		nodeAttestor = nodeattestor.JoinToken(a.c.Log, a.c.JoinToken)
++	} else {
++		// Use node attestor from config (should be unified_identity when Unified-Identity is enabled)
+ 		nodeAttestor = cat.GetNodeAttestor()
++		if fflag.IsSet(fflag.FlagUnifiedIdentity) && nodeAttestor != nil && nodeAttestor.Name() == "unified_identity" {
++			a.c.Log.Info("Unified-Identity: Using TPM-based proof of residency for node attestation")
++		}
+ 	}
+ 
+ 	var as *node_attestor.AttestationResult
+@@ -139,87 +149,102 @@ func (a *Agent) Run(ctx context.Context) error {
+ 		}
+ 	}
+ 
+-	attBackoffClock := clock.New()
+-	backoffTime := bootstrapBackoffMaxElapsedTime
+-	if a.c.RebootstrapMode != RebootstrapNever {
+-		backoffTime = rebootstrapBackoffMaxElapsedTime
+-	}
+-	attBackoff := backoff.NewBackoff(
+-		attBackoffClock,
+-		bootstrapBackoffInterval,
+-		backoff.WithMaxElapsedTime(backoffTime),
+-	)
+-
+-	for {
+-		insecureBootstrap := false
+-		bootstrapTrustBundle, err := sto.LoadBundle()
+-		if errors.Is(err, storage.ErrNotCached) {
+-			bootstrapTrustBundle, insecureBootstrap, err = a.c.TrustBundleSources.GetBundle()
++	if a.c.RetryBootstrap {
++		attBackoffClock := clock.New()
++		backoffTime := bootstrapBackoffMaxElapsedTime
++		if a.c.RebootstrapMode != RebootstrapNever {
++			backoffTime = rebootstrapBackoffMaxElapsedTime
+ 		}
+-		if err == nil {
+-			as, err = a.attest(ctx, sto, cat, metrics, nodeAttestor, bootstrapTrustBundle, insecureBootstrap)
++		attBackoff := backoff.NewBackoff(
++			attBackoffClock,
++			bootstrapBackoffInterval,
++			backoff.WithMaxElapsedTime(backoffTime),
++		)
++
++		for {
++			insecureBootstrap := false
++			bootstrapTrustBundle, err := sto.LoadBundle()
++			if errors.Is(err, storage.ErrNotCached) {
++				bootstrapTrustBundle, insecureBootstrap, err = a.c.TrustBundleSources.GetBundle()
++			}
+ 			if err == nil {
+-				err = a.c.TrustBundleSources.SetSuccess()
+-				if err != nil {
+-					return err
+-				}
+-				if a.c.RebootstrapMode != RebootstrapNever {
+-					_, reattestable, err := sto.LoadSVID()
+-					if err == nil && !reattestable {
+-						if a.c.RebootstrapMode == RebootstrapAlways {
+-							return errors.New("you have requested rebootstrap support but the NodeAttestor plugin or the spire server configuration is not allowing it")
+-						} else {
+-							a.c.Log.Warn("you have requested rebootstrap support but the NodeAttestor plugin or the spire server configuration is not allowing it. Disabling")
+-							a.c.RebootstrapMode = RebootstrapNever
++				as, err = a.attest(ctx, sto, cat, metrics, nodeAttestor, bootstrapTrustBundle, insecureBootstrap)
++				if err == nil {
++					err = a.c.TrustBundleSources.SetSuccess()
++					if err != nil {
++						return err
++					}
++					if a.c.RebootstrapMode != RebootstrapNever {
++						_, reattestable, err := sto.LoadSVID()
++						if err == nil && !reattestable {
++							if a.c.RebootstrapMode == RebootstrapAlways {
++								return errors.New("you have requested rebootstrap support but the NodeAttestor plugin or the spire server configuration is not allowing it")
++							} else {
++								a.c.Log.Warn("you have requested rebootstrap support but the NodeAttestor plugin or the spire server configuration is not allowing it. Disabling")
++								a.c.RebootstrapMode = RebootstrapNever
++							}
+ 						}
+ 					}
++					break
+ 				}
+-				break
+-			}
+ 
+-			if x509util.IsUnknownAuthorityError(err) {
+-				if a.c.TrustBundleSources.IsBootstrap() {
+-					a.c.Log.Info("Trust Bundle and Server dont agree.... bootstrapping again")
+-				} else if a.c.RebootstrapMode != RebootstrapNever {
+-					startTime, err := a.c.TrustBundleSources.GetStartTime()
+-					if err != nil {
+-						return nil
+-					}
+-					seconds := time.Since(startTime)
+-					if seconds < a.c.RebootstrapDelay {
+-						a.c.Log.WithFields(logrus.Fields{
+-							"time left": a.c.RebootstrapDelay - seconds,
+-						}).Info("Trust Bundle and Server dont agree.... Ignoring for now.")
+-					} else {
+-						a.c.Log.Warn("Trust Bundle and Server dont agree.... rebootstrapping")
+-						err = sto.StoreBundle(nil)
++				if x509util.IsUnknownAuthorityError(err) {
++					if a.c.TrustBundleSources.IsBootstrap() {
++						a.c.Log.Info("Trust Bandle and Server dont agree.... bootstrapping again")
++					} else if a.c.RebootstrapMode != RebootstrapNever {
++						startTime, err := a.c.TrustBundleSources.GetStartTime()
+ 						if err != nil {
+-							return err
++							return nil
++						}
++						seconds := time.Since(startTime)
++						if seconds < a.c.RebootstrapDelay {
++							a.c.Log.WithFields(logrus.Fields{
++								"time left": a.c.RebootstrapDelay - seconds,
++							}).Info("Trust Bandle and Server dont agree.... Ignoring for now.")
++						} else {
++							a.c.Log.Warn("Trust Bandle and Server dont agree.... rebootstrapping")
++							err = sto.StoreBundle(nil)
++							if err != nil {
++								return err
++							}
+ 						}
+ 					}
+ 				}
++
++				if status.Code(err) == codes.PermissionDenied {
++					return err
++				}
+ 			}
+ 
+-			if status.Code(err) == codes.PermissionDenied {
++			nextDuration := attBackoff.NextBackOff()
++			if nextDuration == backoff.Stop {
+ 				return err
+ 			}
+-		}
+ 
+-		nextDuration := attBackoff.NextBackOff()
+-		if nextDuration == backoff.Stop {
++			a.c.Log.WithFields(logrus.Fields{
++				telemetry.Error:         err,
++				telemetry.RetryInterval: nextDuration,
++			}).Warn("Failed to retrieve attestation result")
++
++			select {
++			case <-ctx.Done():
++				return ctx.Err()
++			case <-attBackoffClock.After(nextDuration):
++				continue
++			}
++		}
++	} else {
++		insecureBootstrap := false
++		bootstrapTrustBundle, err := sto.LoadBundle()
++		if errors.Is(err, storage.ErrNotCached) {
++			bootstrapTrustBundle, insecureBootstrap, err = a.c.TrustBundleSources.GetBundle()
++		}
++		if err != nil {
+ 			return err
+ 		}
+-
+-		a.c.Log.WithFields(logrus.Fields{
+-			telemetry.Error:         err,
+-			telemetry.RetryInterval: nextDuration,
+-		}).Warn("Failed to retrieve attestation result")
+-
+-		select {
+-		case <-ctx.Done():
+-			return ctx.Err()
+-		case <-attBackoffClock.After(nextDuration):
+-			continue
++		as, err = a.attest(ctx, sto, cat, metrics, nodeAttestor, bootstrapTrustBundle, insecureBootstrap)
++		if err != nil {
++			return err
+ 		}
+ 	}
+ 
+@@ -368,66 +393,73 @@ func (a *Agent) newManager(ctx context.Context, sto storage.Storage, cat catalog
+ 	}
+ 
+ 	mgr := manager.New(config)
+-	initBackoffClock := clock.New()
+-	backoffTime := bootstrapBackoffMaxElapsedTime
+-	if a.c.RebootstrapMode != RebootstrapNever {
+-		backoffTime = rebootstrapBackoffMaxElapsedTime
+-	}
+-	initBackoff := backoff.NewBackoff(
+-		initBackoffClock,
+-		bootstrapBackoffInterval,
+-		backoff.WithMaxElapsedTime(backoffTime),
+-	)
+-
+-	for {
+-		err := mgr.Initialize(ctx)
+-		if err == nil {
+-			err = a.c.TrustBundleSources.SetSuccessIfRunning()
+-			if err != nil {
+-				return nil, err
+-			}
+-			return mgr, nil
++	if a.c.RetryBootstrap {
++		initBackoffClock := clock.New()
++		backoffTime := bootstrapBackoffMaxElapsedTime
++		if a.c.RebootstrapMode != RebootstrapNever {
++			backoffTime = rebootstrapBackoffMaxElapsedTime
+ 		}
+-		if x509util.IsUnknownAuthorityError(err) && a.c.RebootstrapMode != RebootstrapNever {
+-			startTime, err := a.c.TrustBundleSources.GetStartTime()
+-			if err != nil {
+-				return nil, err
++		initBackoff := backoff.NewBackoff(
++			initBackoffClock,
++			bootstrapBackoffInterval,
++			backoff.WithMaxElapsedTime(backoffTime),
++		)
++
++		for {
++			err := mgr.Initialize(ctx)
++			if err == nil {
++				err = a.c.TrustBundleSources.SetSuccessIfRunning()
++				if err != nil {
++					return nil, err
++				}
++				return mgr, nil
+ 			}
+-			seconds := time.Since(startTime)
+-			if seconds < a.c.RebootstrapDelay {
+-				a.c.Log.WithFields(logrus.Fields{
+-					"time left": a.c.RebootstrapDelay - seconds,
+-				}).Info("Trust Bundle and Server dont agree.... Ignoring for now.")
+-			} else {
+-				a.c.Log.Info("Trust Bundle and Server dont agree.... rebootstrapping")
+-				err = a.c.TrustBundleSources.SetForceRebootstrap()
++			if x509util.IsUnknownAuthorityError(err) && a.c.RebootstrapMode != RebootstrapNever {
++				startTime, err := a.c.TrustBundleSources.GetStartTime()
+ 				if err != nil {
+ 					return nil, err
+ 				}
+-				return nil, errors.New("Agent needs to rebootstrap. shutting down")
++				seconds := time.Since(startTime)
++				if seconds < a.c.RebootstrapDelay {
++					a.c.Log.WithFields(logrus.Fields{
++						"time left": a.c.RebootstrapDelay - seconds,
++					}).Info("Trust Bandle and Server dont agree.... Ignoring for now.")
++				} else {
++					a.c.Log.Info("Trust Bandle and Server dont agree.... rebootstrapping")
++					err = a.c.TrustBundleSources.SetForceRebootstrap()
++					if err != nil {
++						return nil, err
++					}
++					return nil, errors.New("Agent needs to rebootstrap. shutting down")
++				}
+ 			}
+-		}
+ 
+-		if nodeutil.ShouldAgentReattest(err) || nodeutil.ShouldAgentShutdown(err) {
+-			return nil, err
+-		}
++			if nodeutil.ShouldAgentReattest(err) || nodeutil.ShouldAgentShutdown(err) {
++				return nil, err
++			}
+ 
+-		nextDuration := initBackoff.NextBackOff()
+-		if nextDuration == backoff.Stop {
+-			return nil, err
+-		}
++			nextDuration := initBackoff.NextBackOff()
++			if nextDuration == backoff.Stop {
++				return nil, err
++			}
+ 
+-		a.c.Log.WithFields(logrus.Fields{
+-			telemetry.Error:         err,
+-			telemetry.RetryInterval: nextDuration,
+-		}).Warn("Failed to initialize manager")
++			a.c.Log.WithFields(logrus.Fields{
++				telemetry.Error:         err,
++				telemetry.RetryInterval: nextDuration,
++			}).Warn("Failed to initialize manager")
+ 
+-		select {
+-		case <-ctx.Done():
+-			return nil, ctx.Err()
+-		case <-initBackoffClock.After(nextDuration):
+-			continue
++			select {
++			case <-ctx.Done():
++				return nil, ctx.Err()
++			case <-initBackoffClock.After(nextDuration):
++				continue
++			}
++		}
++	} else {
++		if err := mgr.Initialize(ctx); err != nil {
++			return nil, err
+ 		}
++		return mgr, nil
+ 	}
+ }
+ 
+diff --git a/pkg/agent/attestor/node/node.go b/pkg/agent/attestor/node/node.go
+index ce4559b..a3bfc23 100644
+--- a/pkg/agent/attestor/node/node.go
++++ b/pkg/agent/attestor/node/node.go
+@@ -2,8 +2,13 @@ package attestor
+ 
+ import (
+ 	"context"
++	"crypto/rand"
+ 	"crypto/tls"
+ 	"crypto/x509"
++	"encoding/asn1"
++	"encoding/hex"
++	"encoding/json"
++	"encoding/pem"
+ 	"errors"
+ 	"fmt"
+ 	"time"
+@@ -19,14 +24,16 @@ import (
+ 	"github.com/spiffe/spire/pkg/agent/plugin/keymanager"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor"
+ 	"github.com/spiffe/spire/pkg/agent/storage"
++	"github.com/spiffe/spire/pkg/agent/tpmplugin"
++	agentutil "github.com/spiffe/spire/pkg/agent/util"
+ 	"github.com/spiffe/spire/pkg/common/bundleutil"
+ 	"github.com/spiffe/spire/pkg/common/cryptoutil"
++	"github.com/spiffe/spire/pkg/common/fflag"
+ 	"github.com/spiffe/spire/pkg/common/idutil"
+ 	"github.com/spiffe/spire/pkg/common/telemetry"
+ 	telemetry_agent "github.com/spiffe/spire/pkg/common/telemetry/agent"
+ 	telemetry_common "github.com/spiffe/spire/pkg/common/telemetry/common"
+ 	"github.com/spiffe/spire/pkg/common/tlspolicy"
+-	"github.com/spiffe/spire/pkg/common/util"
+ 	"github.com/spiffe/spire/pkg/common/x509util"
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/credentials"
+@@ -198,7 +205,12 @@ func (a *attestor) getSVID(ctx context.Context, conn *grpc.ClientConn, csr []byt
+ 	ctx, cancel := context.WithCancel(ctx)
+ 	defer cancel()
+ 
+-	stream := &ServerStream{Client: agentv1.NewAgentClient(conn), Csr: csr, Log: a.c.Log}
++	stream := &ServerStream{
++		Client:  agentv1.NewAgentClient(conn),
++		Csr:     csr,
++		Log:     a.c.Log,
++		Catalog: a.c.Catalog,
++	}
+ 
+ 	if err := attestor.Attest(ctx, stream); err != nil {
+ 		return nil, false, err
+@@ -233,10 +245,19 @@ func (a *attestor) newSVID(ctx context.Context, key keymanager.Key, bundle *spif
+ 	}
+ 	defer conn.Close()
+ 
+-	csr, err := util.MakeCSRWithoutURISAN(key)
++	// Unified-Identity - Verification: Use TPM App Key for CSR when enabled
++	csr, signer, err := agentutil.MakeCSRForAttestation(key, a.c.Log)
+ 	if err != nil {
+ 		return nil, nil, false, fmt.Errorf("failed to generate CSR for attestation: %w", err)
+ 	}
++	
++	// Note: The signer used for CSR creation may be a TPM signer or regular key
++	// The certificate issued by the server will contain the public key from the CSR
++	// For mTLS, we use the TPM signer in GetAgentCertificate callback (already implemented)
++	// For State storage, we keep the regular key (TPM signer doesn't implement keymanager.Key)
++	if _, ok := signer.(*tpmplugin.TPMSigner); ok {
++		a.c.Log.Info("Unified-Identity - Verification: CSR created with TPM App Key, certificate will contain TPM App Key public key")
++	}
+ 
+ 	newSVID, reattestable, err := a.getSVID(ctx, conn, csr, a.c.NodeAttestor)
+ 	if err != nil {
+@@ -253,11 +274,19 @@ func (a *attestor) newSVID(ctx context.Context, key keymanager.Key, bundle *spif
+ 
+ func (a *attestor) serverConn(bundle *spiffebundle.Bundle) (*grpc.ClientConn, error) {
+ 	if bundle != nil {
++		// Unified-Identity: Don't enable PreferPKCS1v15 for initial attestation connection
++		// The attestation connection uses regular TLS (not mTLS), so we don't need PKCS#1 v1.5
++		// PreferPKCS1v15 should only be enabled for mTLS connections where the agent presents
++		// a certificate signed with the TPM App Key
++		tlsPolicy := a.c.TLSPolicy
++		// Note: We intentionally do NOT set PreferPKCS1v15 here for attestation
++		// This allows the server certificate to use any compatible signature algorithm
++		
+ 		return client.NewServerGRPCClient(client.ServerClientConfig{
+ 			Address:     a.c.ServerAddress,
+ 			TrustDomain: a.c.TrustDomain,
+ 			GetBundle:   bundle.X509Authorities,
+-			TLSPolicy:   a.c.TLSPolicy,
++			TLSPolicy:   tlsPolicy,
+ 		})
+ 	}
+ 
+@@ -309,12 +338,41 @@ type ServerStream struct {
+ 	Client       agentv1.AgentClient
+ 	Csr          []byte
+ 	Log          logrus.FieldLogger
++	Catalog      catalog.Catalog
+ 	SVID         []*x509.Certificate
+ 	Reattestable bool
+ 	stream       agentv1.Agent_AttestAgentClient
+ }
+ 
+ func (ss *ServerStream) SendAttestationData(ctx context.Context, attestationData nodeattestor.AttestationData) ([]byte, error) {
++	x509Params := &agentv1.AgentX509SVIDParams{
++		Csr: ss.Csr,
++	}
++
++	if fflag.IsSet(fflag.FlagUnifiedIdentity) {
++		if c, ok := ss.Catalog.GetCollector(); ok {
++			ss.Log.Debug("Unified-Identity: Collecting sovereign attestation data via plugin")
++			
++			// Generate a random nonce for the initial attestation
++			// In a full implementation, this might come from a server challenge,
++			// but for initial bootstrap/PoR, we generate a fresh nonce to bind the attestation.
++			nonceBytes := make([]byte, 32)
++			if _, err := rand.Read(nonceBytes); err != nil {
++				return nil, fmt.Errorf("failed to generate nonce: %w", err)
++			}
++			nonce := hex.EncodeToString(nonceBytes)
++
++			sa, err := c.CollectSovereignAttestation(ctx, nonce)
++			if err != nil {
++				return nil, fmt.Errorf("failed to collect sovereign attestation: %w", err)
++			}
++			x509Params.SovereignAttestation = sa
++		} else {
++			ss.Log.Warn("Unified-Identity: Collector plugin not found, falling back to stub data (deprecated)")
++			x509Params.SovereignAttestation = client.BuildSovereignAttestationStub()
++		}
++	}
++
+ 	return ss.sendRequest(ctx, &agentv1.AttestAgentRequest{
+ 		Step: &agentv1.AttestAgentRequest_Params_{
+ 			Params: &agentv1.AttestAgentRequest_Params{
+@@ -322,9 +380,7 @@ func (ss *ServerStream) SendAttestationData(ctx context.Context, attestationData
+ 					Type:    attestationData.Type,
+ 					Payload: attestationData.Payload,
+ 				},
+-				Params: &agentv1.AgentX509SVIDParams{
+-					Csr: ss.Csr,
+-				},
++				Params: x509Params,
+ 			},
+ 		},
+ 	})
+@@ -365,12 +421,81 @@ func (ss *ServerStream) sendRequest(ctx context.Context, req *agentv1.AttestAgen
+ 		return nil, fmt.Errorf("failed to parse attestation response: %w", err)
+ 	}
+ 
++	if result := resp.GetResult(); result != nil {
++		if claims := result.GetAttestedClaims(); len(claims) > 0 {
++			claim := claims[0]
++			ss.Log.WithFields(logrus.Fields{
++				"geolocation": claim.Geolocation,
++			}).Info("Unified-Identity - Verification: Received AttestedClaims during agent bootstrap")
++		}
++	}
++
+ 	if err := ss.stream.CloseSend(); err != nil {
+ 		ss.Log.WithError(err).Warn("failed to close stream send side")
+ 	}
+ 
+ 	ss.Reattestable = resp.GetResult().Reattestable
+ 	ss.SVID = svid
++
++	// Unified-Identity - Verification: Dump agent SVID details to logs
++	if len(svid) > 0 {
++		cert := svid[0]
++		spiffeID := ""
++		if len(cert.URIs) > 0 {
++			spiffeID = cert.URIs[0].String()
++		}
++
++		// Extract Unified Identity extension if present
++		unifiedIdentityOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2}
++		legacyOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 1}
++		var unifiedIdentityExt []byte
++		for _, ext := range cert.Extensions {
++			if ext.Id.Equal(unifiedIdentityOID) || ext.Id.Equal(legacyOID) {
++				unifiedIdentityExt = ext.Value
++				break
++			}
++		}
++
++		// Encode certificate to PEM
++		certPEM := pem.EncodeToMemory(&pem.Block{
++			Type:  "CERTIFICATE",
++			Bytes: cert.Raw,
++		})
++
++		// Unified-Identity - Verification: Log unified agent SVID with formatted, readable output
++		ss.Log.WithFields(logrus.Fields{
++			"spiffe_id":     spiffeID,
++			"serial_number": cert.SerialNumber.String(),
++			"not_before":    cert.NotBefore.Format(time.RFC3339),
++			"not_after":     cert.NotAfter.Format(time.RFC3339),
++		}).Info("Unified-Identity - Verification: Agent Unified SVID received")
++
++		// Log certificate PEM separately for readability
++		ss.Log.WithFields(logrus.Fields{
++			"spiffe_id": spiffeID,
++			"cert_pem":  string(certPEM),
++		}).Info("Unified-Identity - Verification: Agent SVID Certificate (PEM)")
++
++		// Log Unified Identity claims in formatted JSON if present
++		if len(unifiedIdentityExt) > 0 {
++			var claimsJSON map[string]interface{}
++			if err := json.Unmarshal(unifiedIdentityExt, &claimsJSON); err == nil {
++				// Format JSON for readable output
++				claimsFormatted, _ := json.MarshalIndent(claimsJSON, "", "  ")
++				// Log claims as a multi-line formatted message
++				ss.Log.WithFields(logrus.Fields{
++					"spiffe_id": spiffeID,
++				}).Infof("Unified-Identity - Verification: Agent SVID Unified Identity Claims:\n%s", string(claimsFormatted))
++			} else {
++				// Fallback if JSON parsing fails
++				ss.Log.WithFields(logrus.Fields{
++					"spiffe_id":        spiffeID,
++					"claims_raw":       string(unifiedIdentityExt),
++				}).Warn("Unified-Identity - Verification: Agent SVID claims (raw, JSON parse failed)")
++			}
++		}
++	}
++
+ 	return nil, nil
+ }
+ 
+diff --git a/pkg/agent/catalog/nodeattestor.go b/pkg/agent/catalog/nodeattestor.go
+index 97af691..98d6e8d 100644
+--- a/pkg/agent/catalog/nodeattestor.go
++++ b/pkg/agent/catalog/nodeattestor.go
+@@ -3,7 +3,6 @@ package catalog
+ import (
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/awsiid"
+-	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/azureimds"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/azuremsi"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/gcpiit"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/httpchallenge"
+@@ -11,6 +10,7 @@ import (
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/k8spsat"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/sshpop"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/tpmdevid"
++	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/unifiedidentity"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/x509pop"
+ 	"github.com/spiffe/spire/pkg/common/catalog"
+ )
+@@ -37,13 +37,13 @@ func (repo *nodeAttestorRepository) BuiltIns() []catalog.BuiltIn {
+ 	return []catalog.BuiltIn{
+ 		awsiid.BuiltIn(),
+ 		azuremsi.BuiltIn(),
+-		azureimds.BuiltIn(),
+ 		gcpiit.BuiltIn(),
+ 		httpchallenge.BuiltIn(),
+ 		jointoken.BuiltIn(),
+ 		k8spsat.BuiltIn(),
+ 		sshpop.BuiltIn(),
+ 		tpmdevid.BuiltIn(),
++		unifiedidentity.BuiltIn(),
+ 		x509pop.BuiltIn(),
+ 	}
+ }
+diff --git a/pkg/agent/endpoints/workload/handler.go b/pkg/agent/endpoints/workload/handler.go
+index 3d6f779..752121c 100644
+--- a/pkg/agent/endpoints/workload/handler.go
++++ b/pkg/agent/endpoints/workload/handler.go
+@@ -17,6 +17,7 @@ import (
+ 	"github.com/spiffe/spire/pkg/agent/api/rpccontext"
+ 	"github.com/spiffe/spire/pkg/agent/client"
+ 	"github.com/spiffe/spire/pkg/agent/manager/cache"
++	"github.com/spiffe/spire/pkg/agent/svid"
+ 	"github.com/spiffe/spire/pkg/common/bundleutil"
+ 	"github.com/spiffe/spire/pkg/common/jwtsvid"
+ 	"github.com/spiffe/spire/pkg/common/telemetry"
+@@ -34,6 +35,8 @@ type Manager interface {
+ 	MatchingRegistrationEntries(selectors []*common.Selector) []*common.RegistrationEntry
+ 	FetchJWTSVID(ctx context.Context, entry *common.RegistrationEntry, audience []string) (*client.JWTSVID, error)
+ 	FetchWorkloadUpdate([]*common.Selector) *cache.WorkloadUpdate
++	// Unified-Identity - Verification: Get agent SVID to include in certificate chain
++	GetCurrentCredentials() svid.State // Returns agent SVID state
+ }
+ 
+ type Attestor interface {
+@@ -235,7 +238,7 @@ func (h *Handler) FetchX509SVID(_ *workload.X509SVIDRequest, stream workload.Spi
+ 		select {
+ 		case update := <-subscriber.Updates():
+ 			update.Identities = filterIdentities(update.Identities, log)
+-			if err := sendX509SVIDResponse(update, stream, selectors, log, quietLogging); err != nil {
++			if err := sendX509SVIDResponse(update, stream, selectors, log, quietLogging, h.c.Manager); err != nil {
+ 				return err
+ 			}
+ 		case <-ctx.Done():
+@@ -351,7 +354,7 @@ func composeX509BundlesResponse(update *cache.WorkloadUpdate) (*workload.X509Bun
+ 	}, nil
+ }
+ 
+-func sendX509SVIDResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWorkloadAPI_FetchX509SVIDServer, selectors []*common.Selector, log logrus.FieldLogger, quietLogging bool) (err error) {
++func sendX509SVIDResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWorkloadAPI_FetchX509SVIDServer, selectors []*common.Selector, log logrus.FieldLogger, quietLogging bool, manager Manager) (err error) {
+ 	if len(update.Identities) == 0 {
+ 		if !quietLogging {
+ 			log.WithFields(logrus.Fields{
+@@ -364,7 +367,7 @@ func sendX509SVIDResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWo
+ 
+ 	log = log.WithField(telemetry.Registered, true)
+ 
+-	resp, err := composeX509SVIDResponse(update)
++	resp, err := composeX509SVIDResponse(update, manager)
+ 	if err != nil {
+ 		log.WithError(err).Error("Could not serialize X.509 SVID response")
+ 		return status.Errorf(codes.Unavailable, "could not serialize response: %v", err)
+@@ -393,7 +396,7 @@ func sendX509SVIDResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWo
+ 	return nil
+ }
+ 
+-func composeX509SVIDResponse(update *cache.WorkloadUpdate) (*workload.X509SVIDResponse, error) {
++func composeX509SVIDResponse(update *cache.WorkloadUpdate, manager Manager) (*workload.X509SVIDResponse, error) {
+ 	resp := new(workload.X509SVIDResponse)
+ 	resp.Svids = []*workload.X509SVID{}
+ 	resp.FederatedBundles = make(map[string][]byte)
+@@ -404,6 +407,22 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate) (*workload.X509SVIDRe
+ 		resp.FederatedBundles[td.IDString()] = marshalBundle(federatedBundle.X509Authorities())
+ 	}
+ 
++	// Unified-Identity - Verification: Get agent SVID to include in certificate chain
++	// According to architecture, the chain should be: Workload SVID + Agent SVID
++	// The agent handler ensures the complete chain is provided to workloads
++	// The SPIRE server verifies the entire chain before issuing the workload certificate
++	var agentSVID []*x509.Certificate
++	if manager != nil {
++		// Get agent SVID from manager
++		// The GetCurrentCredentials() returns svid.State which has SVID []*x509.Certificate
++		state := manager.GetCurrentCredentials()
++		if len(state.SVID) > 0 {
++			agentSVID = state.SVID
++		}
++	}
++
++	// Unified-Identity - Setup: Collect AttestedClaims from all identities
++	var allAttestedClaims []*workload.AttestedClaims
+ 	for _, identity := range update.Identities {
+ 		id := identity.Entry.SpiffeId
+ 
+@@ -412,20 +431,75 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate) (*workload.X509SVIDRe
+ 			return nil, fmt.Errorf("marshal key for %v: %w", id, err)
+ 		}
+ 
++		// Unified-Identity - Verification: Build certificate chain with agent SVID
++		// Chain should be: Workload SVID + Agent SVID
++		// The server verifies the entire chain before issuing the workload certificate
++		certChain := identity.SVID
++		
++		// Check if agent SVID is already in the chain (to avoid duplication)
++		// Compare serial numbers to detect if agent SVID is already present
++		agentSVIDInChain := false
++		if len(agentSVID) > 0 && len(certChain) > 1 {
++			// Check if any certificate in the chain matches the agent SVID serial number
++			for _, chainCert := range certChain[1:] {
++				if chainCert.SerialNumber == agentSVID[0].SerialNumber {
++					agentSVIDInChain = true
++					break
++				}
++			}
++		}
++		
++		if len(agentSVID) > 0 && !agentSVIDInChain {
++			// Append agent SVID to workload SVID chain
++			certChain = append(certChain, agentSVID...)
++		}
++
+ 		svid := &workload.X509SVID{
+ 			SpiffeId:    id,
+-			X509Svid:    x509util.DERFromCertificates(identity.SVID),
++			X509Svid:    x509util.DERFromCertificates(certChain),
+ 			X509SvidKey: keyData,
+ 			Bundle:      bundle,
+ 			Hint:        identity.Entry.Hint,
+ 		}
+ 
+ 		resp.Svids = append(resp.Svids, svid)
++
++		// Unified-Identity - Setup: Convert AttestedClaims from types to workload protobuf
++		if len(identity.AttestedClaims) > 0 {
++			for _, claims := range identity.AttestedClaims {
++				if claims == nil {
++					continue
++				}
++				// Convert Geolocation object to JSON string for workload API (which still uses string)
++				geolocationStr := ""
++				if claims.Geolocation != nil {
++					geoMap := map[string]any{
++						"type":      claims.Geolocation.Type,
++						"sensor_id": claims.Geolocation.SensorId,
++					}
++					if claims.Geolocation.Value != "" {
++						geoMap["value"] = claims.Geolocation.Value
++					}
++					geoJSON, err := json.Marshal(geoMap)
++					if err == nil {
++						geolocationStr = string(geoJSON)
++					}
++				}
++				workloadClaims := &workload.AttestedClaims{
++					Geolocation: geolocationStr,
++				}
++				allAttestedClaims = append(allAttestedClaims, workloadClaims)
++			}
++		}
+ 	}
+ 
++	// Unified-Identity - Setup: Add AttestedClaims to response
++	resp.AttestedClaims = allAttestedClaims
++
+ 	return resp, nil
+ }
+ 
++
+ func sendJWTBundlesResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWorkloadAPI_FetchJWTBundlesServer, selectors []*common.Selector, log logrus.FieldLogger, allowUnauthenticatedVerifiers bool, previousResponse *workload.JWTBundlesResponse) (*workload.JWTBundlesResponse, error) {
+ 	if !allowUnauthenticatedVerifiers && !update.HasIdentity() {
+ 		log.WithFields(logrus.Fields{
+diff --git a/pkg/agent/manager/cache/lru_cache.go b/pkg/agent/manager/cache/lru_cache.go
+index e66e475..66721ff 100644
+--- a/pkg/agent/manager/cache/lru_cache.go
++++ b/pkg/agent/manager/cache/lru_cache.go
+@@ -1109,11 +1109,13 @@ func sortByTimestamps(records []recordAccessEvent) {
+ 	})
+ }
+ 
++// Unified-Identity - Setup: SPIRE API & Policy Staging (Stubbed Keylime)
+ func makeNewIdentity(record *lruCacheRecord, svid *X509SVID) Identity {
+ 	return Identity{
+-		Entry:      record.entry,
+-		SVID:       svid.Chain,
+-		PrivateKey: svid.PrivateKey,
++		Entry:          record.entry,
++		SVID:           svid.Chain,
++		PrivateKey:     svid.PrivateKey,
++		AttestedClaims: svid.AttestedClaims,
+ 	}
+ }
+ 
+diff --git a/pkg/agent/manager/cache/workload.go b/pkg/agent/manager/cache/workload.go
+index 8360e97..099f9f2 100644
+--- a/pkg/agent/manager/cache/workload.go
++++ b/pkg/agent/manager/cache/workload.go
+@@ -6,16 +6,19 @@ import (
+ 
+ 	"github.com/spiffe/go-spiffe/v2/bundle/spiffebundle"
+ 	"github.com/spiffe/go-spiffe/v2/spiffeid"
++	"github.com/spiffe/spire-api-sdk/proto/spire/api/types"
+ 	"github.com/spiffe/spire/proto/spire/common"
+ )
+ 
+ type Selectors []*common.Selector
+ 
++// Unified-Identity - Setup: SPIRE API & Policy Staging (Stubbed Keylime)
+ // Identity holds the data for a single workload identity
+ type Identity struct {
+-	Entry      *common.RegistrationEntry
+-	SVID       []*x509.Certificate
+-	PrivateKey crypto.Signer
++	Entry          *common.RegistrationEntry
++	SVID           []*x509.Certificate
++	PrivateKey     crypto.Signer
++	AttestedClaims []*types.AttestedClaims // AttestedClaims from server
+ }
+ 
+ // UpdateSVIDs holds information for an SVIDs update to the cache.
+@@ -36,8 +39,10 @@ func (u *WorkloadUpdate) HasIdentity() bool {
+ 	return len(u.Identities) > 0
+ }
+ 
+-// X509SVID holds onto the SVID certificate chain and private key.
++// Unified-Identity - Setup: SPIRE API & Policy Staging (Stubbed Keylime)
++// X509SVID holds onto the SVID certificate chain, private key, and AttestedClaims.
+ type X509SVID struct {
+-	Chain      []*x509.Certificate
+-	PrivateKey crypto.Signer
++	Chain          []*x509.Certificate
++	PrivateKey     crypto.Signer
++	AttestedClaims []*types.AttestedClaims // AttestedClaims from server
+ }
+diff --git a/pkg/agent/manager/sync.go b/pkg/agent/manager/sync.go
+index 84ede9a..c889ae2 100644
+--- a/pkg/agent/manager/sync.go
++++ b/pkg/agent/manager/sync.go
+@@ -275,9 +275,11 @@ func (m *manager) fetchSVIDs(ctx context.Context, csrs []csrRequest) (_ *cache.U
+ 			log.Warn("X509 SVID lifetime isn't long enough to guarantee the availability_target, falling back to the default rotation strategy")
+ 		}
+ 
++		// Unified-Identity - Setup: Include AttestedClaims from server response
+ 		byEntryID[entryID] = &cache.X509SVID{
+-			Chain:      chain,
+-			PrivateKey: privateKey,
++			Chain:          chain,
++			PrivateKey:     privateKey,
++			AttestedClaims: svid.AttestedClaims,
+ 		}
+ 	}
+ 

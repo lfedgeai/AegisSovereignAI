@@ -19,19 +19,21 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SPIRE_DIR="${SCRIPT_DIR}/../spire"
+# SPIRE binaries are produced by the overlay build system into build/spire-binaries/
+# SCRIPT_DIR is hybrid-cloud-poc/python-app-demo/, so ../../build/spire-binaries/ is the repo root
+SPIRE_SERVER="${SCRIPT_DIR}/../../build/spire-binaries/spire-server"
 
 # Get agent SPIFFE ID
 echo "Getting agent SPIFFE ID..."
 # Extract SPIFFE ID from "SPIFFE ID         : spiffe://..."
 # Use tail -1 to get the most recently registered agent (in case of stale entries)
-AGENT_ID=$("${SPIRE_DIR}/bin/spire-server" agent list \
+AGENT_ID=$("${SPIRE_SERVER}" agent list \
     -socketPath /tmp/spire-server/private/api.sock \
     | grep "SPIFFE ID" | awk -F': ' '{print $2}' | awk '{print $1}' | tail -1)
 
 # Fallback: try sed if awk doesn't work
 if [ -z "$AGENT_ID" ] || [ "$AGENT_ID" = "SPIFFE" ]; then
-    AGENT_ID=$("${SPIRE_DIR}/bin/spire-server" agent list \
+    AGENT_ID=$("${SPIRE_SERVER}" agent list \
         -socketPath /tmp/spire-server/private/api.sock \
         | grep "spiffe://" | head -1 | sed 's/.*SPIFFE ID[[:space:]]*:[[:space:]]*\(spiffe:\/\/[^[:space:]]*\).*/\1/')
 fi
@@ -40,7 +42,7 @@ fi
 if [ -z "$AGENT_ID" ] || [ "$AGENT_ID" = "SPIFFE" ] || [ "${AGENT_ID#spiffe://}" = "$AGENT_ID" ]; then
     echo "Error: Could not get agent SPIFFE ID"
     echo "Debug: Agent list output:"
-    "${SPIRE_DIR}/bin/spire-server" agent list \
+    "${SPIRE_SERVER}" agent list \
         -socketPath /tmp/spire-server/private/api.sock
     exit 1
 fi
@@ -53,7 +55,7 @@ echo "Creating registration entry for Python app..."
 WORKLOAD_SPIFFE_ID="spiffe://example.org/python-app"
 
 # Check if entry already exists (check output content, not just exit code)
-ENTRY_SHOW_OUTPUT=$("${SPIRE_DIR}/bin/spire-server" entry show \
+ENTRY_SHOW_OUTPUT=$("${SPIRE_SERVER}" entry show \
     -spiffeID "$WORKLOAD_SPIFFE_ID" \
     -socketPath /tmp/spire-server/private/api.sock 2>&1 || echo "")
 
@@ -75,13 +77,13 @@ if echo "$ENTRY_SHOW_OUTPUT" | grep -qi "Entry ID" && ! echo "$ENTRY_SHOW_OUTPUT
 
     if [ -n "$ENTRY_ID" ]; then
         echo "  Found entry ID: $ENTRY_ID"
-        if "${SPIRE_DIR}/bin/spire-server" entry delete \
+        if "${SPIRE_SERVER}" entry delete \
             -entryID "$ENTRY_ID" \
             -socketPath /tmp/spire-server/private/api.sock 2>&1; then
             echo "  ✓ Existing entry deleted"
             # Verify deletion
             sleep 0.5
-            VERIFY_OUTPUT=$("${SPIRE_DIR}/bin/spire-server" entry show \
+            VERIFY_OUTPUT=$("${SPIRE_SERVER}" entry show \
                 -spiffeID "$WORKLOAD_SPIFFE_ID" \
                 -socketPath /tmp/spire-server/private/api.sock 2>&1 || echo "")
             if echo "$VERIFY_OUTPUT" | grep -qi "Entry ID" && ! echo "$VERIFY_OUTPUT" | grep -qi "Found 0 entries"; then
@@ -91,13 +93,13 @@ if echo "$ENTRY_SHOW_OUTPUT" | grep -qi "Entry ID" && ! echo "$ENTRY_SHOW_OUTPUT
             echo "  ⚠ Failed to delete entry (ID: $ENTRY_ID)"
             echo "  Attempting to list all entries and delete by SPIFFE ID..."
             # Fallback: try to delete all entries with this SPIFFE ID
-            ENTRY_LIST=$("${SPIRE_DIR}/bin/spire-server" entry list \
+            ENTRY_LIST=$("${SPIRE_SERVER}" entry list \
                 -spiffeID "$WORKLOAD_SPIFFE_ID" \
                 -socketPath /tmp/spire-server/private/api.sock 2>&1 || echo "")
             if [ -n "$ENTRY_LIST" ]; then
                 echo "$ENTRY_LIST" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | while read -r eid; do
                     if [ -n "$eid" ]; then
-                        "${SPIRE_DIR}/bin/spire-server" entry delete -entryID "$eid" -socketPath /tmp/spire-server/private/api.sock 2>&1 && echo "  ✓ Deleted entry: $eid"
+                        "${SPIRE_SERVER}" entry delete -entryID "$eid" -socketPath /tmp/spire-server/private/api.sock 2>&1 && echo "  ✓ Deleted entry: $eid"
                     fi
                 done
             fi
@@ -108,12 +110,12 @@ if echo "$ENTRY_SHOW_OUTPUT" | grep -qi "Entry ID" && ! echo "$ENTRY_SHOW_OUTPUT
         echo "$ENTRY_SHOW_OUTPUT" | head -10 | sed 's/^/    /'
         echo "  Attempting to delete by listing all entries..."
         # Fallback: list all entries and find matching SPIFFE ID
-        ENTRY_LIST=$("${SPIRE_DIR}/bin/spire-server" entry list \
+        ENTRY_LIST=$("${SPIRE_SERVER}" entry list \
             -socketPath /tmp/spire-server/private/api.sock 2>&1 || echo "")
         if echo "$ENTRY_LIST" | grep -q "$WORKLOAD_SPIFFE_ID"; then
             echo "$ENTRY_LIST" | grep -B 5 "$WORKLOAD_SPIFFE_ID" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -1 | while read -r eid; do
                 if [ -n "$eid" ]; then
-                    "${SPIRE_DIR}/bin/spire-server" entry delete -entryID "$eid" -socketPath /tmp/spire-server/private/api.sock 2>&1 && echo "  ✓ Deleted entry: $eid"
+                    "${SPIRE_SERVER}" entry delete -entryID "$eid" -socketPath /tmp/spire-server/private/api.sock 2>&1 && echo "  ✓ Deleted entry: $eid"
                 fi
             done
         fi
@@ -121,7 +123,7 @@ if echo "$ENTRY_SHOW_OUTPUT" | grep -qi "Entry ID" && ! echo "$ENTRY_SHOW_OUTPUT
 fi
 
 # Create new entry
-ENTRY_ID=$("${SPIRE_DIR}/bin/spire-server" entry create \
+ENTRY_ID=$("${SPIRE_SERVER}" entry create \
     -spiffeID "$WORKLOAD_SPIFFE_ID" \
     -parentID "$AGENT_ID" \
     -selector "unix:uid:$(id -u)" \

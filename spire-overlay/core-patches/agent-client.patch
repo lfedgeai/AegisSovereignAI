@@ -1,0 +1,481 @@
+--- a/pkg/agent/client/client.go	2026-02-18 20:59:58
++++ b/pkg/agent/client/client.go	2026-02-18 20:58:16
+@@ -3,10 +3,18 @@
+ import (
+ 	"context"
+ 	"crypto"
++	"crypto/rand"
+ 	"crypto/tls"
+ 	"crypto/x509"
++	"encoding/asn1"
++	"encoding/base64"
++	"encoding/hex"
++	"encoding/json"
++	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"os"
++	"path/filepath"
+ 	"sort"
+ 	"sync"
+ 	"time"
+@@ -18,11 +26,14 @@
+ 	entryv1 "github.com/spiffe/spire-api-sdk/proto/spire/api/server/entry/v1"
+ 	svidv1 "github.com/spiffe/spire-api-sdk/proto/spire/api/server/svid/v1"
+ 	"github.com/spiffe/spire-api-sdk/proto/spire/api/types"
+-	"github.com/spiffe/spire/pkg/common/bundleutil"
++	"github.com/spiffe/spire/pkg/agent/tpmplugin"
+ 	"github.com/spiffe/spire/pkg/common/idutil"
++	"github.com/spiffe/spire/pkg/common/bundleutil"
++	"github.com/spiffe/spire/pkg/common/fflag"
+ 	"github.com/spiffe/spire/pkg/common/telemetry"
+ 	"github.com/spiffe/spire/pkg/common/tlspolicy"
+ 	"github.com/spiffe/spire/proto/spire/common"
++	"github.com/spiffe/spire/pkg/agent/catalog"
+ 	"google.golang.org/grpc"
+ 	"google.golang.org/grpc/codes"
+ 	"google.golang.org/grpc/status"
+@@ -46,9 +57,11 @@
+ 
+ const rpcTimeout = 30 * time.Second
+ 
++// Unified-Identity: Hardware Integration & Delegated Certification
+ type X509SVID struct {
+-	CertChain []byte
+-	ExpiresAt int64
++	CertChain     []byte
++	ExpiresAt     int64
++	AttestedClaims []*types.AttestedClaims // AttestedClaims from server response
+ }
+ 
+ type JWTSVID struct {
+@@ -98,6 +111,8 @@
+ 
+ 	// TLSPolicy determines the post-quantum-safe policy to apply to all TLS connections.
+ 	TLSPolicy tlspolicy.Policy
++
++	Catalog catalog.Catalog
+ }
+ 
+ type client struct {
+@@ -107,6 +122,10 @@
+ 
+ 	// dialOpts optionally sets gRPC dial options
+ 	dialOpts []grpc.DialOption
++
++	Catalog catalog.Catalog
++
++	tpmPlugin *tpmplugin.TPMPluginGateway
+ }
+ 
+ // New creates a new client struct with the configuration provided
+@@ -115,9 +134,37 @@
+ }
+ 
+ func newClient(c *Config) *client {
+-	return &client{
+-		c: c,
++	cl := &client{
++		c:       c,
++		Catalog: c.Catalog,
+ 	}
++
++	// Unified-Identity: Initialize TPM plugin client for mTLS signing if needed
++	if fflag.IsSet(fflag.FlagUnifiedIdentity) {
++		pluginPath := os.Getenv("TPM_PLUGIN_CLI_PATH")
++		if pluginPath == "" {
++			possiblePaths := []string{
++				"/tmp/spire-data/tpm-plugin/tpm_plugin_cli.py",
++				filepath.Join(os.Getenv("HOME"), "AegisSovereignAI/hybrid-cloud-poc/tpm-plugin/tpm_plugin_cli.py"),
++			}
++			for _, path := range possiblePaths {
++				if _, err := os.Stat(path); err == nil {
++					pluginPath = path
++					break
++				}
++			}
++		}
++
++		if pluginPath != "" {
++			tpmPluginEndpoint := os.Getenv("TPM_PLUGIN_ENDPOINT")
++			if tpmPluginEndpoint == "" {
++				tpmPluginEndpoint = "unix:///tmp/spire-data/tpm-plugin/tpm-plugin.sock"
++			}
++			cl.tpmPlugin = tpmplugin.NewTPMPluginGateway(pluginPath, "", tpmPluginEndpoint, c.Log)
++		}
++	}
++
++	return cl
+ }
+ 
+ func (c *client) FetchUpdates(ctx context.Context) (*Update, error) {
+@@ -231,6 +278,14 @@
+ 	}, nil
+ }
+ 
++// Unified-Identity: Hardware Integration & Delegated Certification
++// Interface: SPIRE Agent → SPIRE Server
++// Status: ✅ Existing (Standard SPIRE) - Extended with SovereignAttestation
++// Transport: mTLS over TCP
++// Protocol: gRPC (Protobuf)
++// Port: SPIRE Server port (typically 8081)
++// RPC Method: RenewAgent(RenewAgentRequest) returns (RenewAgentResponse)
++// Authentication: TLS client certificate authentication, SPIRE trust domain validation
+ func (c *client) RenewSVID(ctx context.Context, csr []byte) (*X509SVID, error) {
+ 	ctx, cancel := context.WithTimeout(ctx, rpcTimeout)
+ 	defer cancel()
+@@ -241,10 +296,64 @@
+ 	}
+ 	defer connection.Release()
+ 
++	params := &agentv1.AgentX509SVIDParams{
++		Csr: csr,
++	}
++
++	// Unified-Identity: Request nonce from server before building SovereignAttestation
++	// Step 2: SPIRE Agent Requests Nonce from SPIRE Server (per architecture doc)
++	var nonce string
++	if fflag.IsSet(fflag.FlagUnifiedIdentity) {
++		// First, request a nonce from the server
++		nonceResp, err := agentClient.RenewAgent(ctx, &agentv1.RenewAgentRequest{
++			Params: &agentv1.AgentX509SVIDParams{
++				Csr: csr,
++				// No SovereignAttestation yet - this is the nonce request
++			},
++		})
++		if err != nil {
++			c.release(connection)
++			c.withErrorFields(err).Error("Failed to request nonce from server")
++			return nil, fmt.Errorf("failed to request nonce from server: %w", err)
++		}
++
++		// Extract nonce from response (hex-encoded, 64 characters)
++		// Step 2: SPIRE Server returns nonce in RenewAgentResponse.challenge_nonce
++		challengeNonceBytes := nonceResp.GetChallengeNonce()
++		if len(challengeNonceBytes) > 0 {
++			nonce = hex.EncodeToString(challengeNonceBytes)
++			c.c.Log.WithField("nonce_length", len(nonce)).Info("Unified-Identity: Received nonce from SPIRE Server")
++		} else {
++			// Fallback: generate nonce locally if server doesn't provide one
++			nonceBytes := make([]byte, 32)
++			if _, err := rand.Read(nonceBytes); err != nil {
++				c.c.Log.WithError(err).Warn("Unified-Identity: Failed to generate nonce, using stub data")
++				params.SovereignAttestation = BuildSovereignAttestationStub()
++			} else {
++				nonce = hex.EncodeToString(nonceBytes)
++				c.c.Log.Warn("Unified-Identity: Server did not provide nonce, using locally generated nonce (fallback)")
++			}
++		}
++
++		// Step 3-7: Build SovereignAttestation with nonce from server
++		if nonce != "" {
++			if collector, ok := c.c.Catalog.GetCollector(); ok {
++				c.c.Log.Debug("Unified-Identity: Collecting sovereign attestation data via plugin for renewal")
++				sa, err := collector.CollectSovereignAttestation(ctx, nonce)
++				if err != nil {
++					return nil, fmt.Errorf("failed to collect sovereign attestation for renewal: %w", err)
++				}
++				params.SovereignAttestation = sa
++			} else {
++				c.c.Log.Warn("Unified-Identity: Collector plugin not found during renewal, falling back to stub data (deprecated)")
++				params.SovereignAttestation = BuildSovereignAttestationStub()
++			}
++		}
++	}
++
++	// Step 8: Send attestation request with SovereignAttestation
+ 	resp, err := agentClient.RenewAgent(ctx, &agentv1.RenewAgentRequest{
+-		Params: &agentv1.AgentX509SVIDParams{
+-			Csr: csr,
+-		},
++		Params: params,
+ 	})
+ 	if err != nil {
+ 		c.release(connection)
+@@ -256,9 +365,78 @@
+ 	for _, cert := range resp.Svid.CertChain {
+ 		certChain = append(certChain, cert...)
+ 	}
++	if len(resp.AttestedClaims) > 0 {
++		claim := resp.AttestedClaims[0]
++		c.c.Log.WithFields(logrus.Fields{
++			"geolocation": claim.Geolocation,
++		}).Info("Unified-Identity: Received AttestedClaims for agent SVID")
++	}
++
++	// Unified-Identity: Dump agent SVID details to logs
++	if len(resp.Svid.CertChain) > 0 {
++		cert, err := x509.ParseCertificate(resp.Svid.CertChain[0])
++		if err == nil {
++			spiffeID := ""
++			if len(cert.URIs) > 0 {
++				spiffeID = cert.URIs[0].String()
++			}
++
++			// Extract Unified Identity extension if present
++			unifiedIdentityOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 2}
++			legacyOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 99999, 1}
++			var unifiedIdentityExt []byte
++			for _, ext := range cert.Extensions {
++				if ext.Id.Equal(unifiedIdentityOID) || ext.Id.Equal(legacyOID) {
++					unifiedIdentityExt = ext.Value
++					break
++				}
++			}
++
++			// Encode certificate to PEM
++			certPEM := pem.EncodeToMemory(&pem.Block{
++				Type:  "CERTIFICATE",
++				Bytes: cert.Raw,
++			})
++
++			// Unified-Identity: Log unified agent SVID with formatted, readable output
++			c.c.Log.WithFields(logrus.Fields{
++				"spiffe_id":     spiffeID,
++				"serial_number": cert.SerialNumber.String(),
++				"not_before":    cert.NotBefore.Format(time.RFC3339),
++				"not_after":     cert.NotAfter.Format(time.RFC3339),
++			}).Info("Unified-Identity: Agent Unified SVID renewed")
++
++			// Log certificate PEM separately for readability
++			c.c.Log.WithFields(logrus.Fields{
++				"spiffe_id": spiffeID,
++				"cert_pem":  string(certPEM),
++			}).Info("Unified-Identity: Agent SVID Certificate (PEM)")
++
++			// Log Unified Identity claims in formatted JSON if present
++			if len(unifiedIdentityExt) > 0 {
++				var claimsJSON map[string]interface{}
++				if err := json.Unmarshal(unifiedIdentityExt, &claimsJSON); err == nil {
++					// Format JSON for readable output
++					claimsFormatted, _ := json.MarshalIndent(claimsJSON, "", "  ")
++					// Log claims as a multi-line formatted message
++					c.c.Log.WithFields(logrus.Fields{
++						"spiffe_id": spiffeID,
++					}).Infof("Unified-Identity: Agent SVID Unified Identity Claims:\n%s", string(claimsFormatted))
++				} else {
++					// Fallback if JSON parsing fails
++					c.c.Log.WithFields(logrus.Fields{
++						"spiffe_id":        spiffeID,
++						"claims_raw":       string(unifiedIdentityExt),
++					}).Warn("Unified-Identity: Agent SVID claims (raw, JSON parse failed)")
++				}
++			}
++		}
++	}
++
+ 	return &X509SVID{
+-		CertChain: certChain,
+-		ExpiresAt: resp.Svid.ExpiresAt,
++		CertChain:      certChain,
++		ExpiresAt:      resp.Svid.ExpiresAt,
++		AttestedClaims: resp.AttestedClaims,
+ 	}, nil
+ }
+ 
+@@ -272,31 +450,50 @@
+ 	svids := make(map[string]*X509SVID)
+ 	var params []*svidv1.NewX509SVIDParams
+ 	for entryID, csr := range csrs {
+-		params = append(params, &svidv1.NewX509SVIDParams{
++		param := &svidv1.NewX509SVIDParams{
+ 			EntryId: entryID,
+ 			Csr:     csr,
+-		})
++		}
++		
++		// Unified-Identity: Add SovereignAttestation if feature flag is enabled
++		if fflag.IsSet(fflag.FlagUnifiedIdentity) {
++			if collector, ok := c.c.Catalog.GetCollector(); ok {
++				c.c.Log.Debug("Unified-Identity: Collecting sovereign attestation data via plugin for workload")
++				sa, err := collector.CollectSovereignAttestation(ctx, "") // No nonce for workload SVID request
++				if err != nil {
++					return nil, fmt.Errorf("failed to collect sovereign attestation for workload: %w", err)
++				}
++				param.SovereignAttestation = sa
++			} else {
++				c.c.Log.Warn("Unified-Identity: Collector plugin not found for workload, falling back to stub data (deprecated)")
++				param.SovereignAttestation = BuildSovereignAttestationStub()
++			}
++		}
++		
++		params = append(params, param)
+ 	}
+ 
+-	protoSVIDs, err := c.fetchSVIDs(ctx, params)
++	protoResults, err := c.fetchSVIDs(ctx, params)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	for i, s := range protoSVIDs {
++	for i, result := range protoResults {
+ 		entryID := params[i].EntryId
+-		if s == nil {
++		if result == nil || result.Svid == nil {
+ 			c.c.Log.WithField(telemetry.RegistrationID, entryID).Debug("Entry not found")
+ 			continue
+ 		}
+ 		var certChain []byte
+-		for _, cert := range s.CertChain {
++		for _, cert := range result.Svid.CertChain {
+ 			certChain = append(certChain, cert...)
+ 		}
+ 
++		// Unified-Identity: Include AttestedClaims from server response
+ 		svids[entryID] = &X509SVID{
+-			CertChain: certChain,
+-			ExpiresAt: s.ExpiresAt,
++			CertChain:     certChain,
++			ExpiresAt:     result.Svid.ExpiresAt,
++			AttestedClaims: result.AttestedClaims,
+ 		}
+ 	}
+ 
+@@ -365,6 +562,26 @@
+ }
+ 
+ func (c *client) newServerGRPCClient() (*grpc.ClientConn, error) {
++	// Unified-Identity: Only apply TLS restrictions (PreferPKCS1v15) AFTER attestation is complete
++	// Initial attestation uses standard TLS (no client cert) and should have no restrictions
++	// mTLS with TPM App Key (after attestation) needs TLS 1.2 and PKCS#1 v1.5
++	
++	// Check if we have a certificate chain (after attestation)
++	chain, _, _ := c.c.KeysAndBundle()
++	hasCertChain := len(chain) > 0
++	
++	tlsPolicy := c.c.TLSPolicy
++	// Only enable PreferPKCS1v15 when we have a certificate chain (mTLS after attestation)
++	if fflag.IsSet(fflag.FlagUnifiedIdentity) && c.tpmPlugin != nil && hasCertChain {
++		// We have a certificate chain, so this is mTLS (after attestation)
++		// Enable PreferPKCS1v15 to limit TLS to 1.2 and prefer PKCS#1 v1.5 signatures
++		tlsPolicy.PreferPKCS1v15 = true
++		c.c.Log.Info("Unified-Identity - Verification: Enabling PreferPKCS1v15 TLS policy for TPM App Key mTLS (after attestation)")
++	} else if !hasCertChain {
++		// No certificate chain yet - this is initial attestation (standard TLS, no restrictions)
++		c.c.Log.Debug("Unified-Identity - Verification: Initial attestation (no cert chain), using standard TLS without restrictions")
++	}
++
+ 	return NewServerGRPCClient(ServerClientConfig{
+ 		Address:     c.c.Addr,
+ 		TrustDomain: c.c.TrustDomain,
+@@ -380,9 +597,34 @@
+ 			for _, cert := range chain {
+ 				agentCert.Certificate = append(agentCert.Certificate, cert.Raw)
+ 			}
++
++			// Unified-Identity - Verification: Use TPM App Key for mTLS signing when enabled
++			// Only use TPM App Key when we have a certificate chain (after attestation)
++			if fflag.IsSet(fflag.FlagUnifiedIdentity) && c.tpmPlugin != nil && len(chain) > 0 {
++				// Get App Key public key from TPM plugin
++				appKeyResult, err := c.tpmPlugin.GenerateAppKey(false)
++				if err != nil {
++					c.c.Log.WithError(err).Warn("Unified-Identity - Verification: Failed to get App Key, using regular key for mTLS")
++					return agentCert
++				}
++
++				if appKeyResult != nil && appKeyResult.AppKeyPublic != "" {
++					// Create TPM signer with App Key
++					tpmSigner, err := tpmplugin.NewTPMSigner(c.tpmPlugin, appKeyResult.AppKeyPublic, c.c.Log)
++					if err != nil {
++						c.c.Log.WithError(err).Warn("Unified-Identity - Verification: Failed to create TPM signer, using regular key for mTLS")
++						return agentCert
++					}
++
++					// Replace private key with TPM signer
++					agentCert.PrivateKey = tpmSigner
++					c.c.Log.Info("Unified-Identity - Verification: Using TPM App Key for mTLS signing")
++				}
++			}
++
+ 			return agentCert
+ 		},
+-		TLSPolicy: c.c.TLSPolicy,
++		TLSPolicy: tlsPolicy,
+ 		dialOpts:  c.dialOpts,
+ 	})
+ }
+@@ -645,7 +887,14 @@
+ 	return bundles, nil
+ }
+ 
+-func (c *client) fetchSVIDs(ctx context.Context, params []*svidv1.NewX509SVIDParams) ([]*types.X509SVID, error) {
++// Unified-Identity: Hardware Integration & Delegated Certification
++// fetchSVIDsResult holds both the SVID and AttestedClaims from the server response
++type fetchSVIDsResult struct {
++	Svid           *types.X509SVID
++	AttestedClaims []*types.AttestedClaims
++}
++
++func (c *client) fetchSVIDs(ctx context.Context, params []*svidv1.NewX509SVIDParams) ([]*fetchSVIDsResult, error) {
+ 	svidClient, connection, err := c.newSVIDClient()
+ 	if err != nil {
+ 		return nil, err
+@@ -662,7 +911,7 @@
+ 	}
+ 
+ 	okStatus := int32(codes.OK)
+-	var svids []*types.X509SVID
++	var results []*fetchSVIDsResult
+ 	for i, r := range resp.Results {
+ 		if r.Status.Code != okStatus {
+ 			c.c.Log.WithFields(logrus.Fields{
+@@ -672,12 +921,56 @@
+ 			}).Warn("Failed to mint X509 SVID")
+ 		}
+ 
+-		svids = append(svids, r.Svid)
++		// Unified-Identity: Extract AttestedClaims from server response
++		results = append(results, &fetchSVIDsResult{
++			Svid:           r.Svid,
++			AttestedClaims: r.AttestedClaims,
++		})
+ 	}
+ 
+-	return svids, nil
++	return results, nil
+ }
+ 
++// Unified-Identity: Build real SovereignAttestation using TPM plugin
++// This function uses the real TPM plugin to generate App Keys, Quotes, and Certificates
++// Falls back to stub data if TPM plugin is not available
++// Unified-Identity: Build real SovereignAttestation using Collector plugin
++func (c *client) BuildSovereignAttestation() *types.SovereignAttestation {
++	if collector, ok := c.Catalog.GetCollector(); ok {
++		sa, err := collector.CollectSovereignAttestation(context.Background(), "")
++		if err == nil {
++			return sa
++		}
++		c.c.Log.WithError(err).Warn("Unified-Identity: Failed to collect sovereign attestation via plugin, using stub data")
++	} else {
++		c.c.Log.Warn("Unified-Identity: Collector plugin not found, using stub data")
++	}
++	return BuildSovereignAttestationStub()
++}
++
++
++// Unified-Identity: Build stub SovereignAttestation
++// This is used as a fallback when TPM is not available or TPM plugin fails
++func BuildSovereignAttestationStub() *types.SovereignAttestation {
++	// Stub TPM quote with fixed data (base64-encoded for testing)
++	stubQuote := base64.StdEncoding.EncodeToString([]byte("stub-tpm-quote-phase3"))
++	
++	// Unified-Identity: Use valid PEM format for stub public key
++	// This is a valid PEM-format EC public key for testing (generated with cryptography library)
++	stubAppKeyPublic := `-----BEGIN PUBLIC KEY-----
++MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmEfSIT6GJla8CK04AsF4bv9WyoFZ
++BKTlYihT6v7QGy4hUq/djGG4il7vHmRm8nuOUzrQy7ViZhwhjNIRJH0hDg==
++-----END PUBLIC KEY-----`
++	
++	return &types.SovereignAttestation{
++		TpmSignedAttestation: stubQuote,
++		AppKeyPublic:         stubAppKeyPublic,
++		AppKeyCertificate:    []byte("stub-app-key-cert-phase3"), // Optional for testing
++		ChallengeNonce:       "stub-nonce-phase-3",
++		WorkloadCodeHash:     "stub-workload-code-hash-phase3",
++	}
++}
++
+ func (c *client) newEntryClient() (entryv1.EntryClient, *nodeConn, error) {
+ 	conn, err := c.getOrOpenConn()
+ 	if err != nil {

@@ -1,0 +1,13 @@
+--- a/pkg/agent/trustbundlesources/bundle.go	2026-02-18 21:09:17
++++ b/pkg/agent/trustbundlesources/bundle.go	2026-02-03 02:43:23
+@@ -32,8 +32,8 @@
+ 	lastBundle         []*x509.Certificate
+ }
+ 
+-func New(config *Config, log logrus.FieldLogger) Bundle {
+-	return Bundle{
++func New(config *Config, log logrus.FieldLogger) *Bundle {
++	return &Bundle{
+ 		config: config,
+ 		log:    log,
+ 	}

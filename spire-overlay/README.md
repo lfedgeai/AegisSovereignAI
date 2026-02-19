@@ -8,7 +8,7 @@ This directory contains **only** the modifications AegisSovereignAI makes to ups
 
 ### Production Build
 ```bash
-./scripts/spire-build.sh          # Builds SPIRE v1.10.3 with Aegis patches
+./scripts/spire-build.sh          # Builds SPIRE v1.14.1 with Aegis patches
 ls build/spire-binaries/          # Output: spire-server, spire-agent
 ```
 
@@ -54,10 +54,18 @@ spire-overlay/
 │               └── types/
 │                   └── sovereignattestation.proto  # Hardware attestation types
 │
-├── core-patches/           # SPIRE core modifications (41k lines)
-│   ├── server-api.patch         # New attestation API endpoints (28k lines)
-│   ├── server-endpoints.patch   # Sovereign attestation handlers (13k lines)
-│   └── feature-flags.patch      # Feature flag integration
+├── core-patches/           # SPIRE core modifications (11 patches)
+│   ├── server-api.patch              # New attestation API endpoints
+│   ├── server-endpoints.patch        # Sovereign attestation handlers
+│   ├── feature-flags.patch           # Feature flag integration
+│   ├── agent-core.patch              # Agent sovereign identity wiring
+│   ├── agent-config.patch            # Agent config for sovereign endpoint
+│   ├── agent-client.patch            # Agent gRPC client extensions
+│   ├── agent-svid-rotator.patch      # SVID rotation sovereign hooks
+│   ├── agent-svid-rotator-config.patch  # SVID rotator config extension
+│   ├── agent-manager-config.patch    # Agent manager config extension
+│   ├── agent-catalog.patch           # Agent catalog sovereign types
+│   └── agent-trustbundle.patch       # Trust bundle sovereign extension
 │
 ├── plugins/                # Aegis-specific plugins (NOT for upstream)
 │   ├── server-keylime/          # Keylime remote attestation integration
@@ -65,6 +73,17 @@ spire-overlay/
 │   ├── server-unifiedidentity/  # Unified identity claims processing
 │   ├── agent-nodeattestor-unifiedidentity/  # Agent-side attestation
 │   └── server-credentialcomposer-unifiedidentity/  # Credential composition
+│
+├── catalog-patches/        # Catalog wiring for sovereign types (copied into SPIRE build)
+│   ├── server-credentialcomposer-catalog.go  # Registers unified identity credential composer
+│   └── agent-nodeattestor-catalog.go         # Registers unified identity node attestor
+│
+├── new-packages/           # Net-new Go packages (not patches — added wholesale)
+│   ├── pkg/agent/tpmplugin/      # TPM attestation gateway (hardware SVID signing)
+│   ├── pkg/agent/plugin/collector/ # Collector plugin type + sovereign implementation
+│   ├── pkg/agent/catalog/        # Catalog entry for Collector plugin
+│   ├── pkg/agent/util/           # CSR construction helper
+│   └── pkg/server/credtemplate/  # AttestedClaims X.509 extension builder
 │
 ├── common-packages/        # Shared utilities
 │   ├── pluginconf/              # Plugin configuration helpers
@@ -94,7 +113,7 @@ spire-overlay/
 ┌─────────────────────────────────────────────┐
 │ scripts/spire-build.sh                      │
 ├─────────────────────────────────────────────┤
-│ 1. Clone SPIRE v1.10.3 from upstream       │
+│ 1. Clone SPIRE v1.14.1 from upstream       │
 │ 2. Apply proto-patches/                     │
 │ 3. Apply core-patches/*.patch               │
 │ 4. Copy plugins/ into pkg/server/plugin/    │
@@ -147,7 +166,7 @@ AegisSovereignAI/
 
 ```bash
 # Current locked version
-SPIRE_VERSION="v1.10.3"  # In scripts/spire-build.sh
+SPIRE_VERSION="v1.14.1"  # In scripts/spire-build.sh
 
 # Don't update until upstream PRs are merged
 # After PRs merge, update version and remove merged patches
