@@ -211,7 +211,7 @@ func (g *TPMPluginGateway) requestCertificateHTTP(appKeyPublic, endpoint, challe
 
 	// Decode base64 certificate
 	g.log.WithFields(logrus.Fields{
-		"raw_cert_b64_len":     len(result.AppKeyCertificate),
+		"raw_cert_b64_len": len(result.AppKeyCertificate),
 		"raw_cert_b64_preview": func() string {
 			if len(result.AppKeyCertificate) > 100 {
 				return result.AppKeyCertificate[:100] + "..."
@@ -231,7 +231,7 @@ func (g *TPMPluginGateway) requestCertificateHTTP(appKeyPublic, endpoint, challe
 	}
 
 	g.log.WithFields(logrus.Fields{
-		"cert_len":    len(certBytes),
+		"cert_len": len(certBytes),
 		"cert_prefix": func() string {
 			if len(certBytes) > 80 {
 				return string(certBytes[:80]) + "..."
@@ -313,9 +313,9 @@ func (g *TPMPluginGateway) VerifySignature(data []byte, signature []byte, hashAl
 	}
 
 	var result struct {
-		Status  string `json:"status"`
+		Status   string `json:"status"`
 		Verified bool   `json:"verified,omitempty"`
-		Error   string `json:"error,omitempty"`
+		Error    string `json:"error,omitempty"`
 	}
 
 	if err := g.httpRequest("POST", "/verify-signature", request, &result); err != nil {
@@ -381,21 +381,25 @@ func (g *TPMPluginGateway) BuildSovereignAttestation(nonce string) (*types.Sover
 	}
 
 	// Request App Key certificate (delegated certification)
-	var appKeyCertificate []byte
-	var agentUUID string
+	// REQUIRED: Certificate must be obtained for TPM attestation to succeed.
+	// An empty certificate causes a confusing 422 from Keylime ("Expecting value: line 1 column 1").
 	cert, uuid, err := g.RequestCertificate(appKeyResult.AppKeyPublic, "", nonce)
 	if err != nil {
-		g.log.WithError(err).Warn("Unified-Identity - Verification: Failed to get App Key certificate, continuing without certificate")
-	} else {
-		appKeyCertificate = cert
-		agentUUID = uuid
-		g.log.Info("Unified-Identity - Verification: App Key certificate obtained via delegated certification (App Key signed by AK)")
+		g.log.WithError(err).Error("Unified-Identity - Verification: FATAL - Failed to get App Key certificate from TPM plugin/rust-keylime")
+		return nil, fmt.Errorf("failed to get App Key certificate (required for TPM attestation): %w", err)
 	}
+	if len(cert) == 0 {
+		g.log.Error("Unified-Identity - Verification: FATAL - App Key certificate is empty (zero bytes)")
+		return nil, fmt.Errorf("App Key certificate is empty after successful RequestCertificate call")
+	}
+	appKeyCertificate := cert
+	agentUUID := uuid
+	g.log.WithField("cert_len", len(appKeyCertificate)).Info("Unified-Identity - Verification: App Key certificate obtained via delegated certification (App Key signed by AK)")
 
 	// Build SovereignAttestation
 	// Quote is empty since Keylime Verifier will request it directly from rust-keylime agent
 	g.log.WithField("agent_uuid", agentUUID).Info("Unified-Identity - Verification: Building SovereignAttestation with agentUUID")
-	
+
 	sovereignAttestation := &types.SovereignAttestation{
 		TpmSignedAttestation: "", // Empty - Keylime Verifier will request quote from rust-keylime agent
 		AppKeyPublic:         appKeyResult.AppKeyPublic,
