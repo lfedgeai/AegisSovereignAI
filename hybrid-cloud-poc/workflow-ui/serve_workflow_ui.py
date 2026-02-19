@@ -16,7 +16,10 @@
 
 """
 Simple HTTP server to serve the workflow visualization UI.
-Access at: http://10.1.0.11:8080/workflow_visualization.html
+Access at: http://10.1.0.11:8090/workflow_visualization.html
+
+NOTE: Port 8090 is used (not 8080) to avoid conflict with the
+Envoy mTLS proxy which must listen on port 8080.
 """
 
 import http.server
@@ -25,7 +28,7 @@ import os
 import sys
 from pathlib import Path
 
-PORT = 8080
+PORT = 8090
 HTML_FILE = '/tmp/workflow_visualization.html'
 
 class WorkflowUIHandler(http.server.SimpleHTTPRequestHandler):
