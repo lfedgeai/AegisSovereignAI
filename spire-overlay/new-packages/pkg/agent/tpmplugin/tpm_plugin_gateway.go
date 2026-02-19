@@ -210,12 +210,35 @@ func (g *TPMPluginGateway) requestCertificateHTTP(appKeyPublic, endpoint, challe
 	}
 
 	// Decode base64 certificate
+	g.log.WithFields(logrus.Fields{
+		"raw_cert_b64_len":     len(result.AppKeyCertificate),
+		"raw_cert_b64_preview": func() string {
+			if len(result.AppKeyCertificate) > 100 {
+				return result.AppKeyCertificate[:100] + "..."
+			}
+			return result.AppKeyCertificate
+		}(),
+		"agent_uuid": result.AgentUUID,
+	}).Info("Unified-Identity - Verification: Raw certificate response from TPM plugin server")
+
+	if result.AppKeyCertificate == "" {
+		return nil, "", fmt.Errorf("Certificate request returned empty app_key_certificate (status=success but cert missing)")
+	}
+
 	certBytes, err := base64.StdEncoding.DecodeString(result.AppKeyCertificate)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid base64 certificate: %w", err)
 	}
 
-	g.log.WithField("cert_len", len(certBytes)).Info("Unified-Identity - Verification: App Key certificate received successfully via HTTP/UDS")
+	g.log.WithFields(logrus.Fields{
+		"cert_len":    len(certBytes),
+		"cert_prefix": func() string {
+			if len(certBytes) > 80 {
+				return string(certBytes[:80]) + "..."
+			}
+			return string(certBytes)
+		}(),
+	}).Info("Unified-Identity - Verification: App Key certificate decoded successfully")
 
 	return certBytes, result.AgentUUID, nil
 }

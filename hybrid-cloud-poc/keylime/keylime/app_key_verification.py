@@ -55,12 +55,27 @@ def validate_app_key_certificate(
         Tuple of (is_valid, certificate_object, error_message)
     """
     logger.info("Unified-Identity: Validating App Key Certificate")
+    logger.info(
+        "Unified-Identity: validate_app_key_certificate input: cert_b64 len=%d preview=%.100s",
+        len(app_key_cert_b64) if app_key_cert_b64 else 0,
+        app_key_cert_b64 if app_key_cert_b64 else "<empty>",
+    )
+    logger.info(
+        "Unified-Identity: validate_app_key_certificate input: ak_public_key len=%d starts_with_pem=%s",
+        len(ak_public_key) if ak_public_key else 0,
+        bool(ak_public_key and ak_public_key.strip().startswith("-----BEGIN")),
+    )
 
     try:
         # Unified-Identity: Core Keylime Functionality (Fact-Provider Logic)
         # Decode base64 certificate
         try:
             cert_bytes = base64.b64decode(app_key_cert_b64)
+            logger.debug(
+                "Unified-Identity: base64 decoded cert: %d bytes, first 40 hex: %s",
+                len(cert_bytes),
+                cert_bytes[:40].hex() if cert_bytes else "<empty>",
+            )
         except Exception as e:
             error_msg = f"Failed to decode base64 certificate: {e}"
             logger.error("Unified-Identity: %s", error_msg)
@@ -75,6 +90,11 @@ def validate_app_key_certificate(
                 logger.error("Unified-Identity: %s", error_msg)
                 return False, None, error_msg
             cert_str = cert_bytes.decode("utf-8")
+            logger.debug(
+                "Unified-Identity: cert_str len=%d first_100=%.100s",
+                len(cert_str),
+                cert_str,
+            )
             if not cert_str or not cert_str.strip():
                 error_msg = "Certificate string is empty after decoding"
                 logger.error("Unified-Identity: %s", error_msg)
