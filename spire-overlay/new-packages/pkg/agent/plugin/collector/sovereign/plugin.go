@@ -2,6 +2,7 @@ package sovereign
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -38,7 +39,9 @@ func New() *Plugin {
 	p := &Plugin{
 		log: logrus.New(),
 	}
-	p.tpmPlugin = tpmplugin.NewTPMPluginGateway("", "", "", p.log)
+	// Initialize with environment-aware endpoint (TPM_PLUGIN_ENDPOINT or default UDS socket)
+	endpoint := os.Getenv("TPM_PLUGIN_ENDPOINT")
+	p.tpmPlugin = tpmplugin.NewTPMPluginGateway("", "", endpoint, p.log)
 	return p
 }
 
@@ -100,10 +103,9 @@ func (p *Plugin) Configure(ctx context.Context, req *configv1.ConfigureRequest) 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Initialize TPM plugin gateway if not already done
-	if p.tpmPlugin == nil {
-		p.tpmPlugin = tpmplugin.NewTPMPluginGateway("", "", "", p.log)
-	}
+	// (Re-)initialize TPM plugin gateway, reading TPM_PLUGIN_ENDPOINT if present
+	endpoint := os.Getenv("TPM_PLUGIN_ENDPOINT")
+	p.tpmPlugin = tpmplugin.NewTPMPluginGateway("", "", endpoint, p.log)
 
 	return &configv1.ConfigureResponse{}, nil
 }
