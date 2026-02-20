@@ -226,13 +226,17 @@ else
     # We pipe the request body to emulate the client request
     # GET /hello is what the python app sends
     # Pre-flight check: verify TLS is active on the target port before attempting mTLS.
-    # A plain-HTTP response (any HTTP status) means a non-TLS service is on the port.
+    # A plain-HTTP response (any 2xx/3xx/4xx/5xx status) means a non-TLS service is on
+    # the port. Envoy in mTLS mode rejects plain HTTP at the TLS layer, so curl returns
+    # http_code=000 (no HTTP response) — that is the expected healthy state.
+    # Note: do NOT use '|| echo 000' here; curl -w '%{http_code}' always writes the code
+    # regardless of exit status, and the fallback would double the zeros to '000000'.
     _PLAIN_STATUS=$(curl -s -m 3 --max-filesize 2000 \
         -o /tmp/_port_probe_body.txt \
         -w '%{http_code}' \
-        "http://${SERVER_HOST}:${SERVER_PORT}/" 2>/dev/null || echo '000')
-    if [ "${_PLAIN_STATUS}" != "000" ]; then
-        echo -e "${YELLOW}  ⚠ WARNING: ${SERVER_HOST}:${SERVER_PORT} responded to plain HTTP (HTTP ${_PLAIN_STATUS}) — Envoy may be down or replaced${NC}"
+        "http://${SERVER_HOST}:${SERVER_PORT}/" 2>/dev/null)
+    if [[ "${_PLAIN_STATUS}" =~ ^[1-9][0-9]{2}$ ]]; then
+        echo -e "${YELLOW}  ⚠ WARNING: ${SERVER_HOST}:${SERVER_PORT} responded to plain HTTP (HTTP ${_PLAIN_STATUS}) — a non-TLS service may have claimed the port${NC}"
         head -3 /tmp/_port_probe_body.txt 2>/dev/null | sed 's/^/    /'
     fi
 
