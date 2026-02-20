@@ -30,7 +30,7 @@ fi
 
 # Create backup of current patches
 BACKUP_DIR="$OVERLAY_DIR/.backup-$(date +%Y%m%d-%H%M%S)"
-echo "💾 Backing up current patches to: $BACKUP_DIR"
+echo "💾 Backing up current overlay to: $BACKUP_DIR"
 mkdir -p "$BACKUP_DIR"
 cp -r "$OVERLAY_DIR/core-patches" "$BACKUP_DIR/" 2>/dev/null || true
 
@@ -38,57 +38,89 @@ cp -r "$OVERLAY_DIR/core-patches" "$BACKUP_DIR/" 2>/dev/null || true
 echo ""
 echo "🔨 Regenerating patches..."
 
-# Get the base commit (before our changes)
+# Get the base commit — the "Apply Aegis overlay for development" commit made by spire-dev-setup.sh.
+# Everything AFTER that commit represents the developer's own edits.
 BASE_COMMIT=$(git log --grep="Apply Aegis overlay for development" --format="%H" | head -1)
 if [ -z "$BASE_COMMIT" ]; then
     echo "❌ Could not find base commit"
-    echo "   Are you in the correct repository?"
+    echo "   Are you in the correct repository? Run spire-dev-setup.sh first."
     exit 1
 fi
 
+# PARENT_COMMIT is vanilla SPIRE before any overlay was applied.
+# Diffing PARENT_COMMIT..HEAD gives all overlay customisations including the
+# developer's most recent edits — which is exactly what we want to capture.
 PARENT_COMMIT="${BASE_COMMIT}^"
 
-# Extract proto changes
-echo "   📝 Extracting proto changes..."
-PROTO_DIFF=$(git diff "$PARENT_COMMIT" HEAD -- proto/spire/api/)
-if [ -n "$PROTO_DIFF" ]; then
-    # Update proto-patches directory
-    git diff "$PARENT_COMMIT" HEAD -- proto/spire/api/ > /tmp/proto-changes.patch
-    echo "   ✅ Proto changes detected"
-else
-    echo "   ℹ️  No proto changes"
-fi
+# ── Core patches ────────────────────────────────────────────────────────────
+# For each existing patch file, parse the list of files it covers (from its
+# "diff --git a/... b/..." headers), then re-diff those exact paths from
+# PARENT_COMMIT to HEAD. This generic approach handles any number of patches
+# without needing per-patch hardcoded path lists.
+echo "   🔧 Regenerating core patches..."
+for patch in "$OVERLAY_DIR/core-patches"/*.patch; do
+    [ -f "$patch" ] || continue
+    patch_name=$(basename "$patch")
 
-# Extract core patches (everything except proto and plugins)
-echo "   🔧 Extracting core patches..."
+    # Collect the set of SPIRE-relative file paths covered by this patch
+    files=$(grep "^diff --git" "$patch" | awk '{print $3}' | sed 's|^a/||')
+    if [ -z "$files" ]; then
+        echo "      ⚠️  $patch_name has no file paths — skipping regeneration"
+        continue
+    fi
 
-# Server API patch
-git diff "$PARENT_COMMIT" HEAD -- pkg/server/api/ > "$OVERLAY_DIR/core-patches/server-api.patch"
-echo "      ✅ server-api.patch ($(wc -l < $OVERLAY_DIR/core-patches/server-api.patch) lines)"
+    # Re-diff and overwrite the patch file
+    # shellcheck disable=SC2086  # word splitting of $files is intentional
+    git diff "$PARENT_COMMIT" HEAD -- $files > "$patch"
+    lines=$(wc -l < "$patch")
+    echo "      ✅ $patch_name ($lines lines)"
+done
 
-# Server endpoints patch
-git diff "$PARENT_COMMIT" HEAD -- pkg/server/endpoints/ > "$OVERLAY_DIR/core-patches/server-endpoints.patch"
-echo "      ✅ server-endpoints.patch ($(wc -l < $OVERLAY_DIR/core-patches/server-endpoints.patch) lines)"
-
-# Feature flags patch
-git diff "$PARENT_COMMIT" HEAD -- cmd/ pkg/common/fflag/ > "$OVERLAY_DIR/core-patches/feature-flags.patch"
-echo "      ✅ feature-flags.patch ($(wc -l < $OVERLAY_DIR/core-patches/feature-flags.patch) lines)"
-
-# Extract custom plugins
+# ── Plugins ─────────────────────────────────────────────────────────────────
 echo "   🔌 Extracting plugins..."
-if [ -d "pkg/server/plugin/credentialcomposer/unifiedidentity" ]; then
-    mkdir -p "$OVERLAY_DIR/plugins/server-credentialcomposer-unifiedidentity"
-    cp -r pkg/server/plugin/credentialcomposer/unifiedidentity/* \
-        "$OVERLAY_DIR/plugins/server-credentialcomposer-unifiedidentity/"
-    echo "      ✅ unifiedidentity plugin"
+
+declare -A PLUGIN_MAP=(
+    ["pkg/server/keylime"]="plugins/server-keylime"
+    ["pkg/server/policy"]="plugins/server-policy"
+    ["pkg/server/unifiedidentity"]="plugins/server-unifiedidentity"
+    ["pkg/agent/plugin/nodeattestor/unifiedidentity"]="plugins/agent-nodeattestor-unifiedidentity"
+    ["pkg/server/plugin/credentialcomposer/unifiedidentity"]="plugins/server-credentialcomposer-unifiedidentity"
+)
+
+for spire_path in "${!PLUGIN_MAP[@]}"; do
+    overlay_path="${PLUGIN_MAP[$spire_path]}"
+    if [ -d "$spire_path" ]; then
+        mkdir -p "$OVERLAY_DIR/$overlay_path"
+        cp -r "$spire_path"/. "$OVERLAY_DIR/$overlay_path/"
+        echo "      ✅ $overlay_path"
+    fi
+done
+
+# ── Catalog patches ──────────────────────────────────────────────────────────
+echo "   📋 Extracting catalog patches..."
+if [ -f "pkg/server/catalog/credentialcomposer.go" ]; then
+    cp "pkg/server/catalog/credentialcomposer.go" \
+       "$OVERLAY_DIR/catalog-patches/server-credentialcomposer-catalog.go"
+    echo "      ✅ server-credentialcomposer-catalog.go"
+fi
+if [ -f "pkg/agent/catalog/nodeattestor.go" ]; then
+    cp "pkg/agent/catalog/nodeattestor.go" \
+       "$OVERLAY_DIR/catalog-patches/agent-nodeattestor-catalog.go"
+    echo "      ✅ agent-nodeattestor-catalog.go"
 fi
 
-# Extract packages
-echo "   📦 Extracting packages..."
-if [ -d "pkg/server/cache/nodecache" ]; then
-    mkdir -p "$OVERLAY_DIR/cache-packages/nodecache"
-    cp -r pkg/server/cache/nodecache/* "$OVERLAY_DIR/cache-packages/nodecache/"
-    echo "      ✅ nodecache"
+# ── New packages ─────────────────────────────────────────────────────────────
+# New packages are files that exist in the Aegis overlay but not in vanilla SPIRE.
+# They are tracked by the new-packages/ directory in the overlay; copy them back.
+echo "   📦 Extracting new packages..."
+if [ -d "$OVERLAY_DIR/new-packages" ]; then
+    find "$OVERLAY_DIR/new-packages" -type f | while read -r overlay_file; do
+        rel="${overlay_file#$OVERLAY_DIR/new-packages/}"
+        if [ -f "$rel" ]; then
+            cp "$rel" "$overlay_file"
+            echo "      ✅ $rel"
+        fi
+    done
 fi
 
 echo ""
@@ -96,11 +128,14 @@ echo "✅ Extraction complete!"
 echo ""
 echo "📊 Summary:"
 echo "   Backup: $BACKUP_DIR"
-echo "   Updated patches in: $OVERLAY_DIR/core-patches/"
+echo "   Core patches updated in: $OVERLAY_DIR/core-patches/"
+echo "   Plugins updated in:      $OVERLAY_DIR/plugins/"
+echo "   Catalog patches in:      $OVERLAY_DIR/catalog-patches/"
+echo "   New packages in:         $OVERLAY_DIR/new-packages/"
 echo ""
 echo "Next steps:"
-echo "   1. Review changes: git diff $OVERLAY_DIR"
-echo "   2. Test build: ./scripts/spire-build.sh"
-echo "   3. Commit changes: git add spire-overlay && git commit"
-echo "   4. Cleanup dev env: ./scripts/spire-dev-cleanup.sh"
+echo "   1. Review changes: git diff spire-overlay/ (from project root)"
+echo "   2. Test build:     cd $PROJECT_ROOT && ./scripts/spire-build.sh"
+echo "   3. Commit:         git add spire-overlay && git commit"
+echo "   4. Cleanup dev:    ./scripts/spire-dev-cleanup.sh"
 echo ""

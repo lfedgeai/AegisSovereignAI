@@ -1766,13 +1766,15 @@ if [ -f "${SERVER_CONFIG}" ]; then
             echo "    Removing SPIRE Server database directory: ${work_dir}/.data"
             rm -rf "${work_dir}/.data" 2>/dev/null || true
         fi
-        # Clean up any SQLite database files
-        find "${work_dir}" -maxdepth 2 -name "*.sqlite3" -o -name "*.db" 2>/dev/null | while read -r db_file; do
-            if [ -f "$db_file" ]; then
-                echo "    Removing database file: $db_file"
-                rm -f "$db_file" 2>/dev/null || true
-            fi
-        done
+        # Clean up any SQLite database files (only if directory exists)
+        if [ -d "${work_dir}" ]; then
+            find "${work_dir}" -maxdepth 2 \( -name "*.sqlite3" -o -name "*.db" \) 2>/dev/null | while read -r db_file; do
+                if [ -f "$db_file" ]; then
+                    echo "    Removing database file: $db_file"
+                    rm -f "$db_file" 2>/dev/null || true
+                fi
+            done || true
+        fi
     done
 
     # Create SPIRE Server data directory (required for SQLite database)

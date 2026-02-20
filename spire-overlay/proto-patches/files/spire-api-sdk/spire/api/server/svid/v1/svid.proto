@@ -94,7 +94,7 @@ message BatchNewX509SVIDResponse {
 
         // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
         // Optional. Verified claims from Keylime about host geolocation, integrity, and GPU metrics.
-        repeated spire.api.types.AegisAttestedClaims aegis_attested_claims = 30;
+        repeated spire.api.types.AttestedClaims attested_claims = 30;
     }
 
     // Result for each X509-SVID requested (order is maintained).
@@ -148,5 +148,5 @@ message NewX509SVIDParams {
 
     // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
     // Optional hardware-rooted PoR package for sovereign attestation.
-    optional spire.api.types.AegisSovereignAttestation aegis_sovereign_attestation = 20;
+    spire.api.types.SovereignAttestation sovereign_attestation = 20;
 }

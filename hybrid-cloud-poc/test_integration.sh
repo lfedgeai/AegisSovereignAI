@@ -38,6 +38,13 @@ if [ -z "${LOGGING_SETUP:-}" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# PROJ_DIR: the hybrid-cloud-poc directory on THIS machine (resolved at startup)
+PROJ_DIR="${SCRIPT_DIR}"
+# REMOTE_PROJ_DIR: path to hybrid-cloud-poc on REMOTE machines when SSH is used.
+# Defaults to the same path as PROJ_DIR (works for single-machine all-in-one setups).
+# Override via environment variable for multi-machine deployments where the repo
+# lives at a different path on remote agents/onprem machines.
+REMOTE_PROJ_DIR="${REMOTE_PROJ_DIR:-${SCRIPT_DIR}}"
 # Default all sub-scripts to run on 10.1.0.11
 CONTROL_PLANE_HOST="${CONTROL_PLANE_HOST:-10.1.0.11}"
 AGENTS_HOST="${AGENTS_HOST:-10.1.0.11}"
@@ -133,7 +140,7 @@ run_script() {
     # Unified-Identity - Testing: Fail-Fast & Logging
     # Run script and capture output to specific log file, while also streaming to master log (via stdout)
     # We use pipefail (set at top) to catch errors in the pipeline
-    if $run_func "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${env_vars} bash ${script_path} ${script_args}" 2>&1 | tee "${log_file}"; then
+    if $run_func "cd \"${PROJ_DIR}\" && env ${env_vars} bash ${script_path} ${script_args}" 2>&1 | tee "${log_file}"; then
         echo ""
         echo -e "${GREEN}✓ ${description} completed successfully${NC}"
         return 0
@@ -376,7 +383,7 @@ test_zkp_verification() {
         fi
         if [ $i -eq 10 ]; then
             echo "  (10s elapsed, forcing agent re-attestation to trigger ZKP...)"
-            run_on_agents "sudo pkill -x spire-agent && sleep 1 && cd ~/AegisSovereignAI/hybrid-cloud-poc && ./test_agents.sh --no-pause --no-build" >/dev/null 2>&1
+            run_on_agents "sudo pkill -x spire-agent && sleep 1 && cd \"${REMOTE_PROJ_DIR}\" && ./test_agents.sh --no-pause --no-build" >/dev/null 2>&1
         fi
         sleep 1
     done
@@ -390,7 +397,7 @@ test_zkp_verification() {
     # Wait for Envoy to be ready and SVID to be propagated
     echo "  Waiting for SVID with ZKP receipt to propagate to agent (up to 30s)..."
     for i in {1..30}; do
-        run_on_agents "cd ~/AegisSovereignAI/hybrid-cloud-poc && python3 fetch-spire-bundle.py --dump-only > /dev/null 2>&1"
+        run_on_agents "cd \"${REMOTE_PROJ_DIR}\" && python3 fetch-spire-bundle.py --dump-only > /dev/null 2>&1"
         if run_on_agents "grep -q 'grc.sovereignty_receipt' /tmp/svid-dump/attested_claims.json 2>/dev/null"; then
             echo -e "${GREEN}  ✓ SVID now contains ZKP receipt${NC}"
             break
@@ -400,7 +407,7 @@ test_zkp_verification() {
 
     echo "  Making mTLS request through Envoy in Zkp mode..."
     mTLS_ENV_VARS="SERVER_HOST=${ONPREM_HOST} SERVER_PORT=8080 CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} AGENTS_HOST=${AGENTS_HOST} ONPREM_HOST=${ONPREM_HOST}"
-    if run_on_agents "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>/dev/null; then
+    if run_on_agents "cd \"${REMOTE_PROJ_DIR}\" && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>/dev/null; then
         echo -e "${GREEN}  ✓ Traffic ALLOWED with valid ZKP receipt${NC}"
     else
         echo -e "${RED}  ✗ Traffic BLOCKED unexpectedly in Zkp mode${NC}"
@@ -581,7 +588,7 @@ main() {
     # Pass host environment variables so test_onprem.sh knows where control plane/agents are
     # Use env command to ensure variables are passed correctly
     ONPREM_ENV_VARS="${ONPREM_ENV_VARS}CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} AGENTS_HOST=${AGENTS_HOST} ONPREM_HOST=${ONPREM_HOST}"
-    run_on_onprem "cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud && env ${ONPREM_ENV_VARS} ./test_onprem.sh ${ONPREM_ARGS}" 2>&1 | tee "/tmp/remote_test_onprem.log"
+    run_on_onprem "cd \"${REMOTE_PROJ_DIR}/enterprise-private-cloud\" && env ${ONPREM_ENV_VARS} ./test_onprem.sh ${ONPREM_ARGS}" 2>&1 | tee "/tmp/remote_test_onprem.log"
     ONPREM_EXIT_CODE=$?
     set -e
 
@@ -660,9 +667,45 @@ main() {
     # Unified-Identity: Critical Fix - Sync trust bundle again before mTLS test
     # The SPIRE root may have rotated during agent attestation.
     echo -e "${CYAN}Syncing trust bundle to Envoy one last time before mTLS test...${NC}"
-    run_on_onprem "cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --cleanup-only && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --no-pause --no-build" > /dev/null 2>&1
-    echo -e "${GREEN}  ✓ Trust bundle synchronized and Envoy restarted${NC}"
+    ENVOY_RESTART_LOG="/tmp/envoy_restart_$(date +%s).log"
+    if run_on_onprem "cd \"${REMOTE_PROJ_DIR}/enterprise-private-cloud\" && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --cleanup-only && env CONTROL_PLANE_HOST=${CONTROL_PLANE_HOST} ./test_onprem.sh --no-pause --no-build" > "${ENVOY_RESTART_LOG}" 2>&1; then
+        echo -e "${GREEN}  ✓ Trust bundle synchronized and Envoy restarted${NC}"
+    else
+        echo -e "${RED}  ✗ Envoy restart failed — mTLS test cannot proceed${NC}"
+        echo -e "${YELLOW}  Last 30 lines of Envoy restart log (${ENVOY_RESTART_LOG}):${NC}"
+        tail -30 "${ENVOY_RESTART_LOG}" | sed 's/^/    /'
+        exit 1
+    fi
     echo ""
+
+    # Verify Envoy is STILL responding with TLS right before the mTLS client test.
+    # test_onprem.sh confirms port 8080 binds, but Envoy can crash shortly after SSH exits.
+    echo -e "${CYAN}  Verifying Envoy TLS is active before running mTLS client test...${NC}"
+    ENVOY_TLS_OK=false
+    for _tlsi in $(seq 1 6); do
+        # openssl s_client: CONNECTED = TLS handshake started (even if cert untrusted).
+        # "wrong version number" = plain HTTP on that port.
+        PROBE_OUT=$(run_on_onprem "echo | timeout 4 openssl s_client -connect localhost:8080 2>&1 | head -8" 2>/dev/null || true)
+        if echo "${PROBE_OUT}" | grep -qi 'CONNECTED\|Cipher\|SSL-Session\|certificate'; then
+            ENVOY_TLS_OK=true
+            break
+        elif echo "${PROBE_OUT}" | grep -qi 'wrong version\|http_request'; then
+            echo -e "${RED}  ✗ Port 8080 is serving PLAIN HTTP — Envoy TLS not active${NC}"
+            echo -e "${YELLOW}  Identifying the plain-HTTP service on port 8080:${NC}"
+            run_on_onprem "curl -s -m 2 -o /tmp/_port8080_body.txt http://localhost:8080/ 2>/dev/null; head -3 /tmp/_port8080_body.txt | sed 's/^/    /'" 2>/dev/null || true
+            run_on_onprem "sudo ss -tlnp | grep ':8080' | sed 's/^/    /'" 2>/dev/null || true
+            run_on_onprem "sudo lsof -i TCP:8080 -sTCP:LISTEN 2>/dev/null | sed 's/^/    /'" 2>/dev/null || true
+            echo -e "${RED}  Cannot proceed with mTLS test — Envoy must be running TLS on port 8080${NC}"
+            exit 1
+        fi
+        sleep 2
+    done
+    if [ "${ENVOY_TLS_OK}" = "true" ]; then
+        echo -e "${GREEN}  ✓ Envoy TLS is operational on port 8080${NC}"
+    else
+        echo -e "${YELLOW}  ⚠ Could not confirm Envoy TLS (no response within 12s) — attempting mTLS test anyway${NC}"
+        run_on_onprem "sudo ss -tlnp | grep ':8080' | sed 's/^/    /'" 2>/dev/null || true
+    fi
     echo ""
 
     # Prepare environment variables - SERVER_HOST should be ONPREM_HOST where Envoy is running
@@ -670,9 +713,9 @@ main() {
 
     # Run test_mtls_client.sh on agents host (where client runs)
     MTLS_TEST_PASSED=false
-    if run_on_agents "cd ~/AegisSovereignAI/hybrid-cloud-poc && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>&1 | tee "/tmp/remote_test_mtls_client.log"; then
+    if run_on_agents "cd \"${REMOTE_PROJ_DIR}\" && env ${mTLS_ENV_VARS} ./test_mtls_client.sh" 2>&1 | tee "/tmp/remote_test_mtls_client.log"; then
         echo ""
-        echo -e "${GREEN}✓ mTLS client test completed successfully in ~/AegisSovereignAI/hybrid-cloud-poc directory${NC}"
+        echo -e "${GREEN}✓ mTLS client test completed successfully${NC}"
         MTLS_TEST_PASSED=true
     else
         echo ""
@@ -785,7 +828,7 @@ cleanup_all() {
 
     # Cleanup on-prem services
     set +e
-    run_on_onprem "cd ~/AegisSovereignAI/hybrid-cloud-poc/enterprise-private-cloud && env SKIP_RECREATE=${SKIP_RECREATE:-false} ./test_onprem.sh --cleanup-only" 2>&1 | tee "${LOG_DIR}/test_onprem.log"
+    run_on_onprem "cd \"${REMOTE_PROJ_DIR}/enterprise-private-cloud\" && env SKIP_RECREATE=${SKIP_RECREATE:-false} ./test_onprem.sh --cleanup-only" 2>&1 | tee "${LOG_DIR}/test_onprem.log"
     ONPREM_CLEANUP_EXIT_CODE=$?
     set -e
 

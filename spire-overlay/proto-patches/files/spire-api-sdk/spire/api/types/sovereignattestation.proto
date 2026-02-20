@@ -4,60 +4,60 @@ option go_package = "github.com/spiffe/spire-api-sdk/proto/spire/api/types";
 
 // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
 // A hardware-rooted PoR package produced by the Agent.
-message AegisSovereignAttestation {
+message SovereignAttestation {
     // Base64-encoded TPM Quote (portable string). Validation: non-empty, base64, size <= 64kB
-    optional string tpm_signed_attestation = 1;
+    string tpm_signed_attestation = 1;
 
     // The App Key public key (PEM or base64-encoded). Preferred format: PEM.
     // Validation: when present must parse; server-side validation enforced.
-    optional string app_key_public = 2;
+    string app_key_public = 2;
 
     // Optional base64-encoded DER or PEM certificate proving the App Key was issued/signed by the host AK.
     // **CLARIFICATION:** This field MUST be Base64-encoded when transmitted over a JSON/REST boundary (e.g., to Keylime).
     // Validation: when present must parse to X.509 cert; chain verification will be performed by Keylime.
-    optional bytes app_key_certificate = 3;
+    bytes app_key_certificate = 3;
 
     // The SPIRE Server nonce used for freshness verification.
-    optional string challenge_nonce = 4;
+    string challenge_nonce = 4;
 
     // Optional workload code hash used as an additional selector/assertion.
-    optional string workload_code_hash = 5;
+    string workload_code_hash = 5;
 
     // Unified-Identity - Phase 3: rust-keylime agent UUID for delegated certification correlation.
-    optional string keylime_agent_uuid = 6;
+    string keylime_agent_uuid = 6;
 }
 
 // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
 // AttestedClaims contains verified facts from Keylime about the host.
-message AegisAttestedClaims {
-    optional AegisGeolocation geolocation = 1;    // Geolocation object with type, sensor_id, and optional value
-    optional AegisMNOEndorsement mno_endorsement = 2; // Gen 4: Signed MNO endorsement
-    optional string sovereignty_receipt = 3;     // Gen 4: ZKP proof of proximity
+message AttestedClaims {
+    Geolocation geolocation = 1;    // Geolocation object with type, sensor_id, and optional value
+    MNOEndorsement mno_endorsement = 2; // Gen 4: Signed MNO endorsement
+    string sovereignty_receipt = 3;     // Gen 4: ZKP proof of proximity
 }
 
 // Gen 4: MNOEndorsement represents a signed endorsement from a carrier
-message AegisMNOEndorsement {
-    optional bool verified = 1;
-    optional string endorsement_json = 2; // JSON-encoded endorsement data
-    optional string signature = 3;        // EdDSA signature
-    optional string key_id = 4;           // Signing key ID
+message MNOEndorsement {
+    bool verified = 1;
+    string endorsement_json = 2; // JSON-encoded endorsement data
+    string signature = 3;        // EdDSA signature
+    string key_id = 4;           // Signing key ID
 }
 
 // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
 // Geolocation represents geolocation sensor metadata
-message AegisGeolocation {
-    optional string type = 1;        // "mobile" or "gnss"
-    optional string sensor_id = 2;   // Sensor identifier (e.g., USB ID "12d1:1433" for mobile)
-    optional string value = 3;       // Optional for mobile, mandatory for gnss (e.g., GNSS coordinates)
-    optional string sensor_imei = 4; // IMEI for mobile devices
-    optional string sensor_imsi = 5; // IMSI for mobile devices
-    optional string sensor_msisdn = 6; // MSISDN for mobile devices
+message Geolocation {
+    string type = 1;        // "mobile" or "gnss"
+    string sensor_id = 2;   // Sensor identifier (e.g., USB ID "12d1:1433" for mobile)
+    string value = 3;       // Optional for mobile, mandatory for gnss (e.g., GNSS coordinates)
+    string sensor_imei = 4; // IMEI for mobile devices
+    string sensor_imsi = 5; // IMSI for mobile devices
+    string sensor_msisdn = 6; // MSISDN for mobile devices
 
     // GNSS-specific fields
-    optional string sensor_serial_number = 7;
-    optional double latitude = 8;
-    optional double longitude = 9;
-    optional double accuracy = 10;
+    string sensor_serial_number = 7;
+    double latitude = 8;
+    double longitude = 9;
+    double accuracy = 10;
     string sensor_signature = 11;
 }
 

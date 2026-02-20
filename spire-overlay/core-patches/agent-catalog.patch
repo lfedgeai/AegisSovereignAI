@@ -1,0 +1,42 @@
+--- a/pkg/agent/catalog/catalog.go	2026-02-18 20:04:06
++++ b/pkg/agent/catalog/catalog.go	2026-02-03 02:43:23
+@@ -8,6 +8,7 @@
+ 	"github.com/spiffe/go-spiffe/v2/spiffeid"
+ 	"github.com/spiffe/spire-plugin-sdk/pluginsdk"
+ 	metricsv1 "github.com/spiffe/spire-plugin-sdk/proto/spire/hostservice/common/metrics/v1"
++	"github.com/spiffe/spire/pkg/agent/plugin/collector"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/keymanager"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor"
+ 	"github.com/spiffe/spire/pkg/agent/plugin/nodeattestor/jointoken"
+@@ -20,6 +21,7 @@
+ )
+ 
+ const (
++	collectorType        = "Collector"
+ 	keyManagerType       = "KeyManager"
+ 	nodeAttestorType     = "NodeAttestor"
+ 	svidStoreType        = "SVIDStore"
+@@ -29,6 +31,7 @@
+ var ReconfigureTask = catalog.ReconfigureTask
+ 
+ type Catalog interface {
++	GetCollector() (collector.Collector, bool)
+ 	GetKeyManager() keymanager.KeyManager
+ 	GetNodeAttestor() nodeattestor.NodeAttestor
+ 	GetSVIDStoreNamed(name string) (svidstore.SVIDStore, bool)
+@@ -47,6 +50,7 @@
+ }
+ 
+ type Repository struct {
++	collectorRepository
+ 	keyManagerRepository
+ 	nodeAttestorRepository
+ 	svidStoreRepository
+@@ -58,6 +62,7 @@
+ 
+ func (repo *Repository) Plugins() map[string]catalog.PluginRepo {
+ 	return map[string]catalog.PluginRepo{
++		collectorType:        &repo.collectorRepository,
+ 		keyManagerType:       &repo.keyManagerRepository,
+ 		nodeAttestorType:     &repo.nodeAttestorRepository,
+ 		svidStoreType:        &repo.svidStoreRepository,

@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -16,7 +18,6 @@ import (
 	configv1 "github.com/spiffe/spire-plugin-sdk/proto/spire/service/common/config/v1"
 	"github.com/spiffe/spire/pkg/common/catalog"
 	"github.com/spiffe/spire/pkg/common/pluginconf"
-	"github.com/spiffe/spire/pkg/server/credtemplate"
 	"github.com/spiffe/spire/pkg/server/keylime"
 	"github.com/spiffe/spire/pkg/server/policy"
 	"github.com/spiffe/spire/pkg/server/unifiedidentity"
@@ -60,10 +61,17 @@ type Plugin struct {
 	mu            sync.RWMutex
 	keylimeClient *keylime.Client
 	policyEngine  *policy.Engine
+
+	// Gen 4: Cache verified claims for workload inheritance
+	// Key: Agent SPIFFE ID (keylime_agent_uuid)
+	claimsCache  map[string]*types.AttestedClaims
+	latestClaims *types.AttestedClaims
 }
 
 func New() *Plugin {
-	return &Plugin{}
+	return &Plugin{
+		claimsCache: make(map[string]*types.AttestedClaims),
+	}
 }
 
 func (p *Plugin) ComposeServerX509CA(context.Context, *credentialcomposerv1.ComposeServerX509CARequest) (*credentialcomposerv1.ComposeServerX509CAResponse, error) {
@@ -130,7 +138,7 @@ func (p *Plugin) ComposeAgentX509SVID(ctx context.Context, req *credentialcompos
 	}
 
 	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := credtemplate.AttestedClaimsExtension(claims, unifiedJSON)
+		ext, err := attestedClaimsExtension(claims, unifiedJSON)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
 		}
@@ -160,7 +168,7 @@ func (p *Plugin) ComposeWorkloadX509SVID(ctx context.Context, req *credentialcom
 	}
 
 	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := credtemplate.AttestedClaimsExtension(claims, unifiedJSON)
+		ext, err := attestedClaimsExtension(claims, unifiedJSON)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
 		}
@@ -194,16 +202,29 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 	engine := p.policyEngine
 	p.mu.RUnlock()
 
-	// Workload SVIDs are handled locally for scalability; only agent SVIDs go to Keylime
+	// Workload SVIDs inherit claims from the agent SVID (node attestation results)
 	if !isAgent {
-		logrus.Infof("Unified-Identity: Skipping Keylime verification for workload SVID (handled locally)")
-		// Build local claims without Keylime verification
-		claims := &types.AttestedClaims{}
-		unifiedJSON, err := buildLocalWorkloadClaims(sa, spiffeID, keySource)
-		if err != nil {
-			return nil, nil, status.Errorf(codes.Internal, "failed to build local workload claims: %v", err)
+		nodeID := ""
+		if sa != nil {
+			nodeID = sa.KeylimeAgentUuid
 		}
-		return claims, unifiedJSON, nil
+		p.mu.RLock()
+		cached, ok := p.claimsCache[nodeID]
+		if !ok && p.latestClaims != nil {
+			// Fallback to latest verified claims for POC (single node environment)
+			cached = p.latestClaims
+			ok = true
+		}
+		p.mu.RUnlock()
+
+		if ok {
+			logrus.Infof("Unified-Identity: Inheriting verified claims for workload %s from cache (node=%s)", spiffeID, nodeID)
+			unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, cached)
+			return cached, unifiedJSON, err
+		}
+		logrus.Infof("Unified-Identity: No cached claims for node %s - workload SVID will have legacy claims only", nodeID)
+		unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, nil)
+		return nil, unifiedJSON, err
 	}
 
 	if client == nil {
@@ -286,27 +307,24 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 	}
 
 	// Convert MNO Endorsement to protobuf
+	sovereigntyReceipt := keylimeClaims.SovereigntyReceipt
+
 	var protoMNO *types.MNOEndorsement
 	if keylimeClaims.MNOEndorsement != nil {
+		endorsementJSON, _ := json.Marshal(keylimeClaims.MNOEndorsement.Endorsement)
 		protoMNO = &types.MNOEndorsement{
-			Verified:  keylimeClaims.MNOEndorsement.Verified,
-			Signature: keylimeClaims.MNOEndorsement.Signature,
-			KeyId:     keylimeClaims.MNOEndorsement.KeyID,
-		}
-		
-		// Convert endorsement map to JSON string
-		if keylimeClaims.MNOEndorsement.Endorsement != nil {
-			endorsementJSON, err := json.Marshal(keylimeClaims.MNOEndorsement.Endorsement)
-			if err == nil {
-				protoMNO.EndorsementJson = string(endorsementJSON)
-			}
+			Verified:        keylimeClaims.MNOEndorsement.Verified,
+			EndorsementJson: string(endorsementJSON),
+			Signature:       keylimeClaims.MNOEndorsement.Signature,
+			KeyId:           keylimeClaims.MNOEndorsement.KeyID,
 		}
 	}
 
 	claims := &types.AttestedClaims{
 		Geolocation:        protoGeo,
 		MnoEndorsement:     protoMNO,
-		SovereigntyReceipt: keylimeClaims.SovereigntyReceipt,
+		SovereigntyReceipt: sovereigntyReceipt,
+	}
 
 	// Build unified identity JSON
 	var workloadKeyPEM string
@@ -317,19 +335,44 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 		}
 	}
 
+	if sovereigntyReceipt != "" {
+		logrus.Infof("Unified-Identity: Generated ZKP Sovereignty Receipt (len=%d) from Keylime", len(sovereigntyReceipt))
+	}
+
 	unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, workloadKeyPEM, sa, claims)
 	if err != nil {
 		return nil, nil, status.Errorf(codes.Internal, "failed to build claims JSON: %v", err)
 	}
 
+	// Cache verified claims for workloads on this node
+	p.mu.Lock()
+	if sa != nil && sa.KeylimeAgentUuid != "" {
+		p.claimsCache[sa.KeylimeAgentUuid] = claims
+	}
+	p.latestClaims = claims
+	p.mu.Unlock()
+
 	return claims, unifiedJSON, nil
 }
 
-// buildLocalWorkloadClaims builds claims for workload SVIDs locally without Keylime verification
-func buildLocalWorkloadClaims(sa *types.SovereignAttestation, spiffeID string, keySource string) ([]byte, error) {
-	// For workload SVIDs, we inherit the attestation evidence from the agent SVID
-	// but don't send it to Keylime for verification (scalability)
-	unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, nil)
+// attestedClaimsOID is the OID for the AegisSovereignAI attested claims X.509 extension.
+// Arc: 1.3.6.1.4.1 (private enterprise), 55744 (Sovereign Unified Identity Claims).
+// This is the canonical OID from the Aegis SPIRE fork (credtemplate/attested_claims_extension.go)
+// that passed all integration tests. Must match the OID checked by dump-svid-attested-claims.sh.
+var attestedClaimsOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55744, 1, 1}
+
+// attestedClaimsExtension encodes unified identity attestation data as a pkix.Extension.
+// The extension value is the raw unifiedJSON bytes (JSON-encoded sovereign identity claims).
+func attestedClaimsExtension(_ *types.AttestedClaims, unifiedJSON []byte) (pkix.Extension, error) {
+	if len(unifiedJSON) == 0 {
+		// Return a zero-value extension; callers check ext.Id != nil before appending.
+		return pkix.Extension{}, nil
+	}
+	return pkix.Extension{
+		Id:       attestedClaimsOID,
+		Critical: false,
+		Value:    unifiedJSON,
+	}, nil
 }
 
 func publicKeyToPEM(pub crypto.PublicKey) (string, error) {

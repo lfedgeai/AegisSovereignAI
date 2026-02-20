@@ -162,17 +162,44 @@ cleanup_existing_services() {
     printf '     Waiting for processes to exit...\n'
     sleep 3
 
-    # 1.5: Free up ports (Force kill if needed)
+    # 1.5: Stop system services that commonly use port 8080 (Jenkins, Grafana, Tomcat, etc.)
+    # These auto-restart via systemd and will steal port 8080 from Envoy if not stopped first.
+    printf '     Checking for system services on port 8080...\n'
+    if command -v systemctl &>/dev/null; then
+        for svc in jenkins grafana-server tomcat9 tomcat8 tomcat jetty wildfly jboss payara-server; do
+            if systemctl is-active --quiet "${svc}" 2>/dev/null; then
+                printf '     [INFO] Stopping system service "%s" (uses port 8080 by default)...\n' "${svc}"
+                sudo systemctl stop "${svc}" >/dev/null 2>&1 || true
+                # Prevent auto-restart while our test is running
+                sudo systemctl mask --now "${svc}" >/dev/null 2>&1 || true
+                printf '     [INFO] Service "%s" masked \u2014 it will NOT auto-restart during test\n' "${svc}"
+                printf '     [INFO] To re-enable after test: sudo systemctl unmask %s && sudo systemctl start %s\n' "${svc}" "${svc}"
+            fi
+        done
+    fi
+
+    # 1.6: Free up ports (Force kill if needed)
     printf '     Freeing up ports...\n'
     for port in 9050 9443 8080; do
         if command -v lsof &> /dev/null; then
             PIDS=$(sudo lsof -ti:${port} 2>/dev/null)
             if [ -n "$PIDS" ]; then
-                printf '     Force killing process on port %s (PID: %s)...\n' "$port" "$PIDS"
+                # Show process name before killing (helps diagnosis)
+                PROC_NAMES=$(sudo lsof -i:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $1}' | sort -u | tr '\n' ',' | sed 's/,$//')
+                printf '     Force killing process(es) on port %s (PID: %s, names: %s)...\n' "${port}" "$PIDS" "${PROC_NAMES:-unknown}"
                 printf '%s\n' "$PIDS" | xargs -r sudo kill -9 >/dev/null 2>&1
             fi
         fi
     done
+
+    # 1.7: Wait 2s and verify port 8080 is actually free before proceeding
+    sleep 2
+    if command -v lsof &>/dev/null && sudo lsof -ti:8080 2>/dev/null | grep -q .; then
+        REMAINING=$(sudo lsof -i:8080 2>/dev/null | awk 'NR>1 {print $1, $2}')
+        printf '     [WARN] Port 8080 still occupied after kill: %s\n' "${REMAINING}"
+    else
+        printf '     Port 8080 is free\n'
+    fi
 
     # Phase 2: Clean up all data and logs
     echo "  2. Cleaning up data and logs..."
@@ -1197,10 +1224,64 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
             printf '    [OK] Envoy started (PID: %s)\n' "$ENVOY_PID"
             # Restore terminal settings as Envoy/sudo might have messed them up (causing staircase output)
             stty sane 2>/dev/null || true
+            # Verify port 8080 is actually bound — process presence alone is not sufficient
+            # (Envoy may crash after startup due to bad WASM filter, port conflict, or cert error)
+            # Use sudo ss because Envoy runs as root via sudo setsid; non-root ss on some Ubuntu
+            # versions won't list root-owned sockets. Retry for up to 24s (12 × 2s sleeps).
+            ENVOY_PORT_READY=false
+            printf '    Waiting for Envoy to bind port 8080'
+            for _i in $(seq 1 12); do
+                # sudo ss: sees all sockets including root-owned
+                # lsof fallback: alternative if ss is unavailable
+                # bash /dev/tcp: lowest-common-denominator TCP connectivity check
+                if sudo ss -tlnp 2>/dev/null | grep -q ':8080' \
+                   || sudo lsof -i TCP:8080 -sTCP:LISTEN 2>/dev/null | grep -q . \
+                   || (bash -c 'echo >/dev/tcp/localhost/8080' 2>/dev/null); then
+                    ENVOY_PORT_READY=true
+                    break
+                fi
+                printf '.'
+                sleep 2
+            done
+            printf '\n'
+            if [ "$ENVOY_PORT_READY" = "true" ]; then
+                printf '    [OK] Envoy is listening on port 8080\n'
+                # Final confirmation: verify the service on port 8080 is actually speaking TLS,
+                # not plain HTTP. A mis-configured service or race condition could have stolen
+                # the port after Envoy managed to bind but before we check.
+                ENVOY_TLS_VERIFIED=false
+                TLS_PROBE=$(echo | timeout 4 openssl s_client -connect localhost:8080 2>&1 | head -6)
+                if echo "${TLS_PROBE}" | grep -qi 'CONNECTED\|Cipher\|SSL-Session\|begin cert\|certificate'; then
+                    ENVOY_TLS_VERIFIED=true
+                    printf '    [OK] Envoy TLS handshake verified on port 8080\n'
+                elif echo "${TLS_PROBE}" | grep -qi 'wrong version\|http_request'; then
+                    printf '    [ERROR] Port 8080 is bound but serving PLAIN HTTP (not TLS)\n'
+                    printf '    Identifying conflicting service:\n'
+                    sudo lsof -i TCP:8080 -sTCP:LISTEN 2>/dev/null | sed 's/^/      /' || true
+                    curl -s -m 2 http://localhost:8080/ 2>/dev/null | head -3 | sed 's/^/      /' || true
+                    printf '    Envoy log:\n'
+                    tail -10 /opt/envoy/logs/envoy.log | sed 's/^/      /' 2>/dev/null || true
+                    exit 1
+                else
+                    printf '    [WARN] TLS probe inconclusive (timeout or no response) \u2014 proceeding\n'
+                fi
+            else
+                # Show last 60 lines — the 25-line default is swamped by WASM worker init messages
+                # and hides any crash/error that appears after "starting main dispatch loop"
+                printf '    [ERROR] Envoy process exists but port 8080 is not bound after 24s\n'
+                printf '    Port status:\n'
+                sudo ss -tlnp 2>/dev/null | grep -E '8080|LISTEN' | sed 's/^/      /' || true
+                printf '    Last 60 lines of /opt/envoy/logs/envoy.log:\n'
+                if [ -f /opt/envoy/logs/envoy.log ]; then
+                    tail -60 /opt/envoy/logs/envoy.log | sed 's/^/      /'
+                fi
+                exit 1
+            fi
         else
-            printf '    [ERROR] Envoy failed to start or died immediately - check /opt/envoy/logs/envoy.log\n'
+            printf '    [ERROR] Envoy failed to start or died immediately\n'
+            printf '    Last 60 lines of /opt/envoy/logs/envoy.log:\n'
             if [ -f /opt/envoy/logs/envoy.log ]; then
-                tail -20 /opt/envoy/logs/envoy.log | sed 's/^/      /'
+                tail -60 /opt/envoy/logs/envoy.log | sed 's/^/      /'
             fi
             exit 1
         fi

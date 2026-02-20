@@ -1,0 +1,21 @@
+--- a/pkg/agent/config.go	2026-02-18 20:04:06
++++ b/pkg/agent/config.go	2026-02-03 02:43:23
+@@ -43,6 +43,9 @@
+ 	// The TLS Certificate resource name to use for the default X509-SVID with Envoy SDS
+ 	DefaultSVIDName string
+ 
++	// If true, the agent retries bootstrap with backoff
++	RetryBootstrap bool
++
+ 	// How the agent will behave when seeing an unknown x509 cert from the server
+ 	RebootstrapMode string
+ 
+@@ -83,7 +86,7 @@
+ 	TrustDomain spiffeid.TrustDomain
+ 
+ 	// Sources for getting Trust Bundles
+-	TrustBundleSources trustbundlesources.Bundle
++	TrustBundleSources *trustbundlesources.Bundle
+ 
+ 	// Join token to use for attestation, if needed
+ 	JoinToken string

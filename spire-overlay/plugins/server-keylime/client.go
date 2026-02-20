@@ -354,6 +354,26 @@ func BuildVerifyEvidenceRequest(sovereignAttestation *SovereignAttestationProto,
 		req.Data.AppKeyCertificate = base64.StdEncoding.EncodeToString(sovereignAttestation.AppKeyCertificate)
 	}
 
+	logrus.WithFields(logrus.Fields{
+		"app_key_cert_raw_bytes": len(sovereignAttestation.AppKeyCertificate),
+		"app_key_cert_b64_len":   len(req.Data.AppKeyCertificate),
+		"app_key_public_len":     len(req.Data.AppKeyPublic),
+		"quote_len":              len(req.Data.Quote),
+		"nonce":                  req.Data.Nonce,
+		"agent_uuid":             req.Data.AgentUUID,
+		"tpm_ak_len":             len(req.Data.TPMAK),
+	}).Info("Unified-Identity: BuildVerifyEvidenceRequest - payload summary before sending to Keylime")
+
+	if len(sovereignAttestation.AppKeyCertificate) > 0 {
+		preview := string(sovereignAttestation.AppKeyCertificate)
+		if len(preview) > 120 {
+			preview = preview[:120] + "..."
+		}
+		logrus.WithField("cert_raw_preview", preview).Info("Unified-Identity: AppKeyCertificate raw bytes preview (should be JSON)")
+	} else {
+		logrus.Warn("Unified-Identity: AppKeyCertificate is EMPTY in BuildVerifyEvidenceRequest - cert validation will be skipped by Keylime")
+	}
+
 	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
 	// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
 	// Set metadata
