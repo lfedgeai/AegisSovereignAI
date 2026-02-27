@@ -1,0 +1,23 @@
+name: DCO
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+  merge_group:
+    types:
+      - checks_requested
+jobs:
+  check-dco:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Python 3.x
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: '3.x'
+      - name: Check DCO
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip3 install -U dco-check
+          dco-check --exclude-pattern 'dependabot\[bot\]@users\.noreply\.github\.com'

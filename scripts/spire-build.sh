@@ -9,6 +9,24 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
 OVERLAY_DIR="$PROJECT_ROOT/spire-overlay"
 
+# ── Build mode ────────────────────────────────────────────────────────────────
+# SPIRE_MODE=fork    (default) — build from the committed spire-fork/ source
+#                               tree.  No clone or patching needed; edit files
+#                               in spire-fork/ directly and re-run.
+# SPIRE_MODE=overlay           — clone upstream SPIRE and apply overlay patches.
+#                               Use this to regenerate spire-fork/ from scratch.
+SPIRE_MODE="${SPIRE_MODE:-fork}"
+
+if [ "$SPIRE_MODE" = "fork" ]; then
+    if [ -d "$PROJECT_ROOT/spire-fork" ]; then
+        exec "$SCRIPT_DIR/spire-fork-build.sh" "$@"
+    else
+        echo "⚠️  SPIRE_MODE=fork but spire-fork/ not found — falling back to overlay mode."
+        SPIRE_MODE="overlay"
+    fi
+fi
+
+# ── Overlay mode (clone + patch) ──────────────────────────────────────────────
 # Configuration
 SPIRE_VERSION="${SPIRE_VERSION:-v1.14.1}"
 # spire-api-sdk uses its own versioning (pseudoversion based on main branch).

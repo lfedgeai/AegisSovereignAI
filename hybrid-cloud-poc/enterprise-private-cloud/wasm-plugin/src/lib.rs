@@ -701,32 +701,13 @@ fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
 
                         match serde_json::from_str::<serde_json::Value>(json_str) {
                             Ok(json) => {
-                                // 3. Parse Nested grc.workload (Gen 4 Workload SVIDs)
-                                if let Some(workload) = json.get("grc.workload") {
-                                    proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.workload claim", cert_idx));
-                                    return Some(SensorInfo {
-                                        sensor_id: workload.get("workload-id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                        sensor_type: Some("workload".to_string()),
-                                        sensor_imei: None,
-                                        sensor_imsi: None,
-                                        sensor_serial_number: None,
-                                        sensor_msisdn: None,
-                                        latitude: None,
-                                        longitude: None,
-                                        accuracy: None,
-                                        sovereignty_receipt: json.get("grc.sovereignty_receipt")
-                                            .and_then(|v| {
-                                                if v.is_string() {
-                                                    v.as_str()
-                                                } else {
-                                                    v.get("proof_b64").and_then(|p| p.as_str())
-                                                }
-                                            })
-                                            .map(|s| s.to_string()),
-                                    });
-                                }
-
-                                // 4. Parse Nested grc.geolocation (Refined Schema)
+                                // 3. Parse Nested grc.geolocation (Refined Schema)
+                                // IMPORTANT: Check grc.geolocation BEFORE grc.workload.
+                                // All SVIDs (agent + workload) contain grc.workload, but only
+                                // agent SVIDs contain grc.geolocation with mobile/IMEI claims.
+                                // Envoy forwards the full mTLS chain (leaf workload SVID + agent SVID);
+                                // we must not short-circuit on grc.workload or we skip the agent
+                                // SVID that holds the actual location evidence.
                                 if let Some(geo) = json.get("grc.geolocation") {
                                     proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.geolocation claim", cert_idx));
 
@@ -787,6 +768,48 @@ fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
                                             });
                                         }
                                     }
+                                }
+
+                                // 4. Parse grc.workload (Gen 4 Workload SVIDs) — checked AFTER geolocation.
+                                // All SVIDs carry grc.workload, so this is a fallback for certs that
+                                // have no inline grc.geolocation (e.g. workload SVIDs).
+                                // - If a grc.sovereignty_receipt is present this is a Gen 4 ZKP workload:
+                                //   route through the mobile ZKP verification path.
+                                // - If no receipt is present, do NOT return here — let the cert-chain
+                                //   loop continue so we can inspect the agent SVID (cert index 1+)
+                                //   which may carry a grc.geolocation.mobile extension.
+                                if let Some(workload) = json.get("grc.workload") {
+                                    let sovereignty_receipt = json.get("grc.sovereignty_receipt")
+                                        .and_then(|v| {
+                                            if v.is_string() {
+                                                v.as_str()
+                                            } else {
+                                                v.get("proof_b64").and_then(|p| p.as_str())
+                                            }
+                                        })
+                                        .map(|s| s.to_string());
+
+                                    if let Some(receipt) = sovereignty_receipt {
+                                        // Gen 4: workload SVID carries a ZKP sovereignty receipt.
+                                        // Treat as "mobile" type so it routes through the mobile
+                                        // ZKP verification branch in on_http_request_headers.
+                                        proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.workload + grc.sovereignty_receipt — Gen 4 ZKP workload SVID", cert_idx));
+                                        return Some(SensorInfo {
+                                            sensor_id: workload.get("workload-id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                                            sensor_type: Some("mobile".to_string()),
+                                            sensor_imei: None,
+                                            sensor_imsi: None,
+                                            sensor_serial_number: None,
+                                            sensor_msisdn: None,
+                                            latitude: None,
+                                            longitude: None,
+                                            accuracy: None,
+                                            sovereignty_receipt: Some(receipt),
+                                        });
+                                    }
+                                    // No receipt: this cert carries no verifiable geo evidence.
+                                    // Fall through to continue scanning the rest of the chain.
+                                    proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: grc.workload present but no grc.sovereignty_receipt — continuing chain scan", cert_idx));
                                 }
                             }
                             Err(e) => {
