@@ -54,8 +54,9 @@ zero-trust/spire-tpm-plugin/*.hash
 **/*.exe
 
 # SPIRE binaries in various locations
-**/spire-server
-**/spire-agent
+# Note: **/spire-server and **/spire-agent are intentionally NOT here —
+# those patterns match source directories (e.g. spire-fork/cmd/spire-server/).
+# The specific paths below cover the actual built binaries.
 **/cmd/spire-server/spire-server
 **/cmd/spire-agent/spire-agent
 **/support/oidc-discovery-provider/oidc-discovery-provider
@@ -102,3 +103,11 @@ hybrid-cloud-poc/keylime/cv_data.sqlite
 # SPIRE Development Environment (temporary, created by spire-dev-setup.sh)
 build/spire-dev/
 spire-overlay/.backup-*/
+
+# SPIRE overlay build workspace (intermediate artifacts from spire-build.sh)
+# Use spire-fork/ and spire-fork-sdk/ for the committed, editable source tree.
+build/spire/
+build/spire-api-sdk/
+build/spire-binaries/
+build/BUILD_INFO.txt
+.spire-version

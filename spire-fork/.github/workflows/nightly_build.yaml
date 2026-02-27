@@ -1,0 +1,38 @@
+name: Nightly Build
+on:
+  schedule:
+    # Random minute number to avoid GH scheduler stampede
+    - cron: '37 21 * * *'
+  workflow_dispatch: {}
+
+env:
+  NIGHTLY: true
+
+jobs:
+  build-and-publish-images:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+        with:
+          cosign-release: v2.2.3
+      - name: Install regctl
+        uses: regclient/actions/regctl-installer@ce5fd131e371ffcdd7508b478cb223b3511a9183 # main
+      - name: Build images
+        run: make images
+      - name: Log in to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images
+        run: ./.github/workflows/scripts/push-images.sh nightly

@@ -1,0 +1,415 @@
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Package keylime provides a client for interacting with the Keylime Verifier API.
+package keylime
+
+import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Client is a client for the Keylime Verifier API
+type Client struct {
+	baseURL    string
+	httpClient *http.Client
+	logger     logrus.FieldLogger
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Config holds configuration for the Keylime client
+type Config struct {
+	BaseURL    string
+	TLSCert    string
+	TLSKey     string
+	CACert     string
+	ServerName string
+	Timeout    time.Duration
+	Logger     logrus.FieldLogger
+}
+
+// MobileNetwork represents mobile-specific geolocation metadata
+type MobileNetwork struct {
+	IMEI   string `json:"sensor_imei,omitempty"`   // Unified-Identity: IMEI for mobile devices
+	IMSI   string `json:"sensor_imsi,omitempty"`   // Unified-Identity: IMSI for mobile devices
+	MSISDN string `json:"sensor_msisdn,omitempty"` // Task 2f: MSISDN (phone number) for mobile devices
+}
+
+// GNSS represents GNSS-specific geolocation metadata
+type GNSS struct {
+	SerialNumber string  `json:"sensor_serial_number,omitempty"`
+	Latitude     float64 `json:"latitude,omitempty"`
+	Longitude    float64 `json:"longitude,omitempty"`
+	Accuracy     float64 `json:"accuracy,omitempty"`
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Geolocation represents geolocation sensor metadata
+// type: "mobile" or "gnss"
+// sensor_id: Sensor identifier (e.g., USB device ID for mobile, device path for GNSS)
+// value: Optional for mobile, mandatory for gnss (GNSS coordinates, accuracy, etc.)
+type Geolocation struct {
+	Type     string `json:"type"`      // "mobile" or "gnss"
+	SensorID string `json:"sensor_id"` // Sensor identifier
+	Value    string `json:"value"`     // Optional for mobile, mandatory for gnss
+
+	MobileNetwork
+	GNSS
+}
+
+// Gen 4: MNOEndorsement represents a signed endorsement from a carrier
+type MNOEndorsement struct {
+	Verified    bool                   `json:"verified"`
+	Endorsement map[string]interface{} `json:"endorsement"`
+	Signature   string                 `json:"signature"`
+	KeyID       string                 `json:"key_id"`
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// AttestedClaims represents verified facts from Keylime
+type AttestedClaims struct {
+	Geolocation        *Geolocation    `json:"geolocation,omitempty"`
+	MNOEndorsement     *MNOEndorsement `json:"grc.mno_endorsement,omitempty"` // Gen 4
+	SovereigntyReceipt string          `json:"grc.sovereignty_receipt,omitempty"`
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
+// VerifyEvidenceRequest represents the request to Keylime
+type VerifyEvidenceRequest struct {
+	Type string `json:"type"` // Unified-Identity - Attestation: Required by Keylime Verifier
+	Data struct {
+		Nonce             string `json:"nonce"`
+		Quote             string `json:"quote"`
+		HashAlg           string `json:"hash_alg"`
+		AppKeyPublic      string `json:"app_key_public"`
+		AppKeyCertificate string `json:"app_key_certificate"`
+		AgentUUID         string `json:"agent_uuid,omitempty"`
+		AgentIP           string `json:"agent_ip,omitempty"`
+		AgentPort         int    `json:"agent_port,omitempty"`
+		TPMAK             string `json:"tpm_ak,omitempty"`
+		TPMEK             string `json:"tpm_ek,omitempty"`
+	} `json:"data"`
+	Metadata struct {
+		Source         string `json:"source"`
+		SubmissionType string `json:"submission_type"`
+		AuditID        string `json:"audit_id,omitempty"`
+	} `json:"metadata"`
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// VerifyEvidenceResponse represents the response from Keylime
+type VerifyEvidenceResponse struct {
+	Results struct {
+		Verified            bool `json:"verified"`
+		VerificationDetails struct {
+			AppKeyCertificateValid  bool   `json:"app_key_certificate_valid"`
+			AppKeyPublicMatchesCert bool   `json:"app_key_public_matches_cert"`
+			QuoteSignatureValid     bool   `json:"quote_signature_valid"`
+			NonceValid              bool   `json:"nonce_valid"`
+			Timestamp               int64  `json:"timestamp"`
+			TPMAK                   string `json:"tpm_ak"`
+		} `json:"verification_details"`
+		AttestedClaims AttestedClaims `json:"attested_claims"`
+		AuditID        string         `json:"audit_id"`
+	} `json:"results"`
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// NewClient creates a new Keylime client
+func NewClient(config Config) (*Client, error) {
+	if config.Logger == nil {
+		config.Logger = logrus.New()
+	}
+
+	if config.BaseURL == "" {
+		return nil, fmt.Errorf("base URL is required")
+	}
+
+	if config.Timeout == 0 {
+		// Unified-Identity - Verification: Increased timeout to 60s to allow for TPM quote operations
+		// With USE_TPM2_QUOTE_DIRECT, quotes complete in ~10s, but we allow extra time for
+		// network overhead and verifier processing
+		timeoutStr := os.Getenv("KEYLIME_VERIFIER_TIMEOUT")
+		if timeoutStr != "" {
+			if parsed, err := time.ParseDuration(timeoutStr); err == nil {
+				config.Timeout = parsed
+			}
+		}
+		if config.Timeout == 0 {
+			config.Timeout = 60 * time.Second
+		}
+	}
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Interface: SPIRE Server → Keylime Verifier
+	// Status: 🆕 New (Attestation/3 Addition)
+	// Transport: mTLS over HTTPS
+	// Protocol: JSON REST API
+	// Port: localhost:8881
+	// Endpoint: POST /v2.4/verify/evidence
+	// Authentication: TLS client certificate authentication (mTLS)
+	// Configure TLS for mTLS connection to Keylime Verifier
+	tlsConfig := &tls.Config{
+		// Default to insecure skip if no CA provided (legacy/compat)
+		// but encourage proper CA usage via config.
+		InsecureSkipVerify: config.CACert == "",
+	}
+
+	// Unified-Identity - Verification: Load CA certificate for server verification
+	if config.CACert != "" {
+		caCert, err := os.ReadFile(config.CACert)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read CA certificate: %w", err)
+		}
+
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+			return nil, fmt.Errorf("failed to parse CA certificate")
+		}
+
+		tlsConfig.RootCAs = caCertPool
+		tlsConfig.InsecureSkipVerify = false
+		config.Logger.Info("Unified-Identity - Verification: Enabled strict TLS verification with CA certificate")
+	}
+
+	// Unified-Identity - Verification: Set ServerName for certificate verification
+	if config.ServerName != "" {
+		tlsConfig.ServerName = config.ServerName
+		config.Logger.Infof("Unified-Identity - Verification: Using ServerName %s for TLS verification", config.ServerName)
+	}
+
+	// Unified-Identity - Verification: Configure client certificate for mTLS
+	// If TLSCert and TLSKey are provided, enable mTLS (client authenticates to Keylime Verifier)
+	if config.TLSCert != "" && config.TLSKey != "" {
+		cert, err := tls.LoadX509KeyPair(config.TLSCert, config.TLSKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+		config.Logger.Info("Unified-Identity - Verification: Loaded client certificate for mTLS (SPIRE Server authenticates to Keylime Verifier)")
+	} else {
+		config.Logger.Debug("Unified-Identity - Verification: No client certificate provided, mTLS not enabled (server-only TLS)")
+	}
+
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	return &Client{
+		baseURL: config.BaseURL,
+		httpClient: &http.Client{
+			Transport: transport,
+			Timeout:   config.Timeout,
+		},
+		logger: config.Logger,
+	}, nil
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// VerifyEvidence calls the Keylime Verifier to verify evidence and get AttestedClaims
+func (c *Client) VerifyEvidence(req *VerifyEvidenceRequest) (*AttestedClaims, error) {
+	c.logger.WithFields(logrus.Fields{
+		"nonce":           req.Data.Nonce,
+		"submission_type": req.Metadata.SubmissionType,
+		"source":          req.Metadata.Source,
+		"tpm_ak_len":      len(req.Data.TPMAK),
+	}).Info("Unified-Identity - Verification: Calling Keylime Verifier to verify evidence")
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Encode request body
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Debug: Log full request body
+	c.logger.WithField("body", string(reqBody)).Info("Unified-Identity: Debug Payload - Full Keylime Request Body")
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Create HTTP request
+	url := fmt.Sprintf("%s/v2.4/verify/evidence", c.baseURL)
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Execute request
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		c.logger.WithError(err).Error("Unified-Identity - Verification: Failed to call Keylime Verifier")
+		return nil, fmt.Errorf("failed to call Keylime Verifier: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Read response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Check HTTP status
+	if resp.StatusCode != http.StatusOK {
+		c.logger.WithFields(logrus.Fields{
+			"status_code": resp.StatusCode,
+			"body":        string(respBody),
+		}).Error("Unified-Identity - Verification: Keylime Verifier returned error")
+		return nil, fmt.Errorf("keylime verifier returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Parse response
+	var verifyResp VerifyEvidenceResponse
+	if err := json.Unmarshal(respBody, &verifyResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Validate verification result
+	if !verifyResp.Results.Verified {
+		c.logger.WithFields(logrus.Fields{
+			"audit_id": verifyResp.Results.AuditID,
+		}).Warn("Unified-Identity - Verification: Keylime verification failed")
+		return nil, fmt.Errorf("verification failed (audit_id: %s)", verifyResp.Results.AuditID)
+	}
+
+	geoLog := "none"
+	if verifyResp.Results.AttestedClaims.Geolocation != nil {
+		geoLog = fmt.Sprintf("type=%s, sensor_id=%s", verifyResp.Results.AttestedClaims.Geolocation.Type, verifyResp.Results.AttestedClaims.Geolocation.SensorID)
+		if verifyResp.Results.AttestedClaims.Geolocation.Value != "" {
+			geoLog += fmt.Sprintf(", value=%s", verifyResp.Results.AttestedClaims.Geolocation.Value)
+		}
+		if verifyResp.Results.AttestedClaims.Geolocation.IMEI != "" {
+			geoLog += fmt.Sprintf(", sensor_imei=%s", verifyResp.Results.AttestedClaims.Geolocation.IMEI)
+		}
+		if verifyResp.Results.AttestedClaims.Geolocation.IMSI != "" {
+			geoLog += fmt.Sprintf(", sensor_imsi=%s", verifyResp.Results.AttestedClaims.Geolocation.IMSI)
+		}
+		if verifyResp.Results.AttestedClaims.Geolocation.MSISDN != "" {
+			geoLog += fmt.Sprintf(", sensor_msisdn=%s", verifyResp.Results.AttestedClaims.Geolocation.MSISDN)
+		}
+	}
+	c.logger.WithFields(logrus.Fields{
+		"audit_id":                verifyResp.Results.AuditID,
+		"geolocation":             geoLog,
+		"sovereignty_receipt_len": len(verifyResp.Results.AttestedClaims.SovereigntyReceipt),
+		"tpm_ak_len_hydrated":     len(verifyResp.Results.VerificationDetails.TPMAK),
+	}).Info("Unified-Identity - Verification: Successfully received AttestedClaims from Keylime")
+
+	// Debug: Log raw response to see what Keylime is actually sending
+	if verifyResp.Results.AttestedClaims.Geolocation != nil {
+		c.logger.WithFields(logrus.Fields{
+			"raw_geolocation": verifyResp.Results.AttestedClaims.Geolocation,
+		}).Debug("Unified-Identity - Verification: Raw Geolocation struct from Keylime")
+	}
+
+	return &verifyResp.Results.AttestedClaims, nil
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
+// BuildVerifyEvidenceRequest builds a VerifyEvidenceRequest from SovereignAttestation
+func BuildVerifyEvidenceRequest(sovereignAttestation *SovereignAttestationProto, nonce string) (*VerifyEvidenceRequest, error) {
+	req := &VerifyEvidenceRequest{}
+
+	// Unified-Identity - Attestation: Set evidence type (required by Keylime Verifier)
+	req.Type = "tpm"
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
+	// Set data fields
+	req.Data.Nonce = sovereignAttestation.ChallengeNonce
+	if req.Data.Nonce == "" {
+		req.Data.Nonce = nonce
+	}
+	req.Data.Quote = sovereignAttestation.TpmSignedAttestation
+	req.Data.HashAlg = "sha256"
+	req.Data.AppKeyPublic = sovereignAttestation.AppKeyPublic
+	req.Data.AgentUUID = sovereignAttestation.KeylimeAgentUuid
+	req.Data.TPMAK = sovereignAttestation.TpmAk
+
+	// Provide agent endpoint details so the Keylime Verifier can look up the AK
+	req.Data.AgentIP = getEnvOrDefault("KEYLIME_AGENT_IP", "127.0.0.1")
+	req.Data.AgentPort = getEnvIntOrDefault("KEYLIME_AGENT_PORT", 9002)
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
+	// Base64 encode app_key_certificate if present
+	if len(sovereignAttestation.AppKeyCertificate) > 0 {
+		req.Data.AppKeyCertificate = base64.StdEncoding.EncodeToString(sovereignAttestation.AppKeyCertificate)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"app_key_cert_raw_bytes": len(sovereignAttestation.AppKeyCertificate),
+		"app_key_cert_b64_len":   len(req.Data.AppKeyCertificate),
+		"app_key_public_len":     len(req.Data.AppKeyPublic),
+		"quote_len":              len(req.Data.Quote),
+		"nonce":                  req.Data.Nonce,
+		"agent_uuid":             req.Data.AgentUUID,
+		"tpm_ak_len":             len(req.Data.TPMAK),
+	}).Info("Unified-Identity: BuildVerifyEvidenceRequest - payload summary before sending to Keylime")
+
+	if len(sovereignAttestation.AppKeyCertificate) > 0 {
+		preview := string(sovereignAttestation.AppKeyCertificate)
+		if len(preview) > 120 {
+			preview = preview[:120] + "..."
+		}
+		logrus.WithField("cert_raw_preview", preview).Info("Unified-Identity: AppKeyCertificate raw bytes preview (should be JSON)")
+	} else {
+		logrus.Warn("Unified-Identity: AppKeyCertificate is EMPTY in BuildVerifyEvidenceRequest - cert validation will be skipped by Keylime")
+	}
+
+	// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+	// Unified-Identity - Attestation: Core Keylime Functionality (Fact-Provider Logic)
+	// Set metadata
+	req.Metadata.Source = "SPIRE Server"
+	req.Metadata.SubmissionType = "PoR/tpm-app-key"
+
+	return req, nil
+}
+
+func getEnvOrDefault(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func getEnvIntOrDefault(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	if parsed, err := strconv.Atoi(value); err == nil {
+		return parsed
+	}
+	return fallback
+}
+
+// Unified-Identity - Verification: Hardware Integration & Delegated Certification
+// SovereignAttestationProto represents the protobuf SovereignAttestation type
+// This is a placeholder - in the actual implementation, this would be the generated protobuf type
+type SovereignAttestationProto struct {
+	TpmSignedAttestation string
+	AppKeyPublic         string
+	AppKeyCertificate    []byte
+	ChallengeNonce       string
+	WorkloadCodeHash     string
+	KeylimeAgentUuid     string
+	TpmAk                string
+}

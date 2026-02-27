@@ -1,0 +1,43 @@
+.build
+.cache
+.data
+.envrc
+.glide
+.tmp
+.DS_Store
+*.swp
+*.log
+/bin
+/vendor
+/test_results
+/artifacts
+/releases
+bundle.*.pem
+svid.*.key
+svid.*.pem
+
+# Ignore binaries built using go build either from the root of the repo or
+# within the respective main packages.
+/spire-server
+/spire-agent
+/oidc-discovery-provider
+cmd/spire-server/spire-server
+cmd/spire-agent/spire-agent
+support/oidc-discovery-provider/oidc-discovery-provider
+tools/spire-plugingen/spire-plugingen
+
+# Editor specific configuration
+.idea
+.vscode
+
+# Runtime version manager specific configuration
+# asdf config file
+.tool-versions
+
+# oci artifacts
+*-image.tar
+oci/
+
+# Go workspace files
+go.work
+go.work.sum

@@ -1,0 +1,43 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: "daily"
+    time: "09:00"
+    timezone: "America/Los_Angeles"
+  groups:
+    actions:
+      patterns:
+        - "github.com/actions/*"
+    aws-sdk:
+      patterns:
+        - "github.com/aws/aws-sdk-go-v2/*"
+    azure-sdk:
+      patterns:
+        - "github.com/Azure/azure-sdk-for-go/*"
+    google-cloud-sdk:
+      patterns:
+        - "cloud.google.com/go/*"
+    k8s.io:
+      patterns:
+        - "k8s.io/*"
+    sigs.k8s.io:
+      patterns:
+        - "sig.k8s.io/*"
+  ignore:
+  - dependency-name: "github.com/spiffe/spire-api-sdk"
+  - dependency-name: "github.com/spiffe/spire-plugin-sdk"
+  # go-sqlite3 v2 is not the latest release. See the repo for more information.
+  - dependency-name: "github.com/mattn/go-sqlite3"
+    versions: ["2.x"]
+  - dependency-name: "github.com/aws/aws-sdk-go-v2*"
+    update-types: ["version-update:semver-patch"]
+  - dependency-name: "cloud.google.com/go/*"
+    update-types: ["version-update:semver-patch"]
+  open-pull-requests-limit: 5
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule: 
+   interval: daily
+  open-pull-requests-limit: 5

@@ -1,0 +1,11 @@
+# Ignore build tools and cache
+.build*
+.cache
+releases/
+artifacts/
+.githooks/
+script/
+doc/
+examples/
+oci/
+*-image.tar
