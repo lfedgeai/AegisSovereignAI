@@ -2721,6 +2721,16 @@ AGENT_CONFIG="${PROJECT_DIR}/python-app-demo/spire-agent.conf"
         export TPM_PLUGIN_ENDPOINT="unix:///tmp/spire-data/tpm-plugin/tpm-plugin.sock"
     fi
 
+    # Set TPM_PLUGIN_CLI_PATH so agent can find the TPM plugin CLI on any clone location
+    # Without this, PreferPKCS1v15 TLS policy won't be applied and the agent will crash
+    if [ -z "${TPM_PLUGIN_CLI_PATH:-}" ]; then
+        TPM_CLI_CANDIDATE="${SCRIPT_DIR}/tpm-plugin/tpm_plugin_cli.py"
+        if [ -f "${TPM_CLI_CANDIDATE}" ]; then
+            export TPM_PLUGIN_CLI_PATH="$(cd "$(dirname "${TPM_CLI_CANDIDATE}")" && pwd)/$(basename "${TPM_CLI_CANDIDATE}")"
+            echo "    TPM_PLUGIN_CLI_PATH=${TPM_PLUGIN_CLI_PATH}"
+        fi
+    fi
+
     # Verify TPM_PLUGIN_ENDPOINT is using UDS format (not TCP/IP)
     if ! echo "${TPM_PLUGIN_ENDPOINT}" | grep -q "^unix://"; then
         echo -e "${RED}    ✗ ERROR: TPM_PLUGIN_ENDPOINT must use UDS format (unix://), got: ${TPM_PLUGIN_ENDPOINT}${NC}"

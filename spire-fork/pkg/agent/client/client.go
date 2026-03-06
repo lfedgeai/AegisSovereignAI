@@ -143,9 +143,20 @@ func newClient(c *Config) *client {
 	if fflag.IsSet(fflag.FlagUnifiedIdentity) {
 		pluginPath := os.Getenv("TPM_PLUGIN_CLI_PATH")
 		if pluginPath == "" {
+			// Look for the TPM plugin CLI in common locations
 			possiblePaths := []string{
 				"/tmp/spire-data/tpm-plugin/tpm_plugin_cli.py",
 				filepath.Join(os.Getenv("HOME"), "AegisSovereignAI/hybrid-cloud-poc/tpm-plugin/tpm_plugin_cli.py"),
+			}
+			// Also check relative to SPIRE binary location (handles fresh clones)
+			if exe, err := os.Executable(); err == nil {
+				exeDir := filepath.Dir(exe)
+				// binary is typically at <repo>/build/spire-binaries/spire-agent
+				// tpm_plugin_cli.py is at <repo>/hybrid-cloud-poc/tpm-plugin/tpm_plugin_cli.py
+				repoRoot := filepath.Join(exeDir, "..", "..")
+				possiblePaths = append(possiblePaths,
+					filepath.Join(repoRoot, "hybrid-cloud-poc/tpm-plugin/tpm_plugin_cli.py"),
+				)
 			}
 			for _, path := range possiblePaths {
 				if _, err := os.Stat(path); err == nil {
@@ -155,12 +166,18 @@ func newClient(c *Config) *client {
 			}
 		}
 
+		tpmPluginEndpoint := os.Getenv("TPM_PLUGIN_ENDPOINT")
+		if tpmPluginEndpoint == "" {
+			tpmPluginEndpoint = "unix:///tmp/spire-data/tpm-plugin/tpm-plugin.sock"
+		}
+
 		if pluginPath != "" {
-			tpmPluginEndpoint := os.Getenv("TPM_PLUGIN_ENDPOINT")
-			if tpmPluginEndpoint == "" {
-				tpmPluginEndpoint = "unix:///tmp/spire-data/tpm-plugin/tpm-plugin.sock"
-			}
 			cl.tpmPlugin = tpmplugin.NewTPMPluginGateway(pluginPath, "", tpmPluginEndpoint, c.Log)
+		} else {
+			// Even without CLI, initialize with just UDS endpoint for mTLS signing support
+			// This ensures PreferPKCS1v15 TLS policy is applied on fresh clones
+			c.Log.Info("Unified-Identity: TPM plugin CLI not found, initializing gateway with UDS endpoint only")
+			cl.tpmPlugin = tpmplugin.NewTPMPluginGateway("", "", tpmPluginEndpoint, c.Log)
 		}
 	}
 
