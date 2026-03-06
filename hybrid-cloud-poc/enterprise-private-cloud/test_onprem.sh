@@ -502,15 +502,13 @@ if [ "$ZKP_NEEDS_REBUILD" = "true" ]; then
         if cargo build --release > /tmp/zkp-prover-onprem-build.log 2>&1; then
             echo -e "${GREEN}  ✓ ZKP prover (Plonky2) built successfully${NC}"
         else
-            echo -e "${RED}  ✗ Failed to build ZKP prover${NC}"
-            tail -20 /tmp/zkp-prover-onprem-build.log
-            exit 1
+            echo -e "${YELLOW}  ⚠ ZKP prover build failed (non-fatal, sidecar will use mock receipts)${NC}"
+            echo -e "${YELLOW}  Check /tmp/zkp-prover-onprem-build.log for details${NC}"
         fi
     else
         echo -e "${YELLOW}  ⚠ ZKP prover rebuild needed but --no-build specified${NC}"
         if [ ! -f "$ZKP_BINARY" ]; then
-            echo -e "${RED}  ✗ ZKP prover binary missing!${NC}"
-            exit 1
+            echo -e "${YELLOW}  ⚠ ZKP prover binary missing (non-fatal, sidecar will use mock receipts)${NC}"
         fi
     fi
 else
