@@ -4,7 +4,7 @@ This directory contains components for the enterprise on-prem environment that:
 - Terminates mTLS from SPIRE clients (10.1.0.11)
 - Verifies SPIRE certificate signatures
 - Extracts mobile sensor ID from SPIRE certificates
-- Calls mobile location service to verify sensor
+- Calls Geolocation Sidecar to verify sensor location
 - Forwards requests to backend mTLS server
 
 ## Architecture
@@ -21,10 +21,9 @@ Envoy Proxy (10.1.0.10:8080)
 | 3. WASM filter extracts sensor metadata and coordinates from certificate chain
 |    (Unified Identity extension in agent SVID)
 | 4. WASM filter behavior (Verification Modes):
-|    - **Trust**: No sidecar call (trust attestation-time verification)
-|    - **Runtime/Strict**: Calls mobile location service with SVID coordinates (blocking)
-|    - **ZKP (Zero-Knowledge)**: Extracts ZKP proof from SVID and calls sidecar for **stateless validation**
-|      (Privacy-preserving: verification without raw coordinates)
+|    - **Trust** (default): No sidecar call — ZKP proof in SVID is carrier-signed + TPM-bound
+|    - **ZKP**: Extracts ZKP proof from SVID and verifies stateless (no sidecar call)
+|    - **Runtime/Strict** (optional): Calls Geolocation Sidecar for fresh CAMARA verification
 | 5. If verified: adds X-Sensor-ID head and forwards request
 |    If not verified: returns 403 Forbidden
     |
@@ -42,7 +41,7 @@ mTLS Server (10.1.0.10:9443)
 - **Function**: 
   - Terminates mTLS from SPIRE clients
   - Verifies SPIRE certificate signatures using SPIRE CA bundle
-  - Uses WASM filter to extract sensor ID from certificate chain and verify with mobile location service
+  - Uses WASM filter to extract sensor ID from certificate chain and verify with Geolocation Sidecar
   - Forwards verified requests to backend mTLS server with `X-Sensor-ID` header
 - **Certificates**:
   - Uses its own certificates (`envoy-cert.pem`, `envoy-key.pem`) for TLS connections
@@ -52,15 +51,13 @@ mTLS Server (10.1.0.10:9443)
   - Extracts `sensor_id`, `sensor_type`, `sensor_imei`, `sim_imsi`, and `sim_msisdn` from certificate chain.
   - **Coordinate Extraction**: Extracts `latitude`, `longitude`, and `accuracy` (if available) for the **DB-less flow**.
   - **Sensor Type Handling**:
-    - **GPS/GNSS sensors**: Trusted hardware, bypass mobile location service entirely.
-    - **Mobile sensors**: 
-      - **Runtime/Strict**: Calls mobile location service for CAMARA API verification.
-      - **ZKP Mode**: Performs stateless verification of geofence proofs (Plonky2).
-  - **Caching**: All result caching is handled by the mobile location service (15-minute TTL, configurable).
+    - **All sensors (default Trust mode)**: ZKP proof is already in the SVID — no sidecar call needed.
+    - **Mobile sensors (optional Runtime/Strict mode)**: Calls Geolocation Sidecar for fresh CAMARA API verification.
+  - **Caching**: When Runtime/Strict mode is used, result caching is handled by the Geolocation Sidecar (15-minute TTL, configurable).
   - Adds `X-Sensor-ID` and `X-Mobile-MSISDN` headers to verified requests.
   - Returns 403 Forbidden if verification fails.
 
-### 2. Mobile Location Service
+### 2. Geolocation Sidecar
 - **Port**: 9050
 - **Location**: `../mobile-sensor-microservice/`
 - **Function**: Pure Mobile location verification via CAMARA API (DB-less flow priority).
@@ -128,9 +125,9 @@ The script will:
    - Creates combined CA bundle (SPIRE + Envoy) for backend server
    - Copies Envoy cert to client machine (10.1.0.11)
 4. Builds WASM filter with time-based caching
-5. Configures mobile location service with CAMARA credentials
+5. Configures Geolocation Sidecar with CAMARA credentials
 6. **Auto-starts all services** in background:
-   - Mobile Location Service (port 9050)
+   - Geolocation Sidecar (port 9050)
    - mTLS Server (port 9443)
    - Envoy Proxy (port 8080)
 7. **Automated ZKP Build**: Re-builds the `zkp-prover` if source changes are detected in `src/*.rs`.
@@ -164,7 +161,7 @@ If you prefer manual setup:
    scp /opt/envoy/certs/envoy-cert.pem mw@10.1.0.11:~/.mtls-demo/envoy-cert.pem
    ```
 
-3. **Start mobile location service**:
+3. **Start Geolocation Sidecar**:
    ```bash
    cd ~/AegisSovereignAI/hybrid-cloud-poc/mobile-sensor-microservice
    python3 -m venv .venv
@@ -231,7 +228,7 @@ scp /opt/envoy/certs/envoy-cert.pem mw@10.1.0.11:~/.mtls-demo/envoy-cert.pem
    - "Cache expired" (after 15s, re-verifying)
    - "Sensor verification successful" (when mobile service responds)
 
-2. **Check mobile location service logs** (CAMARA API calls):
+2. **Check Geolocation Sidecar logs** (CAMARA API calls):
    ```bash
    tail -f /tmp/mobile-sensor.log
    # Filter for CAMARA calls:
@@ -257,7 +254,7 @@ scp /opt/envoy/certs/envoy-cert.pem mw@10.1.0.11:~/.mtls-demo/envoy-cert.pem
 All logs are on 10.1.0.10:
 - **Envoy**: `/opt/envoy/logs/envoy.log` (requires sudo)
 - **Backend mTLS Server**: `/tmp/mtls-server.log`
-- **Mobile Location Service**: `/tmp/mobile-sensor.log`
+- **Geolocation Sidecar**: `/tmp/mobile-sensor.log`
 
 ### Watch Logs During Demo
 
@@ -312,7 +309,7 @@ tail -f /tmp/mobile-sensor.log
 - Check Envoy logs for certificate parsing errors
 - Rebuild WASM filter if needed: `cd enterprise-private-cloud/wasm-plugin && bash build.sh`
 
-### Mobile location service fails
+### Geolocation Sidecar fails
 - Check service is running: `curl http://localhost:9050/verify -X POST -H "Content-Type: application/json" -d '{}'`
 - Verify sensor ID exists in database: Check `mobile-sensor-microservice/sensor_mapping.db`
 
@@ -327,14 +324,14 @@ tail -f /tmp/mobile-sensor.log
 ### Time-Based Caching
 - **Cache TTL**: 15 seconds (configurable in WASM filter source)
 - **Purpose**: Reduces expensive CAMARA API calls
-- **Behavior**: First request calls mobile location service, subsequent requests within 15s use cached result
+- **Behavior**: First request calls Geolocation Sidecar, subsequent requests within 15s use cached result
 - **Logging**: Cache hits/misses are logged in Envoy logs
 
 ### Blocking Verification
-- **Behavior**: Requests pause until mobile location service responds
+- **Behavior**: Requests pause until Geolocation Sidecar responds
 - **Success**: Request continues with `X-Sensor-ID` header added
 - **Failure**: Request is rejected with 403 Forbidden
-- **Timeout**: 5 seconds for mobile location service call
+- **Timeout**: 5 seconds for Geolocation Sidecar call
 
 ### Certificate Chain Parsing
 - **Location**: Unified Identity extension is in the **agent SVID** (second certificate in chain)

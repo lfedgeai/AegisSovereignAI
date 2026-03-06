@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Act 1 - Infrastructure</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+<span style="font-weight:bold"></span><span style="color:#00cd00">  SLIDE 7 │ Demo Act 1 — Trusted Infrastructure Setup</span>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+
+<span style="font-weight:bold;color:#cdcd00">── Cloud — Control Plane ──</span>
+
+    <span style="font-weight:bold">Host Identity Manager (Keylime):</span>
+    <span style="color:#00cd00">✅  Keylime Verifier running (PID 2292744)</span>
+    <span style="color:#00cd00">✅  Keylime Registrar running (PID 2292774)</span>
+
+    <span style="font-weight:bold">Workload Identity Manager (SPIRE Server):</span>
+    <span style="color:#00cd00">✅  SPIRE Server running (PID 2292938)</span>
+
+<span style="font-weight:bold;color:#cdcd00">── Cloud — API Gateway &amp; Server Application ──</span>
+
+    <span style="font-weight:bold">ZTNA in API Gateway (Envoy + WASM):</span>
+    <span style="color:#00cd00">✅  Envoy proxy running (PID 2301147)</span>
+    <span style="font-weight:bold">Key Vault (Server App):</span>
+    <span style="color:#00cd00">✅  mTLS Server App running (PID 2300537)</span>
+
+<span style="font-weight:bold;color:#cdcd00">── Sovereign Edge Cloud — Location Anchor Host + Client App ──</span>
+
+    <span style="font-weight:bold">rust-keylime Agent:</span>
+    <span style="color:#00cd00">✅  rust-keylime agent running (PID 2294784)</span>
+    <span style="font-weight:bold">SPIRE Agent + TPM Plugin:</span>
+    <span style="color:#00cd00">✅  SPIRE Agent running (PID 2295207)</span>
+    <span style="color:#00cd00">✅  TPM Plugin Server running (PID 2295105)</span>
+
+    <span style="font-weight:bold">Hardware TPM:</span>
+    <span style="color:#00cd00">✅  Hardware TPM detected — manufacturer: unknown</span>
+
+    <span style="color:#00cd00"><span style="font-weight:bold">▸ All 7 services from the architecture diagram are running</span></span>
+    <span style="color:#00cd00"><span style="font-weight:bold">▸ Real hardware TPM — not software-emulated</span></span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

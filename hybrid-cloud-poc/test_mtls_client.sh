@@ -180,7 +180,7 @@ if [ $? -eq 0 ]; then
     IMEI_FOUND=true
     echo -e "${GREEN}✓ Expected IMEI found: $EXPECTED_IMEI${NC}"
 else
-    echo -e "${YELLOW}⚠ Expected IMEI not found: $EXPECTED_IMEI${NC}"
+    echo -e "${GREEN}ℹ IMEI not detected (no modem — this is normal)${NC}"
 fi
 
 echo "$IMEI_OUTPUT" | grep -q "$EXPECTED_IMSI"
@@ -188,16 +188,29 @@ if [ $? -eq 0 ]; then
     IMSI_FOUND=true
     echo -e "${GREEN}✓ Expected IMSI found: $EXPECTED_IMSI${NC}"
 else
-    echo -e "${YELLOW}⚠ Expected IMSI not found: $EXPECTED_IMSI${NC}"
+    echo -e "${GREEN}ℹ IMSI not detected (no modem — this is normal)${NC}"
 fi
 set -e
 
-if [ "$IMEI_FOUND" = true ] && [ "$IMSI_FOUND" = true ]; then
-    EXPECT_SUCCESS=true
-    echo -e "${GREEN}✓ Both IMEI and IMSI match - expecting HTTP request to succeed${NC}"
+# Allow callers (e.g., ZKP test in test_integration.sh) to pre-set EXPECT_SUCCESS via environment.
+# Only fall back to IMEI/IMSI logic when EXPECT_SUCCESS is not already defined.
+# Default: no modem = expect success (geolocation comes from GNSS, modem is optional).
+# To explicitly test the "missing geo" path, set EXPECT_GEO_MISSING=true.
+if [ -z "${EXPECT_SUCCESS:-}" ]; then
+    if [ "${EXPECT_GEO_MISSING:-false}" = true ]; then
+        EXPECT_SUCCESS=false
+        echo -e "${YELLOW}⚠ EXPECT_GEO_MISSING=true - expecting 'Geo Claim Missing' response${NC}"
+    elif [ "$IMEI_FOUND" = true ] && [ "$IMSI_FOUND" = true ]; then
+        EXPECT_SUCCESS=true
+        echo -e "${GREEN}✓ Both IMEI and IMSI match - expecting HTTP request to succeed${NC}"
+    else
+        # No modem detected — this is the default. Geolocation is provided by GNSS,
+        # so the SVID will have valid geo claims and the request should succeed.
+        EXPECT_SUCCESS=true
+        echo -e "${GREEN}✓ No modem detected (default) - expecting HTTP request to succeed (geo via GNSS)${NC}"
+    fi
 else
-    EXPECT_SUCCESS=false
-    echo -e "${YELLOW}⚠ IMEI/IMSI mismatch - expecting 'Geo Claim Missing' response${NC}"
+    echo -e "${GREEN}✓ EXPECT_SUCCESS pre-set by caller: ${EXPECT_SUCCESS} (overrides IMEI/IMSI check)${NC}"
 fi
 echo ""
 

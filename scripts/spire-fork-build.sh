@@ -4,13 +4,12 @@ set -e
 # Build SPIRE from the committed spire-fork/ source tree.
 #
 # The spire-fork/ directory contains the full AegisSovereignAI-modified SPIRE
-# source (cloned from upstream v1.14.1 with all overlay patches applied and
-# committed directly).  Anyone can edit the source files in spire-fork/ and
-# run this script to rebuild without needing patch tooling.
+# source.  Edit files in spire-fork/ directly, then re-run this script to
+# rebuild.  No patch tooling or upstream clone is needed.
 #
 # Usage:
-#   ./scripts/spire-fork-build.sh            # build and copy binaries
-#   SPIRE_MODE=overlay ./scripts/spire-build.sh  # use patch-based overlay instead
+#   ./scripts/spire-build.sh            # canonical entry point (delegates here)
+#   ./scripts/spire-fork-build.sh       # same, called directly
 #
 # Output: build/spire-binaries/spire-server and spire-agent
 
@@ -29,8 +28,7 @@ echo ""
 
 if [ ! -d "$FORK_DIR" ]; then
     echo "❌ spire-fork/ directory not found at $FORK_DIR"
-    echo "   Run 'SPIRE_MODE=overlay scripts/spire-build.sh' to assemble it first,"
-    echo "   or check out the branch that includes the spire-fork/ commit."
+    echo "   Check out the branch that includes the spire-fork/ commit."
     exit 1
 fi
 
@@ -54,9 +52,9 @@ echo ""
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 # Use 'make build' so the Makefile's go-check target manages the Go toolchain
-# (downloading the version pinned in spire-fork/.go-version if needed),
-# exactly as the overlay mode does.  This avoids GOTOOLCHAIN mismatches when
-# the system Go is older than what transitive dependencies require.
+# (downloading the version pinned in spire-fork/.go-version if needed).
+# This avoids GOTOOLCHAIN mismatches when the system Go is older than what
+# transitive dependencies require.
 echo "🏗️  Compiling SPIRE binaries (make build)..."
 make build
 echo "   ✓ Build complete"

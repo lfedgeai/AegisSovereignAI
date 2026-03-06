@@ -119,12 +119,18 @@ func (x *SovereignAttestation) GetKeylimeAgentUuid() string {
 // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
 // AttestedClaims contains verified facts from Keylime about the host.
 type AttestedClaims struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Geolocation        *Geolocation           `protobuf:"bytes,1,opt,name=geolocation,proto3" json:"geolocation,omitempty"`                                         // Geolocation object with type, sensor_id, and optional value
-	MnoEndorsement     *MNOEndorsement        `protobuf:"bytes,2,opt,name=mno_endorsement,json=mnoEndorsement,proto3" json:"mno_endorsement,omitempty"`             // Gen 4: Signed MNO endorsement
-	SovereigntyReceipt string                 `protobuf:"bytes,3,opt,name=sovereignty_receipt,json=sovereigntyReceipt,proto3" json:"sovereignty_receipt,omitempty"` // Gen 4: ZKP proof of proximity
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Geolocation    *Geolocation           `protobuf:"bytes,1,opt,name=geolocation,proto3" json:"geolocation,omitempty"`                             // Geolocation object with type, sensor_id, and optional value
+	MnoEndorsement *MNOEndorsement        `protobuf:"bytes,2,opt,name=mno_endorsement,json=mnoEndorsement,proto3" json:"mno_endorsement,omitempty"` // Gen 4: Signed MNO endorsement
+	// Gen 4: ZKP proof of proximity (Plonky2 proof)
+	// In Commitment-Verification mode, this may be empty in the SVID cert.
+	SovereigntyReceipt string `protobuf:"bytes,3,opt,name=sovereignty_receipt,json=sovereigntyReceipt,proto3" json:"sovereignty_receipt,omitempty"`
+	// Cryptographic commitment to the full ZKP proof (SHA-256)
+	SovereigntyReceiptHash string `protobuf:"bytes,4,opt,name=sovereignty_receipt_hash,json=sovereigntyReceiptHash,proto3" json:"sovereignty_receipt_hash,omitempty"`
+	// URI reference to fetch the full proof out-of-band (e.g. from Depository)
+	SovereigntyReceiptUri string `protobuf:"bytes,5,opt,name=sovereignty_receipt_uri,json=sovereigntyReceiptUri,proto3" json:"sovereignty_receipt_uri,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *AttestedClaims) Reset() {
@@ -174,6 +180,20 @@ func (x *AttestedClaims) GetMnoEndorsement() *MNOEndorsement {
 func (x *AttestedClaims) GetSovereigntyReceipt() string {
 	if x != nil {
 		return x.SovereigntyReceipt
+	}
+	return ""
+}
+
+func (x *AttestedClaims) GetSovereigntyReceiptHash() string {
+	if x != nil {
+		return x.SovereigntyReceiptHash
+	}
+	return ""
+}
+
+func (x *AttestedClaims) GetSovereigntyReceiptUri() string {
+	if x != nil {
+		return x.SovereigntyReceiptUri
 	}
 	return ""
 }
@@ -247,24 +267,16 @@ func (x *MNOEndorsement) GetKeyId() string {
 	return ""
 }
 
-// Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-// Geolocation represents geolocation sensor metadata
+// Geolocation represents privacy-preserving geolocation sensor metadata
 type Geolocation struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	Type         string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`                                     // "mobile" or "gnss"
-	SensorId     string                 `protobuf:"bytes,2,opt,name=sensor_id,json=sensorId,proto3" json:"sensor_id,omitempty"`             // Sensor identifier (e.g., USB ID "12d1:1433" for mobile)
-	Value        string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`                                   // Optional for mobile, mandatory for gnss (e.g., GNSS coordinates)
-	SensorImei   string                 `protobuf:"bytes,4,opt,name=sensor_imei,json=sensorImei,proto3" json:"sensor_imei,omitempty"`       // IMEI for mobile devices
-	SensorImsi   string                 `protobuf:"bytes,5,opt,name=sensor_imsi,json=sensorImsi,proto3" json:"sensor_imsi,omitempty"`       // IMSI for mobile devices
-	SensorMsisdn string                 `protobuf:"bytes,6,opt,name=sensor_msisdn,json=sensorMsisdn,proto3" json:"sensor_msisdn,omitempty"` // MSISDN for mobile devices
-	// GNSS-specific fields
-	SensorSerialNumber string  `protobuf:"bytes,7,opt,name=sensor_serial_number,json=sensorSerialNumber,proto3" json:"sensor_serial_number,omitempty"`
-	Latitude           float64 `protobuf:"fixed64,8,opt,name=latitude,proto3" json:"latitude,omitempty"`
-	Longitude          float64 `protobuf:"fixed64,9,opt,name=longitude,proto3" json:"longitude,omitempty"`
-	Accuracy           float64 `protobuf:"fixed64,10,opt,name=accuracy,proto3" json:"accuracy,omitempty"`
-	SensorSignature    string  `protobuf:"bytes,11,opt,name=sensor_signature,json=sensorSignature,proto3" json:"sensor_signature,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	ClassId      string                 `protobuf:"bytes,2,opt,name=class_id,json=classId,proto3" json:"class_id,omitempty"`                // Sensor manufacturer/model identifier (e.g., "12d1:1433")
+	IdentityHash string                 `protobuf:"bytes,3,opt,name=identity_hash,json=identityHash,proto3" json:"identity_hash,omitempty"` // Globally unique identity commitment: hash(Unique Anchor + Class ID)
+	// Optional descriptive fields for logging (non-unique)
+	Provider      string `protobuf:"bytes,4,opt,name=provider,proto3" json:"provider,omitempty"` // e.g., "Huawei", "u-blox"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Geolocation) Reset() {
@@ -304,72 +316,23 @@ func (x *Geolocation) GetType() string {
 	return ""
 }
 
-func (x *Geolocation) GetSensorId() string {
+func (x *Geolocation) GetClassId() string {
 	if x != nil {
-		return x.SensorId
+		return x.ClassId
 	}
 	return ""
 }
 
-func (x *Geolocation) GetValue() string {
+func (x *Geolocation) GetIdentityHash() string {
 	if x != nil {
-		return x.Value
+		return x.IdentityHash
 	}
 	return ""
 }
 
-func (x *Geolocation) GetSensorImei() string {
+func (x *Geolocation) GetProvider() string {
 	if x != nil {
-		return x.SensorImei
-	}
-	return ""
-}
-
-func (x *Geolocation) GetSensorImsi() string {
-	if x != nil {
-		return x.SensorImsi
-	}
-	return ""
-}
-
-func (x *Geolocation) GetSensorMsisdn() string {
-	if x != nil {
-		return x.SensorMsisdn
-	}
-	return ""
-}
-
-func (x *Geolocation) GetSensorSerialNumber() string {
-	if x != nil {
-		return x.SensorSerialNumber
-	}
-	return ""
-}
-
-func (x *Geolocation) GetLatitude() float64 {
-	if x != nil {
-		return x.Latitude
-	}
-	return 0
-}
-
-func (x *Geolocation) GetLongitude() float64 {
-	if x != nil {
-		return x.Longitude
-	}
-	return 0
-}
-
-func (x *Geolocation) GetAccuracy() float64 {
-	if x != nil {
-		return x.Accuracy
-	}
-	return 0
-}
-
-func (x *Geolocation) GetSensorSignature() string {
-	if x != nil {
-		return x.SensorSignature
+		return x.Provider
 	}
 	return ""
 }
@@ -385,31 +348,23 @@ const file_spire_api_types_sovereignattestation_proto_rawDesc = "" +
 	"\x13app_key_certificate\x18\x03 \x01(\fR\x11appKeyCertificate\x12'\n" +
 	"\x0fchallenge_nonce\x18\x04 \x01(\tR\x0echallengeNonce\x12,\n" +
 	"\x12workload_code_hash\x18\x05 \x01(\tR\x10workloadCodeHash\x12,\n" +
-	"\x12keylime_agent_uuid\x18\x06 \x01(\tR\x10keylimeAgentUuid\"\xcb\x01\n" +
+	"\x12keylime_agent_uuid\x18\x06 \x01(\tR\x10keylimeAgentUuid\"\xbd\x02\n" +
 	"\x0eAttestedClaims\x12>\n" +
 	"\vgeolocation\x18\x01 \x01(\v2\x1c.spire.api.types.GeolocationR\vgeolocation\x12H\n" +
 	"\x0fmno_endorsement\x18\x02 \x01(\v2\x1f.spire.api.types.MNOEndorsementR\x0emnoEndorsement\x12/\n" +
-	"\x13sovereignty_receipt\x18\x03 \x01(\tR\x12sovereigntyReceipt\"\x8c\x01\n" +
+	"\x13sovereignty_receipt\x18\x03 \x01(\tR\x12sovereigntyReceipt\x128\n" +
+	"\x18sovereignty_receipt_hash\x18\x04 \x01(\tR\x16sovereigntyReceiptHash\x126\n" +
+	"\x17sovereignty_receipt_uri\x18\x05 \x01(\tR\x15sovereigntyReceiptUri\"\x8c\x01\n" +
 	"\x0eMNOEndorsement\x12\x1a\n" +
 	"\bverified\x18\x01 \x01(\bR\bverified\x12)\n" +
 	"\x10endorsement_json\x18\x02 \x01(\tR\x0fendorsementJson\x12\x1c\n" +
 	"\tsignature\x18\x03 \x01(\tR\tsignature\x12\x15\n" +
-	"\x06key_id\x18\x04 \x01(\tR\x05keyId\"\xee\x02\n" +
+	"\x06key_id\x18\x04 \x01(\tR\x05keyId\"}\n" +
 	"\vGeolocation\x12\x12\n" +
-	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1b\n" +
-	"\tsensor_id\x18\x02 \x01(\tR\bsensorId\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1f\n" +
-	"\vsensor_imei\x18\x04 \x01(\tR\n" +
-	"sensorImei\x12\x1f\n" +
-	"\vsensor_imsi\x18\x05 \x01(\tR\n" +
-	"sensorImsi\x12#\n" +
-	"\rsensor_msisdn\x18\x06 \x01(\tR\fsensorMsisdn\x120\n" +
-	"\x14sensor_serial_number\x18\a \x01(\tR\x12sensorSerialNumber\x12\x1a\n" +
-	"\blatitude\x18\b \x01(\x01R\blatitude\x12\x1c\n" +
-	"\tlongitude\x18\t \x01(\x01R\tlongitude\x12\x1a\n" +
-	"\baccuracy\x18\n" +
-	" \x01(\x01R\baccuracy\x12)\n" +
-	"\x10sensor_signature\x18\v \x01(\tR\x0fsensorSignatureB7Z5github.com/spiffe/spire-api-sdk/proto/spire/api/typesb\x06proto3"
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x19\n" +
+	"\bclass_id\x18\x02 \x01(\tR\aclassId\x12#\n" +
+	"\ridentity_hash\x18\x03 \x01(\tR\fidentityHash\x12\x1a\n" +
+	"\bprovider\x18\x04 \x01(\tR\bproviderB7Z5github.com/spiffe/spire-api-sdk/proto/spire/api/typesb\x06proto3"
 
 var (
 	file_spire_api_types_sovereignattestation_proto_rawDescOnce sync.Once

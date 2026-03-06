@@ -1,10 +1,10 @@
-# Envoy Proxy Configuration for Enterprise On-Prem (10.1.0.10)
+# Envoy Proxy Configuration for Enterprise On-Prem (10.1.0.11)
 #
 # This configuration:
 # 1. Listens on port 8080 for mTLS connections from SPIRE clients (10.1.0.11)
 # 2. Verifies SPIRE client certificates using SPIRE CA bundle
 # 3. Uses WASM filter to extract sensor ID from client certificates
-# 4. Calls mobile location service to verify sensor
+# 4. Calls Geolocation Sidecar to verify sensor location
 # 5. Forwards verified requests to backend mTLS server (localhost:9443)
 #
 # Certificate paths (set up by test_onprem.sh):
@@ -69,7 +69,7 @@ static_resources:
                   "@type": "type.googleapis.com/google.protobuf.StringValue"
                   value: |
                     {
-                      "verification_mode": "runtime",
+                      "verification_mode": "trust",
                       "sidecar_endpoint": "http://localhost:9050"
                     }
                 vm_config:

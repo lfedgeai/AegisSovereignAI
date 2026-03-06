@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZKP Part 4 - Tamper</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── Part 4: Attack — Tamper the Device Identity ──</span>
+
+    <span style="opacity:0.7">Scenario: Attacker changes the idhash to claim a DIFFERENT TPM produced this proof</span>
+
+    <span style="font-weight:bold">Original idhash (from proof):</span>  <span style="color:#00cd00">891421482732113297</span>
+    <span style="font-weight:bold">Tampered idhash (attacker):</span>    <span style="color:#cd0000">999999999</span>
+
+    <span style="opacity:0.7">zkp-prover --verify --proof=&lt;proof&gt; --clat=130330000 --clon=176229300 --radius=100000 </span><span style="font-weight:bold">--idhash=999999999</span>
+
+    <span style="color:#cd0000">❌  Proof INVALID: public inputs mismatch</span>
+
+    <span style="font-weight:bold">Why it failed:</span>
+      The proof was generated with idhash = <span style="color:#00cd00">891421482732113297</span> (SHA-256 of TPM AK pub)
+      The attacker supplied idhash = <span style="color:#cd0000">999999999</span>
+      The circuit rejects — the hash is part of the proof statement
+
+    <span style="font-weight:bold">This means:</span>
+      • Proof is bound to a SPECIFIC TPM via SHA-256(AK pub)
+      • geo-id-hash in cert = pre-committed binding (derivable from AK pub in cert)
+      • You cannot transplant a valid proof to a different device
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

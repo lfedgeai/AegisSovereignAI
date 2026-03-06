@@ -6,7 +6,7 @@
 //! This module provides a dedicated endpoint for attested geolocation data,
 //! separated from TPM quote operations. Part of Unified Identity (Pillar 2 Task 2).
 //!
-//! Endpoint: GET /v2/agent/attested_geolocation
+//! Endpoint: GET /v2/agent/attested_workload_geolocation
 //!
 //! Features:
 //! - Nested mobile/GNSS sensor structure
@@ -17,6 +17,7 @@ use actix_web::{web, HttpResponse, Responder};
 use keylime::json_wrapper::JsonWrapper; // Fixed import
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::process::Command;
 
 use crate::QuoteData;
@@ -37,6 +38,8 @@ pub struct GeolocationResponse {
     pub gnss: Option<GNSSSensor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sovereignty_receipt: Option<String>, // Gen 4 ZKP proof
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spire_agent_code_hash: Option<String>, // SHA-256 of SPIRE Agent binary
     pub tpm_attested: bool, // Always true for this endpoint
     pub tpm_pcr_index: u32,  // PCR 15 for geolocation
     pub nonce: String, // Nonce used in attestation (for verification)
@@ -79,7 +82,7 @@ struct RawSensorData {
 
 /// Main endpoint handler for attested geolocation
 /// Requires nonce parameter for TOCTOU protection
-pub(crate) async fn attested_geolocation(
+pub(crate) async fn attested_workload_geolocation(
     query: web::Query<GeolocationRequest>,
     data: web::Data<QuoteData<'_>>,
 ) -> impl Responder {
@@ -100,18 +103,34 @@ pub(crate) async fn attested_geolocation(
     // Detect sensor
     let sensor_data = detect_geolocation_sensor();
 
-    if sensor_data.is_none() {
-        info!("Unified-Identity: No geolocation sensor detected");
-        return HttpResponse::NotFound().json(JsonWrapper::error(
-            404,
-            "No geolocation sensor detected".to_string(),
-        ));
+    let mut response = if let Some(raw_sensor) = sensor_data {
+        // Build nested structure from detected sensor
+        build_nested_geolocation(raw_sensor)
+    } else {
+        // No geolocation sensor — still return code hash + TPM Quote
+        info!("Unified-Identity: No geolocation sensor detected, returning code-hash-only response");
+        GeolocationResponse {
+            sensor_type: "none".to_string(),
+            mobile: None,
+            gnss: None,
+            sovereignty_receipt: None,
+            spire_agent_code_hash: None,
+            tpm_attested: true,
+            tpm_pcr_index: 15,
+            nonce: String::new(),
+        }
+    };
+
+    // Compute SPIRE Agent code hash (SHA-256 of binary)
+    match compute_spire_agent_code_hash() {
+        Ok(hash) => {
+            info!("Unified-Identity: SPIRE Agent code hash: {}", hash);
+            response.spire_agent_code_hash = Some(hash);
+        }
+        Err(e) => {
+            warn!("Unified-Identity: Could not compute SPIRE Agent code hash: {}", e);
+        }
     }
-
-    let raw_sensor = sensor_data.unwrap(); //#[allow_ci]
-
-    // Build nested structure (without nonce first)
-    let mut response = build_nested_geolocation(raw_sensor);
     
     // FETCH ZKP from Geolocation Sidecar
     info!("Unified-Identity: Fetching ZKP Sovereignty Receipt from Geolocation Sidecar...");
@@ -133,6 +152,11 @@ pub(crate) async fn attested_geolocation(
         if let Some(serial) = &gnss.sensor_serial_number {
             sidecar_req["sensor_serial_number"] = serde_json::Value::String(serial.clone());
         }
+        // Include coordinates so the sidecar can generate a ZKP Sovereignty Receipt
+        // even when the sensor_id doesn't match its local DB (e.g. os-geolocation fallback)
+        sidecar_req["latitude"] = serde_json::json!(gnss.latitude);
+        sidecar_req["longitude"] = serde_json::json!(gnss.longitude);
+        sidecar_req["accuracy"] = serde_json::json!(gnss.accuracy);
     }
 
     // Call sidecar synchronously for this POC (actix-web allows block_on or similar if needed, 
@@ -185,6 +209,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
             }),
             gnss: None,
             sovereignty_receipt: None,
+            spire_agent_code_hash: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -201,6 +226,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
                 sensor_signature: None,
             }),
             sovereignty_receipt: None,
+            spire_agent_code_hash: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -210,6 +236,7 @@ fn build_nested_geolocation(raw: RawSensorData) -> GeolocationResponse {
             mobile: None,
             gnss: None,
             sovereignty_receipt: None,
+            spire_agent_code_hash: None,
             tpm_attested: true,
             tpm_pcr_index: 15,
             nonce: String::new(),
@@ -294,6 +321,35 @@ fn detect_geolocation_sensor() -> Option<RawSensorData> {
                 lon: Some(-3.7707),
                 accuracy: Some(10.0),
             });
+        }
+    }
+
+    // Fallback: OS geolocation from config file
+    let config_paths = [
+        "./geolocation-fallback.json",
+        "/etc/keylime/geolocation-fallback.json",
+        "../geolocation-fallback.json",
+    ];
+    for path in &config_paths {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            if let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) {
+                info!("Unified-Identity: OS geolocation fallback loaded from {}", path);
+                return Some(RawSensorData {
+                    sensor_type: "gnss".to_string(), // Treated as GNSS (has lat/lon)
+                    sensor_id: config
+                        .get("sensor_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("os-geolocation")
+                        .to_string(),
+                    imei: None,
+                    imsi: None,
+                    msisdn: None,
+                    serial: Some("os-fallback".to_string()),
+                    lat: config.get("latitude").and_then(|v| v.as_f64()),
+                    lon: config.get("longitude").and_then(|v| v.as_f64()),
+                    accuracy: config.get("accuracy").and_then(|v| v.as_f64()),
+                });
+            }
         }
     }
 
@@ -397,6 +453,56 @@ fn get_imei_imsi() -> (Option<String>, Option<String>) {
 }
 
 
+/// Compute SHA-256 hash of the SPIRE Agent binary for code identity.
+/// Searches well-known paths, then falls back to `which spire-agent`.
+fn compute_spire_agent_code_hash() -> Result<String, String> {
+    let well_known_paths = [
+        "/opt/spire/bin/spire-agent",
+        "/usr/local/bin/spire-agent",
+        "/usr/bin/spire-agent",
+    ];
+
+    // Try well-known paths first
+    let binary_path = well_known_paths
+        .iter()
+        .find(|p| std::path::Path::new(p).exists())
+        .map(|p| p.to_string())
+        .or_else(|| {
+            // Fall back to `which spire-agent`
+            Command::new("which")
+                .arg("spire-agent")
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        })
+        .ok_or_else(|| "SPIRE Agent binary not found".to_string())?;
+
+    info!(
+        "Unified-Identity: Computing code hash for SPIRE Agent at: {}",
+        binary_path
+    );
+
+    let mut file = std::fs::File::open(&binary_path)
+        .map_err(|e| format!("Failed to open {}: {}", binary_path, e))?;
+    let mut hasher = openssl::hash::Hasher::new(openssl::hash::MessageDigest::sha256())
+        .map_err(|e| format!("Failed to create hasher: {}", e))?;
+    let mut buffer = [0u8; 8192];
+    loop {
+        let bytes_read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("Failed to read binary: {}", e))?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read])
+            .map_err(|e| format!("Failed to hash: {}", e))?;
+    }
+    let hash = hasher.finish()
+        .map_err(|e| format!("Failed to finalize hash: {}", e))?;
+    Ok(format!("sha256:{}", hex::encode(&hash)))
+}
+
 /// Extend PCR 15 with geolocation data hash INCLUDING nonce
 ///
 /// This function provides TOCTOU protection by binding geolocation to a fresh nonce:
@@ -424,6 +530,7 @@ fn extend_pcr_15_with_geolocation_and_nonce(
         "mobile": geolocation.mobile,
         "gnss": geolocation.gnss,
         "sovereignty_receipt": geolocation.sovereignty_receipt,
+        "spire_agent_code_hash": geolocation.spire_agent_code_hash,
         "tpm_attested": geolocation.tpm_attested,
         "tpm_pcr_index": geolocation.tpm_pcr_index,
     });

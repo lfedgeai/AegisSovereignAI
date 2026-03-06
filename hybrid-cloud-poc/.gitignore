@@ -20,6 +20,7 @@
 **/*.bak
 **/*.bak.*
 **/*~
+**/*.orig
 
 # Log files
 **/*.log
@@ -53,3 +54,13 @@
 rust-keylime/target/
 *.rustc_info.json
 .future-incompat-report.json
+
+# Generated certificates and keys (runtime artifacts)
+*.pem
+*.key
+*.crt
+*.csr
+svid-dump/
+
+# Internal prep docs (not for open source)
+qa-cheatsheet.md

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-# Configuration for mwserver11
+# Configuration for on-premises host
 # Target: Huawei Modem on Bus 1, Port 12
 DEVICE_PATH="/sys/bus/usb/devices/1-12"
 ROOT_HUB_PATH="/sys/bus/usb/devices/usb1"

@@ -10,7 +10,7 @@ This transforms AI security from "Best-Effort" Zero-trust to **Privacy-First Ver
 ![Figure 1: AegisSovereignAI Architecture Summary](images/readme-arch-new-summary.svg)
 *Figure 1: AegisSovereignAI Architecture Summary - Bridging Infrastructure, Identity, and Governance.*
 
-**See the [Unified Identity Hybrid Cloud Proof of Concept (PoC) Guide](./hybrid-cloud-poc/README.md) for concrete use cases and detailed setup instructions.**
+**See the [Unified Identity Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) — run `./run-demo.sh` to see the full trust chain in action (~7 min).**
 
 ## Enterprise Sovereign Use Cases (Focus: High-Security/Compliance Sectors e.g., Banking, Healthcare, Defense/Government)
 
@@ -88,7 +88,7 @@ Edge nodes are often in untrusted physical locations, making them vulnerable to 
         *   **Data Minimization Proof:** Generates proofs validating that the dataset satisfies GDPR Data Minimization before entering the vector store.
     *   **System Prompt Integrity (Pre-Computed):** At deployment, we generate a permanent cryptographic proof that the AI System Prompt includes mandatory safety guardrails (e.g., SSN redaction) and excludes unauthorized directives. This ensures "Compliance-by-Design" without exposing the proprietary prompt text.
     *   **User Prompt Compliance (Batch & Purge):** User interactions are processed in real-time while a background process generates aggregated batch proofs. These proofs verify that no user prompts in a given window contained "jailbreak" commands or PII. Once the batch proof is successfully anchored to the enterprise audit log, the raw, high-liability prompts are purged from the system, permanently eliminating PII storage risk.
-    *   **AI Output Filtering (Batch & Purge):** AI model outputs are verified through real-time Data Loss Prevention (DLP) scanning and content safety checks before delivery. Batch proofs demonstrate that all outputs were properly filtered to prevent hallucinated PII leakage (e.g., fabricated SSNs). Raw outputs are purged after proof generation, ensuring zero retention of AI-generated sensitive data. See the [Privacy-Preserving Deep-Dive](./docs/auditor-privacy-preserving-deep-dive.md) for the complete three-track verification model.
+    *   **AI Output Filtering (Batch & Purge):** AI model outputs are verified through real-time Data Loss Prevention (DLP) scanning and content safety checks before delivery. Batch proofs demonstrate that all outputs were properly filtered to prevent hallucinated PII leakage (e.g., fabricated SSNs). Raw outputs are purged after proof generation, ensuring zero retention of AI-generated sensitive data. See the [Privacy-Preserving AI Governance](./docs/auditor-privacy-preserving-ai-governance.md) for the complete three-track verification model.
     *   **Effective Challenge Enablement (SR 11-7):** Provides cryptographically-verifiable **independent evidence** for model validators: proof of execution hardware, data provenance, and governance policy adherence. This enables "Effective Challenge" of third-party (vendor) AI models even when source code access is restricted—validators can verify the *execution environment* and *compliance state* without needing to inspect proprietary model internals.
      *   **Sovereign Tool Manifests (MCP Integration):** Uses Open Policy Agent (OPA) to filter the **Model Context Protocol (MCP)** `list_tools` response based on the agent's hardware-attested identity. This ensures agents only "discover" and execute tools they are explicitly hardware-authorized to use, creating a "Need-to-Know" environment for dynamic AI capabilities.
 
@@ -136,18 +136,17 @@ AegisSovereignAI is designed to be framework-agnostic, serving as a secure execu
 *   **[Auditor Guide](./docs/auditor.md)** - High-level overview of the attestation-linked evidence model covering the full AI lifecycle (Ingestion, Training, and Inference), verifiable geofencing (Reg-K), and identity binding. Includes the complete Evidence Bundle structure for regulatory reporting.
 *   **[Privacy-Preserving Geolocation (Layer 2)](./docs/auditor-privacy-preserving-geolocation.md)** - Technical deep-dive on **privacy-preserving geofencing** for Reg-K/GDPR compliance, including ZKP vs. other PETs comparison, multi-sensor fusion, and SVID geolocation claims.
 *   **[Privacy-Preserving AI Governance (Layer 3)](./docs/auditor-privacy-preserving-ai-governance.md)** - Technical walkthrough of the **Four-Track Layer 3 Governance Lifecycle** (Training, System Prompt, User Prompt, Output), Batch & Purge architecture, and modular Evidence Bundle verification.
-*   **[Threat Model: Unmanaged Device Security](./hybrid-cloud-poc/THREAT-MODEL-unmanaged-device.md)** - Analysis of **Infrastructure Blind Spots** on **BYOD/Unmanaged Devices**, detailing how AegisSovereignAI prevents location spoofing via hardware-rooted sensor fusion.
+*   **[Threat Model: Runtime Perception Gap](./hybrid-cloud-poc/THREAT-MODEL-runtime-perception-gap.md)** - Analysis of **Infrastructure Blind Spots**, detailing how AegisSovereignAI prevents location spoofing via hardware-rooted sensor fusion.
 *   **[Unified Identity Deep-Dive](./hybrid-cloud-poc/README-arch-sovereign-unified-identity.md)** - Detailed technical architecture of the SPIRE/Keylime identity fusion model.
 *   **[IETF WIMSE Draft](https://datatracker.ietf.org/doc/draft-lkspa-wimse-verifiable-geo-fence/)** - Our contribution to standardizing verifiable geo-fences in multi-system environments.
 
 ## Quickstart
 
 ```bash
-# Clone and bootstrap the PoC environment
+# Clone and run the full demo (~7 min)
 git clone https://github.com/lfedgeai/AegisSovereignAI.git
 cd AegisSovereignAI/hybrid-cloud-poc
-./install_prerequisites.sh
-python ci_test_runner.py
+./run-demo.sh
 ```
 
-See the [Unified Identity Hybrid Cloud PoC Guide](./hybrid-cloud-poc/README.md) for detailed setup instructions.
+See the [Unified Identity Hybrid Cloud PoC](./hybrid-cloud-poc/README.md) for details.

@@ -1,9 +1,12 @@
+
+
 syntax = "proto3";
 package spire.api.types;
 option go_package = "github.com/spiffe/spire-api-sdk/proto/spire/api/types";
 
-// Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-// A hardware-rooted PoR package produced by the Agent.
+// SovereignAttestation — Unified-Identity Phase 1
+// A hardware-rooted Proof-of-Registration package produced by the LAH agent.
+// Used during the agent attestation handshake (RenewAgent / AttestAgent).
 message SovereignAttestation {
     // Base64-encoded TPM Quote (portable string). Validation: non-empty, base64, size <= 64kB
     string tpm_signed_attestation = 1;
@@ -13,7 +16,7 @@ message SovereignAttestation {
     string app_key_public = 2;
 
     // Optional base64-encoded DER or PEM certificate proving the App Key was issued/signed by the host AK.
-    // **CLARIFICATION:** This field MUST be Base64-encoded when transmitted over a JSON/REST boundary (e.g., to Keylime).
+    // CLARIFICATION: This field MUST be Base64-encoded when transmitted over a JSON/REST boundary.
     // Validation: when present must parse to X.509 cert; chain verification will be performed by Keylime.
     bytes app_key_certificate = 3;
 
@@ -23,41 +26,85 @@ message SovereignAttestation {
     // Optional workload code hash used as an additional selector/assertion.
     string workload_code_hash = 5;
 
-    // Unified-Identity - Phase 3: rust-keylime agent UUID for delegated certification correlation.
+    // Unified-Identity Phase 3: rust-keylime agent UUID for delegated certification correlation.
     string keylime_agent_uuid = 6;
 }
 
-// Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-// AttestedClaims contains verified facts from Keylime about the host.
-message AttestedClaims {
-    Geolocation geolocation = 1;    // Geolocation object with type, sensor_id, and optional value
-    MNOEndorsement mno_endorsement = 2; // Gen 4: Signed MNO endorsement
-    string sovereignty_receipt = 3;     // Gen 4: ZKP proof of proximity
+// LAHBundle — privacy-preserving hardware-sealed location evidence.
+// Embedded as an extended claim in the SPIRE SVID X.509 extension.
+// All geolocation-sensitive data is represented as cryptographic hashes —
+// coordinates and device identifiers (IMEI, IMSI, serial) never appear in plaintext.
+//
+// geolocation_id_hash input recipes (agent-side only, opaque to verifier):
+//   Mobile: SHA-256(tpm_ak_bytes || IMEI_bytes || IMSI_bytes)
+//   GNSS:   SHA-256(tpm_ak_bytes || sensor_serial_bytes || sensor_class_id_bytes)
+//
+// geolocation_proof_hash computation:
+//   privacy_technique=0: SHA-256(JCS({lat, lon, accuracy}))
+//   privacy_technique=1: SHA-256(zkp_proof_bytes from depository)
+//
+// tpm_quote_seal qualifying data:
+//   SHA-256(JCS({tpm_ak, geolocation_id_hash, geolocation_proof_hash,
+//               privacy_technique, nonce, timestamp}))
+message LAHBundle {
+    // LAH AK public key (Base64URL). Hardware identity anchor for this host.
+    // The TPM enforces that only this key can produce tpm_quote_seal —
+    // proving the AK and quote are co-resident in the same TPM.
+    string tpm_ak = 1;
+
+    // SHA-256(tpm_ak || sensor_unique_id), Base64URL.
+    // Binds TPM hardware identity to sensor hardware identity without
+    // exposing device PII. Required in BOTH privacy modes:
+    // location privacy (privacy_technique) and device identity privacy are orthogonal.
+    string geolocation_id_hash = 2;
+
+    // SHA-256 commitment over geolocation_payload, Base64URL.
+    // Required in BOTH modes:
+    //   privacy_technique=1: the only location data in the bundle (ZKP commitment).
+    //   privacy_technique=0: TPM qualifying data is 32 bytes — raw coordinates
+    //                        cannot fit; hash provides uniform tpm_quote_seal structure.
+    string geolocation_proof_hash = 3;
+
+    // Controls location privacy only, NOT device identity privacy (see geolocation_id_hash).
+    //   "none": geolocation_payload contains raw lat/lon/accuracy.
+    //   "zkp":  geolocation_payload contains zkp_proof_uri only.
+    string privacy_technique = 4;
+
+    // JSON-encoded inner location data. Structure depends on privacy_technique:
+    //   privacy_technique="none": {"lat":<f64>, "lon":<f64>, "accuracy":<f64>}
+    //   privacy_technique="zkp":  {"zkp-proof-uri":<string>}
+    // This is the object committed to by geolocation_proof_hash and
+    // signed by mno_endorsement.mno_sig (if present).
+    bytes geolocation_payload = 5;
+
+    // Freshness nonce issued by the management plane (e.g. Keylime verifier), Base64URL.
+    // Chained: HMAC(secret, n || chain[n-1]).
+    // Enables the management plane to detect skipped/reordered attestations
+    // via a Merkle chain mirroring the TPM PCR extension sequence.
+    string nonce = 6;
+
+    // Unix epoch seconds (int64). Set by the LAH agent at bundle construction time.
+    int64 timestamp = 7;
+
+    // TPM2_Quote produced by the AK in tpm_ak (same TPM — co-residency is TPM-enforced).
+    // Qualifying data = SHA-256(JCS({tpm_ak, geolocation_id_hash, geolocation_proof_hash,
+    //                                privacy_technique, nonce, timestamp})).
+    // geolocation_payload and mno_endorsement are bound INDIRECTLY via geolocation_proof_hash.
+    // Verification: parse TPMS_ATTEST, check qualifyingData, verify sig using tpm_ak.
+    // Base64URL.
+    string tpm_quote_seal = 8;
 }
 
-// Gen 4: MNOEndorsement represents a signed endorsement from a carrier
+// MNOEndorsement — optional carrier co-attestation over location data only.
+// The MNO signs geolocation_payload (not the full LAHBundle).
+// Trust domain separation: TPM attests host integrity + sensor binding;
+// MNO independently corroborates the location claim within carrier visibility.
+// Can be re-signed on MNO key rotation without invalidating tpm_quote_seal.
 message MNOEndorsement {
-    bool verified = 1;
-    string endorsement_json = 2; // JSON-encoded endorsement data
-    string signature = 3;        // EdDSA signature
-    string key_id = 4;           // Signing key ID
+    // MNO signing certificate (Base64URL DER). Used to verify mno_sig.
+    string mno_key_cert = 1;
+
+    // MNO ECDSA/EdDSA signature over JCS(geolocation_payload) only.
+    // Does NOT cover host-level fields (tpm_ak, nonce, tpm_quote_seal). Base64URL.
+    string mno_sig = 2;
 }
-
-// Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-// Geolocation represents geolocation sensor metadata
-message Geolocation {
-    string type = 1;        // "mobile" or "gnss"
-    string sensor_id = 2;   // Sensor identifier (e.g., USB ID "12d1:1433" for mobile)
-    string value = 3;       // Optional for mobile, mandatory for gnss (e.g., GNSS coordinates)
-    string sensor_imei = 4; // IMEI for mobile devices
-    string sensor_imsi = 5; // IMSI for mobile devices
-    string sensor_msisdn = 6; // MSISDN for mobile devices
-
-    // GNSS-specific fields
-    string sensor_serial_number = 7;
-    double latitude = 8;
-    double longitude = 9;
-    double accuracy = 10;
-    string sensor_signature = 11;
-}
-

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Part 6 - ZKP + TEE</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── Part 6: ZKP + TEE — Complementary, Not Competing ──</span>
+
+    <span style="font-weight:bold"></span><span style="color:#00cdcd">Each layer covers the other's blind spots:</span>
+
+    <span style="font-weight:bold">Threat                           ZKP alone    TEE alone    ZKP inside TEE</span>
+    <span style="font-weight:bold">─────────────────────────────────────────────────────────────────────────</span>
+    <span style="color:#00cd00">Verifier learns GPS</span>              <span style="color:#00cd00">✅ hidden</span>    <span style="color:#cd0000">❌ output</span>    <span style="color:#00cd00">✅ hidden</span>
+    <span style="color:#00cd00">Kernel 0-day reads GPS</span>           <span style="color:#cd0000">❌ ptrace</span>    <span style="color:#00cd00">✅ encrypted</span> <span style="color:#00cd00">✅ both protect</span>
+    <span style="color:#00cd00">TEE side-channel leaks data</span>      n/a          <span style="color:#cd0000">❌ Spectre</span>   <span style="color:#00cd00">✅ proof only</span>
+    <span style="color:#00cd00">Fake GPS from compromised OS</span>     <span style="color:#cd0000">❌</span>           <span style="font-weight:bold;color:#cdcd00">⚠ ecalls*</span>   <span style="font-weight:bold;color:#cdcd00">⚠ ecalls*</span>
+
+    <span style="opacity:0.7">  * SR-IOV / VFIO passthrough can give enclave direct sensor access,</span>
+    <span style="opacity:0.7">    bypassing the OS — same input integrity iLO7 gets architecturally.</span>
+    <span style="opacity:0.7">    Requires: IOMMU + SR-IOV-capable sensor hardware + driver in enclave TCB.</span>
+
+    <span style="font-weight:bold"></span><span style="color:#cd0000">⚠ Neither ZKP nor TEE protects against RCE inside the execution environment</span>
+    <span style="opacity:0.7">  Buffer overflow in enclave → attacker runs IN the trust boundary</span>
+    <span style="opacity:0.7">  TEE attestation only measures code at load time, not runtime integrity</span>
+    <span style="opacity:0.7">  Same limitation as Linux IMA — load-time measurement, not runtime</span>
+
+    <span style="font-weight:bold"></span><span style="color:#00cdcd">Where to run the ZKP prover:</span>
+
+    <span style="opacity:0.7">Option 1:</span>  Userspace sidecar      <span style="opacity:0.7">(today's POC — portable, fast iteration)</span>
+    <span style="opacity:0.7">Option 2:</span>  SGX/SEV enclave         <span style="opacity:0.7">(runtime isolation, but shared CPU → side-channels)</span>
+    <span style="color:#00cd00"><span style="font-weight:bold">Option 3:</span></span><span style="color:#00cd00">  Management processor    <span style="font-weight:bold">← Strongest</span></span>
+             <span style="opacity:0.7">(iLO7)</span>
+
+    <span style="font-weight:bold">Why iLO7 is the strongest TEE:</span>
+    <span style="color:#00cd00">•</span> <span style="font-weight:bold">Separate silicon</span>   — own ARM CPU, own RAM → <span style="color:#00cd00">no shared microarchitecture</span>
+    <span style="color:#00cd00">•</span> <span style="font-weight:bold">No side-channels</span>   — physically different processor → Spectre irrelevant
+    <span style="color:#00cd00">•</span> <span style="font-weight:bold">Direct sensor access</span> — GPS data never transits host OS → <span style="color:#00cd00">input integrity solved</span>
+    <span style="color:#00cd00">•</span> <span style="font-weight:bold">Silicon Root of Trust</span> — HPE-signed firmware, not Intel/AMD microcode
+
+    <span style="opacity:0.7">SGX is a locked room on a shared floor.</span>
+    <span style="font-weight:bold">iLO7 is a separate building.</span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

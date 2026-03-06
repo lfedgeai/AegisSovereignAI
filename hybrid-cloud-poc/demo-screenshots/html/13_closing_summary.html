@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Closing Summary</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+<span style="font-weight:bold"></span><span style="color:#00cd00">  Summary: Unified Identity — Defence in Depth</span>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+    <span style="color:#00cd00"><span style="font-weight:bold">WHO</span></span>   → SPIFFE ID signed by SPIRE CA             <span style="opacity:0.7">(cert forgery ✘)</span>
+    <span style="color:#00cd00"><span style="font-weight:bold">WHERE</span></span> → ZKP proof sealed by TPM                  <span style="opacity:0.7">(GPS spoofing ✘)</span>
+    <span style="color:#00cd00"><span style="font-weight:bold">WHAT</span></span>  → Agent binary digest measured by Keylime   <span style="opacity:0.7">(tampering ✘)</span>
+
+    <span style="font-weight:bold">You cannot peel away any layer without invalidating the identity.</span>
+
+    <span style="opacity:0.7">Key insight: Compromising one layer does NOT help with the others.</span>
+    <span style="opacity:0.7">An attacker must simultaneously defeat TPM hardware, ZKP math,</span>
+    <span style="opacity:0.7">certificate authority, AND binary measurement.</span>
+
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+<span style="color:#00cd00"><span style="font-weight:bold">    Demo complete.</span></span>
+</pre>
+</body>
+</html>

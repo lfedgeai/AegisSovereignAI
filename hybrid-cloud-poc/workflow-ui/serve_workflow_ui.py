@@ -16,7 +16,7 @@
 
 """
 Simple HTTP server to serve the workflow visualization UI.
-Access at: http://10.1.0.11:8090/workflow_visualization.html
+Access at: http://localhost:8090/workflow_visualization.html
 
 NOTE: Port 8090 is used (not 8080) to avoid conflict with the
 Envoy mTLS proxy which must listen on port 8080.
@@ -103,7 +103,13 @@ def main():
             print("=" * 70)
             print(f"Server running at: http://0.0.0.0:{PORT}/workflow_visualization.html")
             print(f"Local access:      http://localhost:{PORT}/workflow_visualization.html")
-            print(f"Network access:    http://10.1.0.11:{PORT}/workflow_visualization.html")
+            import socket
+            hostname = socket.gethostname()
+            try:
+                host_ip = socket.gethostbyname(hostname)
+            except socket.gaierror:
+                host_ip = hostname
+            print(f"Network access:    http://{host_ip}:{PORT}/workflow_visualization.html")
             print("=" * 70)
             print("Press Ctrl+C to stop the server")
             print("=" * 70)

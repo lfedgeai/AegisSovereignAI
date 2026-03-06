@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Act 2.1 - Agent SVID</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+<span style="font-weight:bold"></span><span style="color:#00cd00">  SLIDE 8 │ Demo Act 2.1 — Agent Unified Identity (PoR + PoPG)</span>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+
+<span style="font-weight:bold;color:#cdcd00">── SPIRE Agent SVID — Two Identity Layers Fused ──</span>
+
+  <span style="font-weight:bold;color:#00cd00">🟢 OUTER RING — SPIRE Agent ID (TPM-rooted key)</span>
+     TPM AK:                -----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AM...
+     Agent Binary Digest:   65abf0f569c6c6dbdabaeba1b8432f3766fd50b3bdacb43c8f84c4b11c532c4d
+     TPM Quote Seal:        r/1RDR4AYACIAC+Nx4x5Yd2mPBAYHRBejNyEksKqbjT6bQ/ilOC/6I5idACA...
+
+  <span style="font-weight:bold;color:#cdcd00">🟤 INNER RING — Privacy-Preserving Location (Sensor/Physics)</span>
+     Privacy Technique:     zkp
+     Geo ID Hash:           g9l3OKX3FBytWTuyIEX21FZxNyyR3Ess8I5srxw0mfA=
+     Proof Hash:            5uaygqgQWpFTqTdMowmI36Idok2Z9HRQ5Tm_j93AJEU=
+     Nonce:                 3913f2fdb7379888657e34500996b658c1107e61...
+     Timestamp:             1772432933
+     ZKP Proof URI:         https://10.1.0.11:8881/v1/proof/21f382e528704250195b98ad9135
+
+    <span style="color:#00cd00"><span style="font-weight:bold">▸ You cannot peel away the host or location without invalidating the identity</span></span>
+    <span style="color:#00cd00"><span style="font-weight:bold">▸ Two layers fused by the TPM quote seal: Host (TPM AK) + Location (ZKP)</span></span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

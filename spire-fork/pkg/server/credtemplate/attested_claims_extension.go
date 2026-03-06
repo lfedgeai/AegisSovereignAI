@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/json"
 
 	"github.com/spiffe/spire-api-sdk/proto/spire/api/types"
@@ -97,61 +98,54 @@ func convertUnifiedJSONToAttestedClaims(data map[string]any) *types.AttestedClai
 			if typeVal, ok := geoMap["type"].(string); ok {
 				geo.Type = typeVal
 			}
-			if sensorIdVal, ok := geoMap["sensor_id"].(string); ok {
-				geo.SensorId = sensorIdVal
+			if classIdVal, ok := geoMap["class_id"].(string); ok {
+				geo.ClassId = classIdVal
 			}
-			if valueVal, ok := geoMap["value"].(string); ok {
-				geo.Value = valueVal
+			if identityHashVal, ok := geoMap["identity_hash"].(string); ok {
+				geo.IdentityHash = identityHashVal
 			}
-			// Unified-Identity: Extract sensor_imei and sensor_imsi
-			if sensorImeiVal, ok := geoMap["sensor_imei"].(string); ok {
-				geo.SensorImei = sensorImeiVal
+			if providerVal, ok := geoMap["provider"].(string); ok {
+				geo.Provider = providerVal
 			}
-			if sensorImsiVal, ok := geoMap["sensor_imsi"].(string); ok {
-				geo.SensorImsi = sensorImsiVal
-			}
-			// Task 2f: Extract sensor_msisdn
-			if sensorMsisdnVal, ok := geoMap["sensor_msisdn"].(string); ok {
-				geo.SensorMsisdn = sensorMsisdnVal
-			}
-			if geo.Type != "" || geo.SensorId != "" {
+			if geo.Type != "" || geo.ClassId != "" {
 				claims.Geolocation = geo
 			}
 		}
 	}
 
-	if tpmRaw, ok := data["grc.tpm-attestation"]; ok {
-		if tpmMap, ok := tpmRaw.(map[string]any); ok {
-			if verifiedRaw, ok := tpmMap["verified-claims"]; ok {
-				if verifiedMap, ok := verifiedRaw.(map[string]any); ok {
-					if geoMap, ok := verifiedMap["geolocation"].(map[string]any); ok && claims.Geolocation == nil {
-						// Build Geolocation object from verified claims
-						geo := &types.Geolocation{}
-						if typeVal, ok := geoMap["type"].(string); ok {
-							geo.Type = typeVal
-						}
-						if sensorIdVal, ok := geoMap["sensor_id"].(string); ok {
-							geo.SensorId = sensorIdVal
-							}
-						if valueVal, ok := geoMap["value"].(string); ok {
-							geo.Value = valueVal
-							}
-						// Unified-Identity: Extract sensor_imei and sensor_imsi
-						if sensorImeiVal, ok := geoMap["sensor_imei"].(string); ok {
-							geo.SensorImei = sensorImeiVal
-						}
-						if sensorImsiVal, ok := geoMap["sensor_imsi"].(string); ok {
-							geo.SensorImsi = sensorImsiVal
-						}
-						// Task 2f: Extract sensor_msisdn
-						if sensorMsisdnVal, ok := geoMap["sensor_msisdn"].(string); ok {
-							geo.SensorMsisdn = sensorMsisdnVal
-						}
-						if geo.Type != "" || geo.SensorId != "" {
-							claims.Geolocation = geo
-						}
-					}
+	// Gen 4: Extract MNO Endorsement if present
+	if mnoRaw, ok := data["grc.mno_endorsement"]; ok {
+		if mnoMap, ok := mnoRaw.(map[string]any); ok {
+			mno := &types.MNOEndorsement{}
+			if verified, ok := mnoMap["verified"].(bool); ok {
+				mno.Verified = verified
+			}
+			if signature, ok := mnoMap["signature"].(string); ok {
+				mno.Signature = signature
+			}
+			if keyId, ok := mnoMap["key_id"].(string); ok {
+				mno.KeyId = keyId
+			}
+			if dataB64, ok := mnoMap["data_b64"].(string); ok {
+				if decoded, err := base64.StdEncoding.DecodeString(dataB64); err == nil {
+					mno.EndorsementJson = string(decoded)
 				}
+			}
+			claims.MnoEndorsement = mno
+		}
+	}
+
+	// Gen 4: Extract Sovereignty Receipt (ZKP Proof) or Commitments
+	if receiptRaw, ok := data["grc.sovereignty_receipt"]; ok {
+		if receiptMap, ok := receiptRaw.(map[string]any); ok {
+			if hashVal, ok := receiptMap["hash"].(string); ok {
+				claims.SovereigntyReceiptHash = hashVal
+			}
+			if uriVal, ok := receiptMap["uri"].(string); ok {
+				claims.SovereigntyReceiptUri = uriVal
+			}
+			if proofB64, ok := receiptMap["proof_b64"].(string); ok {
+				claims.SovereigntyReceipt = proofB64
 			}
 		}
 	}

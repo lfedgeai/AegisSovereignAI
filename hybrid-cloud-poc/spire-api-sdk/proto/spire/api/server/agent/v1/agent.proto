@@ -182,8 +182,12 @@ message AttestAgentResponse {
 	// Whether or not the attested agent can reattest to renew its X509-SVID
 	bool reattestable = 2;
 
-	// Unified-Identity - Phase 1: Optional AttestedClaims returned from Keylime and policy evaluation.
-	repeated spire.api.types.AttestedClaims attested_claims = 3;
+	// Unified-Identity: LAH-Bundle — privacy-preserving hardware-sealed location evidence.
+	// Contains geolocation commitment, sensor binding hash, and TPM quote seal.
+	spire.api.types.LAHBundle lah_bundle = 3;
+
+	// Unified-Identity: Optional carrier co-attestation over location data only.
+	spire.api.types.MNOEndorsement mno_endorsement = 4;
     }
 
     oneof step {
@@ -205,9 +209,11 @@ message RenewAgentResponse {
     // The renewed X509-SVID
     spire.api.types.X509SVID svid = 1;
 
-    // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-    // Optional AttestedClaims returned from Keylime and policy evaluation.
-    repeated spire.api.types.AttestedClaims attested_claims = 2;
+    // Unified-Identity: LAH-Bundle — privacy-preserving hardware-sealed location evidence.
+    spire.api.types.LAHBundle lah_bundle = 2;
+
+    // Unified-Identity: Optional carrier co-attestation over location data only.
+    spire.api.types.MNOEndorsement mno_endorsement = 4;
 
     // Unified-Identity - Phase 3: Hardware Integration & Delegated Certification
     // Optional challenge nonce for TPM Quote generation. If present, the agent

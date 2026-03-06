@@ -22,6 +22,8 @@ Uses direct gRPC calls to SPIRE Agent Workload API (no python-spiffe dependency)
 """
 
 import os
+import sys
+import subprocess
 import importlib.util
 import time
 import random
@@ -72,8 +74,49 @@ def fetch_bundle_via_grpc(socket_path):
     workload_pb2_grpc_path = script_dir / "generated" / "spiffe" / "workload" / "workload_pb2_grpc.py"
 
     if not workload_pb2_path.exists() or not workload_pb2_grpc_path.exists():
-        raise ImportError(f"Protobuf files not found: {workload_pb2_path}")
+        # Try to generate protobuf stubs
+        proto_dir = Path(__file__).parent / "go-spiffe" / "proto" / "spiffe" / "workload"
+        proto_file = proto_dir / "workload.proto"
+        output_dir = script_dir / "generated"
+        if proto_file.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+            proto_path = str(proto_dir.parent.parent)
+            generated = False
+            # Try grpc_tools.protoc first (generates stubs compatible with installed protobuf library)
+            try:
+                from grpc_tools import protoc as grpc_protoc
+                ret = grpc_protoc.main([
+                    'grpc_tools.protoc', f'--proto_path={proto_path}',
+                    f'--python_out={output_dir}', f'--grpc_python_out={output_dir}',
+                    str(proto_file)
+                ])
+                if ret == 0:
+                    generated = True
+            except Exception:
+                pass
+            # Fall back to system protoc
+            if not generated:
+                try:
+                    result = subprocess.run(
+                        ["protoc", f"--proto_path={proto_path}", f"--python_out={output_dir}", str(proto_file)],
+                        capture_output=True, text=True
+                    )
+                    if result.returncode == 0:
+                        generated = True
+                except FileNotFoundError:
+                    pass
+            if not generated or not workload_pb2_path.exists():
+                raise ImportError(f"Protobuf files not found and could not be generated: {workload_pb2_path}")
+        else:
+            raise ImportError(f"Protobuf files not found: {workload_pb2_path}")
 
+    # Ensure __init__.py files exist for package imports
+    gen_dir = script_dir / "generated"
+    for sub in ["spiffe", "spiffe/workload"]:
+        init_file = gen_dir / sub / "__init__.py"
+        if not init_file.exists():
+            init_file.parent.mkdir(parents=True, exist_ok=True)
+            init_file.touch()
     # Load protobuf modules
     import types
     import sys
@@ -171,9 +214,10 @@ def fetch_bundle_via_grpc(socket_path):
         bundle_certs = load_der_certs(bundle_der)
         
     channel.close()
-    return spiffe_id, bundle_certs, svid_certs
+    svid_key_der = getattr(svid_response, 'x509_svid_key', b'')
+    return spiffe_id, bundle_certs, svid_certs, svid_key_der
 
-def dump_claims(svid_certs):
+def dump_claims(svid_certs, svid_key_der=b''):
     """Extract and dump Unified Identity claims from SVID."""
     if not svid_certs:
         return
@@ -229,6 +273,35 @@ def dump_claims(svid_certs):
     else:
         print("⚠ No Unified Identity claims found in SVID chain")
 
+    # Also export each SVID cert as PEM for downstream tools (e.g. verify-zkp-svid.py)
+    dump_dir = Path("/tmp/svid-dump")
+    dump_dir.mkdir(parents=True, exist_ok=True)
+    for i, cert in enumerate(svid_certs):
+        pem_path = dump_dir / f"svid.{i}.pem"
+        with open(pem_path, 'wb') as f:
+            f.write(cert.public_bytes(serialization.Encoding.PEM))
+    if svid_certs:
+        print(f"✓ Dumped {len(svid_certs)} SVID cert(s) as PEM to {dump_dir}/svid.*.pem")
+
+    # Export the SVID private key if available
+    if svid_key_der:
+        from cryptography.hazmat.primitives import serialization as key_serial
+        try:
+            from cryptography.hazmat.primitives.serialization import load_der_private_key
+            privkey = load_der_private_key(svid_key_der, password=None)
+            key_pem = privkey.private_bytes(
+                encoding=key_serial.Encoding.PEM,
+                format=key_serial.PrivateFormat.PKCS8,
+                encryption_algorithm=key_serial.NoEncryption()
+            )
+            key_path = dump_dir / "svid.0.key"
+            with open(key_path, 'wb') as f:
+                f.write(key_pem)
+            os.chmod(str(key_path), 0o600)
+            print(f"✓ Dumped SVID private key to {key_path}")
+        except Exception as e:
+            print(f"⚠ Failed to export SVID private key: {e}")
+
 def main():
     parser = argparse.ArgumentParser(description='Fetch SPIRE Trust Bundle or Dump SVID Claims')
     parser.add_argument('--dump-only', action='store_true', help='Dump SVID claims instead of fetching bundle')
@@ -243,10 +316,10 @@ def main():
         socket_path = f"unix://{raw_socket}"
 
     try:
-        spiffe_id, bundle_certs, svid_certs = fetch_bundle_via_grpc(socket_path)
+        spiffe_id, bundle_certs, svid_certs, svid_key_der = fetch_bundle_via_grpc(socket_path)
 
         if args.dump_only:
-            dump_claims(svid_certs)
+            dump_claims(svid_certs, svid_key_der)
             return
 
         print(f"Trust domain: {spiffe_id.trust_domain}")

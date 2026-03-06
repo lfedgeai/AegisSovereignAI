@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZKP Part 3 - Circuit</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── Part 3: ZKP Circuit Verification (Plonky2) ──</span>
+
+    <span style="font-weight:bold">Fetching proof from Keylime verifier receipt store...</span>
+    <span style="color:#00cd00">✅</span>  Proof fetched (96632 chars)
+
+    <span style="font-weight:bold">Running Plonky2 verifier (verify-only mode):</span>
+    <span style="opacity:0.7">zkp-prover --verify-only --proof=&lt;proof&gt;</span>
+
+    <span style="font-weight:bold">Public inputs extracted from proof:</span>
+      <span style="color:#00cdcd">center_lat</span>  = 130330000  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">center_lon</span>  = 176229300  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">radius</span>      = 100000  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">idhash</span>      = 891421482732113297  <span style="opacity:0.7">← SHA-256(TPM AK) — binds proof to THIS device</span>
+
+    <span style="font-weight:bold">These are the geofence policy parameters baked into the circuit.</span>
+    <span style="opacity:0.7">The prover knew GPS coordinates INSIDE this circle,</span>
+    <span style="opacity:0.7">but those exact coordinates remain private (zero-knowledge).</span>
+    <span style="opacity:0.7">Management processor (e.g. iLO7) ensures sensor integrity.</span>
+
+    <span style="font-weight:bold"></span><span style="color:#00cdcd">Public inputs (in proof):</span>  center_lat, center_lon, radius, idhash
+                               → Geofence policy + device binding
+                               → idhash = SHA-256(AK pub) — AK pub is in cert for TPM2 quote verification
+    <span style="font-weight:bold"></span><span style="color:#cd0000">Private inputs (hidden):</span>   actual GPS lat, lon
+                               → Never leave the device — only proved, never revealed
+
+    <span style="color:#00cd00">✅  CIRCUIT VALID — Plonky2 zero-knowledge proof verified</span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

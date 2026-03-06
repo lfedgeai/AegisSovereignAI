@@ -22,10 +22,10 @@ echo "Diagnosing Verification Service Errors"
 echo "=========================================="
 echo ""
 
-# Check if mobile location service is running
-echo "1. Checking if mobile location service is running..."
+# Check if Geolocation Sidecar is running
+echo "1. Checking if Geolocation Sidecar is running..."
 if ss -tlnp 2>/dev/null | grep -q ':9050' || netstat -tlnp 2>/dev/null | grep -q ':9050'; then
-    echo "   ✓ Mobile location service is listening on port 9050"
+    echo "   ✓ Geolocation Sidecar is listening on port 9050"
     PID=$(ss -tlnp 2>/dev/null | grep ':9050' | grep -oP 'pid=\K[0-9]+' | head -1 || \
           netstat -tlnp 2>/dev/null | grep ':9050' | awk '{print $7}' | cut -d'/' -f1 | head -1)
     if [ -n "$PID" ]; then
@@ -37,7 +37,7 @@ if ss -tlnp 2>/dev/null | grep -q ':9050' || netstat -tlnp 2>/dev/null | grep -q
         fi
     fi
 else
-    echo "   ✗ Mobile location service is NOT listening on port 9050"
+    echo "   ✗ Geolocation Sidecar is NOT listening on port 9050"
     echo "   → Restart it: cd ~/AegisSovereignAI/hybrid-cloud-poc/mobile-sensor-microservice"
     echo "                 source .venv/bin/activate"
     echo "                 export CAMARA_BYPASS=true"
@@ -45,7 +45,7 @@ else
 fi
 
 echo ""
-echo "2. Recent mobile location service logs (last 20 lines):"
+echo "2. Recent Geolocation Sidecar logs (last 20 lines):"
 if [ -f /tmp/mobile-sensor.log ]; then
     tail -20 /tmp/mobile-sensor.log | sed 's/^/   /'
 else
@@ -55,13 +55,13 @@ fi
 echo ""
 echo "3. Recent Envoy WASM filter logs (verification-related, last 30 lines):"
 if [ -f /opt/envoy/logs/envoy.log ]; then
-    sudo tail -100 /opt/envoy/logs/envoy.log | grep -E "(sensor|verification|Mobile location service|Verification service)" | tail -30 | sed 's/^/   /'
+    sudo tail -100 /opt/envoy/logs/envoy.log | grep -E "(sensor|verification|Geolocation Sidecar|Verification service)" | tail -30 | sed 's/^/   /'
 else
     echo "   ✗ Log file not found: /opt/envoy/logs/envoy.log"
 fi
 
 echo ""
-echo "4. Testing mobile location service directly:"
+echo "4. Testing Geolocation Sidecar directly:"
 if command -v curl >/dev/null 2>&1; then
     echo "   Testing /verify endpoint..."
     RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST http://localhost:9050/verify \
@@ -82,7 +82,7 @@ else
 fi
 
 echo ""
-echo "5. Recent errors in mobile location service:"
+echo "5. Recent errors in Geolocation Sidecar:"
 if [ -f /tmp/mobile-sensor.log ]; then
     grep -i "error\|exception\|traceback\|failed" /tmp/mobile-sensor.log | tail -10 | sed 's/^/   /'
 else

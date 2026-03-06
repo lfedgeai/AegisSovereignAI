@@ -54,17 +54,13 @@ type GNSS struct {
 }
 
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
-// Geolocation represents geolocation sensor metadata
-// type: "mobile" or "gnss"
-// sensor_id: Sensor identifier (e.g., USB device ID for mobile, device path for GNSS)
-// value: Optional for mobile, mandatory for gnss (GNSS coordinates, accuracy, etc.)
+// Geolocation represents privacy-preserving geolocation sensor metadata
 type Geolocation struct {
-	Type     string `json:"type"`      // "mobile" or "gnss"
-	SensorID string `json:"sensor_id"` // Sensor identifier
-	Value    string `json:"value"`     // Optional for mobile, mandatory for gnss
-
-	MobileNetwork
-	GNSS
+	Type         string `json:"type"`          // "mobile" or "gnss"
+	SensorID     string `json:"class_id"`      // Sensor manufacturer/model identifier
+	IdentityHash string `json:"identity_hash"` // Globally unique identity commitment
+	Provider     string `json:"provider"`      // Optional descriptive field
+	Value        string `json:"value,omitempty"`
 }
 
 // Gen 4: MNOEndorsement represents a signed endorsement from a carrier
@@ -78,9 +74,13 @@ type MNOEndorsement struct {
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
 // AttestedClaims represents verified facts from Keylime
 type AttestedClaims struct {
-	Geolocation        *Geolocation    `json:"geolocation,omitempty"`
-	MNOEndorsement     *MNOEndorsement `json:"grc.mno_endorsement,omitempty"` // Gen 4
-	SovereigntyReceipt string          `json:"grc.sovereignty_receipt,omitempty"`
+	Geolocation            *Geolocation    `json:"geolocation,omitempty"`
+	MNOEndorsement         *MNOEndorsement `json:"grc.mno_endorsement,omitempty"` // Gen 4
+	SovereigntyReceipt     string          `json:"grc.sovereignty_receipt,omitempty"`
+	SovereigntyReceiptHash string          `json:"grc.sovereignty_receipt_hash,omitempty"`
+	SovereigntyReceiptUri  string          `json:"grc.sovereignty_receipt_uri,omitempty"`
+	AgentImageDigest       string          `json:"lah-bundle.workload-identity-agent-image-digest,omitempty"`
+	TpmQuoteSeal           string          `json:"lah-bundle.tpm-quote-seal,omitempty"`
 }
 
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
@@ -290,18 +290,12 @@ func (c *Client) VerifyEvidence(req *VerifyEvidenceRequest) (*AttestedClaims, er
 
 	geoLog := "none"
 	if verifyResp.Results.AttestedClaims.Geolocation != nil {
-		geoLog = fmt.Sprintf("type=%s, sensor_id=%s", verifyResp.Results.AttestedClaims.Geolocation.Type, verifyResp.Results.AttestedClaims.Geolocation.SensorID)
-		if verifyResp.Results.AttestedClaims.Geolocation.Value != "" {
-			geoLog += fmt.Sprintf(", value=%s", verifyResp.Results.AttestedClaims.Geolocation.Value)
+		geoLog = fmt.Sprintf("type=%s, class_id=%s", verifyResp.Results.AttestedClaims.Geolocation.Type, verifyResp.Results.AttestedClaims.Geolocation.SensorID)
+		if verifyResp.Results.AttestedClaims.Geolocation.IdentityHash != "" {
+			geoLog += fmt.Sprintf(", identity_hash=%s", verifyResp.Results.AttestedClaims.Geolocation.IdentityHash)
 		}
-		if verifyResp.Results.AttestedClaims.Geolocation.IMEI != "" {
-			geoLog += fmt.Sprintf(", sensor_imei=%s", verifyResp.Results.AttestedClaims.Geolocation.IMEI)
-		}
-		if verifyResp.Results.AttestedClaims.Geolocation.IMSI != "" {
-			geoLog += fmt.Sprintf(", sensor_imsi=%s", verifyResp.Results.AttestedClaims.Geolocation.IMSI)
-		}
-		if verifyResp.Results.AttestedClaims.Geolocation.MSISDN != "" {
-			geoLog += fmt.Sprintf(", sensor_msisdn=%s", verifyResp.Results.AttestedClaims.Geolocation.MSISDN)
+		if verifyResp.Results.AttestedClaims.Geolocation.Provider != "" {
+			geoLog += fmt.Sprintf(", provider=%s", verifyResp.Results.AttestedClaims.Geolocation.Provider)
 		}
 	}
 	c.logger.WithFields(logrus.Fields{

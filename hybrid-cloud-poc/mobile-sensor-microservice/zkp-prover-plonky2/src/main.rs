@@ -44,6 +44,9 @@ struct Cli {
     prove: bool,
     #[arg(long)]
     verify: bool,
+    /// Verify proof cryptographically without needing geofence params
+    #[arg(long)]
+    verify_only: bool,
     #[arg(long)]
     lat: Option<f64>,
     #[arg(long)]
@@ -85,7 +88,12 @@ fn main() -> Result<()> {
         return do_verify(&proof, clat, clon, radius, idhash);
     }
 
-    eprintln!("Usage: zkp-prover --prove/--verify [options]");
+    if cli.verify_only {
+        let proof = cli.proof.expect("--proof required for verify-only");
+        return do_verify_only(&proof);
+    }
+
+    eprintln!("Usage: zkp-prover --prove/--verify/--verify-only [options]");
     eprintln!("Run with --help for more information.");
     std::process::exit(1);
 }
@@ -159,6 +167,44 @@ fn do_verify(proof_b64: &str, clat: f64, clon: f64, radius: f64, idhash: i64) ->
     }
 
     // Verify proof
+    match circuit::verify(&circuit_data, &proof) {
+        Ok(true) => {
+            println!("Proof VALID");
+            Ok(())
+        }
+        _ => {
+            eprintln!("Proof INVALID");
+            std::process::exit(1)
+        }
+    }
+}
+
+/// Verify proof using only the embedded public inputs (no external params needed).
+/// Prints the public inputs for transparency.
+fn do_verify_only(proof_b64: &str) -> Result<()> {
+    // Decode proof
+    let proof_bytes = BASE64.decode(proof_b64)?;
+    let proof: plonky2::plonk::proof::ProofWithPublicInputs<
+        plonky2::field::goldilocks_field::GoldilocksField,
+        C,
+        D,
+    > = bincode::deserialize(&proof_bytes)?;
+
+    // Rebuild circuit for verification (deterministic)
+    let (circuit_data, _) = circuit::build_geofence_circuit();
+
+    // Print public inputs for transparency
+    if proof.public_inputs.len() >= 4 {
+        // GoldilocksField is a newtype wrapping u64; use .0 to extract the raw value
+        let clat_raw = proof.public_inputs[0].0;
+        let clon_raw = proof.public_inputs[1].0;
+        let radius_raw = proof.public_inputs[2].0;
+        let idhash_raw = proof.public_inputs[3].0;
+        eprintln!("Public inputs (scaled): center_lat={}, center_lon={}, radius={}, idhash={}",
+            clat_raw, clon_raw, radius_raw, idhash_raw);
+    }
+
+    // Verify proof cryptographically
     match circuit::verify(&circuit_data, &proof) {
         Ok(true) => {
             println!("Proof VALID");

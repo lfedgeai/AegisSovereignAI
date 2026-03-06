@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Infrastructure</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+<span style="font-weight:bold"><span style="color:#00cd00">  SLIDE 7 │ Demo Act 1 — Trusted Infrastructure Setup</span></span>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+
+<span style="font-weight:bold"><span style="color:#cdcd00">── Cloud — Control Plane ──</span></span>
+
+    Host Identity Manager (Keylime):
+    <span style="color:#00cd00">✅  Keylime Verifier running (PID 3574033)</span>
+    <span style="color:#00cd00">✅  Keylime Registrar running (PID 3574077)</span>
+
+    Workload Identity Manager (SPIRE Server):
+    <span style="color:#00cd00">✅  SPIRE Server running (PID 3574244)</span>
+
+<span style="font-weight:bold"><span style="color:#cdcd00">── Cloud — API Gateway & Server Application ──</span></span>
+
+    ZTNA in API Gateway (Envoy + WASM):
+    <span style="color:#00cd00">✅  Envoy proxy running (PID 3582722)</span>
+    Key Vault (Server App):
+    <span style="color:#00cd00">✅  mTLS Server App running (PID 3582229)</span>
+
+<span style="font-weight:bold"><span style="color:#cdcd00">── Sovereign Edge Cloud — Location Anchor Host + Client App ──</span></span>
+
+    rust-keylime Agent:
+    <span style="color:#00cd00">✅  rust-keylime agent running (PID 3576130)</span>
+    SPIRE Agent + TPM Plugin:
+    <span style="color:#00cd00">✅  SPIRE Agent running (PID 3576619)</span>
+    <span style="color:#00cd00">✅  TPM Plugin Server running (PID 3576402)</span>
+
+    Hardware TPM:
+    <span style="color:#00cd00">✅  Hardware TPM detected — manufacturer: unknown</span>
+
+    <span style="font-weight:bold"><span style="color:#00cd00">▸ All 7 services from the architecture diagram are running</span></span>
+    <span style="font-weight:bold"><span style="color:#00cd00">▸ Real hardware TPM — not software-emulated</span></span>
+</pre>
+</body>
+</html>

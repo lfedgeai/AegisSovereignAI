@@ -110,14 +110,14 @@ stop_control_plane_services_only() {
 
     # 1.1: Stop SPIRE Server (not Agent)
     echo "     Stopping SPIRE Server..."
-    pkill -f "spire-server" >/dev/null 2>&1 || true
+    _safe_pkill "spire-server"
 
     # 1.2: Stop Keylime Verifier and Registrar
     echo "     Stopping Keylime Verifier and Registrar..."
-    pkill -f "keylime_verifier" >/dev/null 2>&1 || true
-    pkill -f "keylime\.cmd\.verifier" >/dev/null 2>&1 || true
-    pkill -f "keylime_registrar" >/dev/null 2>&1 || true
-    pkill -f "keylime\.cmd\.registrar" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_verifier"
+    _safe_pkill "keylime\.cmd\.verifier"
+    _safe_pkill "keylime_registrar"
+    _safe_pkill "keylime\.cmd\.registrar"
 
     # 1.3: Wait for processes to fully stop
     echo "     Waiting for processes to exit..."
@@ -126,7 +126,7 @@ stop_control_plane_services_only() {
     # Force kill remaining control plane processes
     if pgrep -f "spire-server|keylime_verifier|keylime_registrar" >/dev/null 2>&1; then
         echo "     Force killing remaining control plane processes..."
-        pkill -9 -f "spire-server|keylime_verifier|keylime_registrar" >/dev/null 2>&1 || true
+        _safe_pkill -9 "spire-server|keylime_verifier|keylime_registrar"
         sleep 1
     fi
 
@@ -717,12 +717,12 @@ cleanup() {
     echo ""
     echo -e "${YELLOW}Cleaning up on exit...${NC}"
     # Only stop processes on exit, don't delete data (user may want to inspect)
-    pkill -f "keylime_verifier" >/dev/null 2>&1 || true
-    pkill -f "python.*keylime" >/dev/null 2>&1 || true
-    pkill -f "keylime_agent" >/dev/null 2>&1 || true
-    pkill -f "spire-server" >/dev/null 2>&1 || true
-    pkill -f "spire-agent" >/dev/null 2>&1 || true
-    pkill -f "tpm2-abrmd" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_verifier"
+    _safe_pkill "python.*keylime"
+    _safe_pkill "keylime_agent"
+    _safe_pkill "spire-server"
+    _safe_pkill "spire-agent"
+    _safe_pkill "tpm2-abrmd"
 }
 
 RUN_INITIAL_CLEANUP=true
@@ -1379,8 +1379,8 @@ stop_control_plane_services() {
             sleep 1
         fi
     fi
-    pkill -f "keylime.*verifier" >/dev/null 2>&1 || true
-    pkill -f "python.*keylime.*verifier" >/dev/null 2>&1 || true
+    _safe_pkill "keylime.*verifier"
+    _safe_pkill "python.*keylime.*verifier"
 
     # Stop Keylime Registrar
     if [ -f /tmp/keylime-registrar.pid ]; then
@@ -1391,8 +1391,8 @@ stop_control_plane_services() {
             sleep 1
         fi
     fi
-    pkill -f "keylime.*registrar" >/dev/null 2>&1 || true
-    pkill -f "python.*keylime.*registrar" >/dev/null 2>&1 || true
+    _safe_pkill "keylime.*registrar"
+    _safe_pkill "python.*keylime.*registrar"
 
     # Stop SPIRE Server
     if [ -f /tmp/spire-server.pid ]; then
@@ -1403,7 +1403,7 @@ stop_control_plane_services() {
             sleep 1
         fi
     fi
-    pkill -f "spire-server" >/dev/null 2>&1 || true
+    _safe_pkill "spire-server"
 
     # Wait a moment for processes to fully stop
     sleep 2
@@ -1559,8 +1559,8 @@ if [ -f /tmp/keylime-registrar.pid ]; then
         sleep 1
     fi
 fi
-pkill -f "keylime.*registrar" >/dev/null 2>&1 || true
-pkill -f "python.*keylime.*registrar" >/dev/null 2>&1 || true
+_safe_pkill "keylime.*registrar"
+_safe_pkill "python.*keylime.*registrar"
 sleep 1
 
 # Start registrar in background
@@ -1640,7 +1640,7 @@ export KEYLIME_AGENT_PORT="${KEYLIME_AGENT_PORT:-9002}"
 echo "  Using rust-keylime agent endpoint: ${KEYLIME_AGENT_IP}:${KEYLIME_AGENT_PORT}"
 
 # Check if SPIRE Server binary exists or needs a rebuild
-# Using SPIRE overlay build system - binaries are in build/spire-binaries/
+# Binaries are built from spire-fork/ and placed in build/spire-binaries/
 SPIRE_SERVER="${PROJECT_DIR}/../build/spire-binaries/spire-server"
 NEEDS_REBUILD=false
 
@@ -1651,10 +1651,14 @@ elif [ "${FORCE_BUILD:-false}" = "true" ]; then
     echo "  Forced build requested."
     NEEDS_REBUILD=true
 else
-    # Check if SPIRE overlay patches are newer than binary
-    OVERLAY_DIR="${PROJECT_DIR}/../spire-overlay"
-    if [ -d "${OVERLAY_DIR}" ] && [ -n "$(find "${OVERLAY_DIR}" -name "*.patch" -newer "${SPIRE_SERVER}" -print -quit 2>/dev/null)" ]; then
-        echo -e "${YELLOW}  ⚠ SPIRE overlay patches modified, need rebuild...${NC}"
+    # Check if spire-fork source files (fork mode, default) are newer than binary
+    FORK_DIR="${PROJECT_DIR}/../spire-fork"
+    FORK_SDK_DIR="${PROJECT_DIR}/../spire-fork-sdk"
+    if [ -d "${FORK_DIR}" ] && [ -n "$(find "${FORK_DIR}" \( -name "*.go" -o -name "*.proto" \) -newer "${SPIRE_SERVER}" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ spire-fork source modified, need rebuild...${NC}"
+        NEEDS_REBUILD=true
+    elif [ -d "${FORK_SDK_DIR}" ] && [ -n "$(find "${FORK_SDK_DIR}" \( -name "*.go" -o -name "*.proto" \) -newer "${SPIRE_SERVER}" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ spire-fork-sdk source modified, need rebuild...${NC}"
         NEEDS_REBUILD=true
     fi
 fi
@@ -1670,17 +1674,16 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         echo -e "${GREEN}============================================================${NC}"
         echo ""
         echo "To complete control plane setup:"
-        echo "  1. Build SPIRE with overlay: cd ${PROJECT_DIR}/.. && ./scripts/spire-build.sh"
+        echo "  1. Build SPIRE: cd ${PROJECT_DIR}/.. && ./scripts/spire-build.sh"
         echo "  2. Run this script again"
         exit 0
     else
-        echo -e "${YELLOW}  ⚠ SPIRE Server binary not found, building with overlay system...${NC}"
+        echo -e "${YELLOW}  ⚠ SPIRE Server binary not found, building from spire-fork/...${NC}"
         cd "${PROJECT_DIR}/.."
 
-        # Use SPIRE overlay build system
-        echo "    Building SPIRE with overlay system..."
+        echo "    Building SPIRE..."
         if [ -x "./scripts/spire-build.sh" ]; then
-            ./scripts/spire-build.sh 2>&1 | tee /tmp/spire-overlay-build.log
+            ./scripts/spire-build.sh 2>&1 | tee /tmp/spire-build.log
             BUILD_EXIT_CODE=${PIPESTATUS[0]}
         else
             echo -e "${RED}    ✗ Build script not found: ./scripts/spire-build.sh${NC}"
@@ -1688,16 +1691,16 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         fi
 
         if [ ${BUILD_EXIT_CODE} -eq 0 ] && [ -f "build/spire-binaries/spire-server" ]; then
-            echo -e "${GREEN}    ✓ SPIRE Server built successfully with overlay system${NC}"
+            echo -e "${GREEN}    ✓ SPIRE Server built successfully${NC}"
             SPIRE_SERVER="${PROJECT_DIR}/../build/spire-binaries/spire-server"
         else
-            echo -e "${RED}    ✗ SPIRE overlay build failed${NC}"
-            echo "    Check /tmp/spire-overlay-build.log for details"
+            echo -e "${RED}    ✗ SPIRE build failed${NC}"
+            echo "    Check /tmp/spire-build.log for details"
             echo ""
             echo "  Troubleshooting:"
             echo "    1. Check if Go is installed: go version"
             echo "    2. Try building manually: ./scripts/spire-build.sh"
-            echo "    3. Check logs: cat /tmp/spire-overlay-build.log"
+            echo "    3. Check logs: cat /tmp/spire-build.log"
             exit 1
         fi
         cd "${PROJECT_DIR}"
@@ -1751,7 +1754,7 @@ if [ -f "${SERVER_CONFIG}" ]; then
             done
         fi
     fi
-    pkill -f "spire-server" >/dev/null 2>&1 || true
+    _safe_pkill "spire-server"
     # Wait a bit more to ensure server has fully stopped and released database lock
     sleep 2
 
@@ -1761,7 +1764,7 @@ if [ -f "${SERVER_CONFIG}" ]; then
     # Also clean up database files that might be in working directories
     # The server uses ./data/datastore.sqlite3 relative to where it's run from
     # Check both old location (if symlinked) and build directory
-    for work_dir in "${PROJECT_DIR}/spire" "${PROJECT_DIR}/../build/spire" "${PROJECT_DIR}" ; do
+    for work_dir in "${PROJECT_DIR}/spire" "${PROJECT_DIR}/../build/spire" ; do
         if [ -d "${work_dir}/.data" ]; then
             echo "    Removing SPIRE Server database directory: ${work_dir}/.data"
             rm -rf "${work_dir}/.data" 2>/dev/null || true
@@ -1833,7 +1836,7 @@ if false; then
         fi
     fi
     # Also check for any other agent processes
-    pkill -f "spire-agent.*run" >/dev/null 2>&1 || true
+    _safe_pkill "spire-agent.*run"
     sleep 1
 
     # Wait for server to be ready

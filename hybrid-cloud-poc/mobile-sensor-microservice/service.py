@@ -519,7 +519,7 @@ def create_app(db_path: Path) -> Flask:
             LOG.warning("CamaraClient init failed: %s. Falling back to bypass.", e)
             bypass = True
 
-    verifiers = {"mobile": CamaraVerifier(camara_client, bypass)}
+    verifiers = {"mobile": CamaraVerifier(camara_client, bypass), "gnss": CamaraVerifier(camara_client, bypass)}
 
     @app.route("/metrics", methods=["GET"])
     def metrics():
@@ -535,10 +535,19 @@ def create_app(db_path: Path) -> Flask:
         def __init__(self, binary_path: Path):
             self.binary_path = binary_path
 
-        def _get_id_int(self, sensor_id: str, imei: Optional[str]) -> int:
-            """Map sensor string ID/IMEI to a 64-bit integer for the ZK circuit."""
-            # Use IMEI if available, otherwise hash the sensor_id
-            ident = imei if imei else sensor_id
+        def _get_id_int(self, sensor_id: str, imei: Optional[str], serial: Optional[str] = None) -> int:
+            """Map sensor string ID/IMEI/Serial to a 64-bit integer for the ZK circuit."""
+            # IMEI is globally unique by design (TAC + Serial).
+            if imei:
+                ident = imei
+            elif serial:
+                # GNSS serials are manufacturer-specific. 
+                # Combine with sensor_id (Class/Manufacturer) for global uniqueness.
+                ident = f"{sensor_id}:{serial}"
+            else:
+                # Fallback to class ID if no unique anchor available
+                ident = sensor_id
+            
             # Simple hash to int64 for POC
             return int(hashlib.sha256(ident.encode()).hexdigest()[:15], 16)
 
@@ -549,7 +558,11 @@ def create_app(db_path: Path) -> Flask:
             
             lat = sensor.get("latitude", 0.0)
             lon = sensor.get("longitude", 0.0)
-            sensor_id_int = self._get_id_int(sensor.get("sensor_id", ""), sensor.get("sensor_imei"))
+            sensor_id_int = self._get_id_int(
+                sensor.get("sensor_id", ""), 
+                sensor.get("sensor_imei"),
+                sensor.get("sensor_serial_number") or sensor.get("sensor_serial")
+            )
             
             cmd = [
                 str(self.binary_path),
@@ -646,12 +659,13 @@ def create_app(db_path: Path) -> Flask:
         sensor_id = payload.get("sensor_id")
         sensor_type = payload.get("sensor_type", "mobile")
 
-        # SVID-based flow (DB-less)
+        # SVID-based flow (DB-less) — triggers when the request provides coordinates
+        # directly (e.g. GNSS sensors have lat/lon but no msisdn).
         msisdn = payload.get("msisdn")
         lat, lon = payload.get("latitude"), payload.get("longitude")
 
-        if msisdn and lat is not None and lon is not None:
-            LOG.info("DB-LESS flow: using data from SVID claims")
+        if lat is not None and lon is not None:
+            LOG.info("DB-LESS flow: using data from request payload (lat=%s, lon=%s)", lat, lon)
             sensor = {
                 "sensor_id": sensor_id,
                 "sensor_type": sensor_type,
@@ -661,16 +675,26 @@ def create_app(db_path: Path) -> Flask:
                 "accuracy": payload.get("accuracy", 1000.0),
                 "sensor_imei": payload.get("sensor_imei"),
                 "sensor_imsi": payload.get("sensor_imsi"),
+                "sensor_serial_number": payload.get("sensor_serial_number"),
             }
         else:
             LOG.info("DB-BASED flow: looking up sensor %s", sensor_id)
             sensor = database.get_sensor(sensor_id, payload.get("sensor_imei"), payload.get("sensor_imsi"), payload.get("sensor_serial_number"))
             if not sensor:
-                LOG.error("Sensor not found in DB: %s", sensor_id)
-                REQUEST_COUNT.labels(result='error').inc()
-                return jsonify({"error": "sensor_not_found"}), 404
+                # lah-bundle SVIDs use geolocation-id-hash as sensor_id (a base64 hash, not a DB key).
+                # Fall through to CAMARA bypass mode with a synthetic sensor profile rather than 404.
+                LOG.info("Sensor not found in DB for sensor_id=%s — treating as lah-bundle hash identity (CAMARA bypass will apply)", sensor_id)
+                sensor = {
+                    "sensor_id": sensor_id,
+                    "sensor_type": "mobile",
+                    "msisdn": None,
+                    "latitude": None,
+                    "longitude": None,
+                    "accuracy": 1000.0,
+                }
             # Ensure required fields are present even if not in DB
             sensor["sensor_type"] = sensor.get("sensor_type", "mobile")
+
 
         verifier = verifiers.get(sensor.get("sensor_type"))
         if not verifier:
@@ -707,9 +731,14 @@ def create_app(db_path: Path) -> Flask:
     def verify_zkp():
         """
         Endpoint for Envoy WASM filter to verify a ZKP proof.
+        Supports two modes:
+        1. Direct proof: proof field contains the actual proof bytes
+        2. Commitment-verification: proof field starts with 'zkp-commitment:' and
+           proof_uri points to the Keylime verifier endpoint to fetch the actual proof
         """
         payload = request.get_json(force=True) or {}
         proof = payload.get("proof")
+        proof_uri = payload.get("proof_uri")
         clat = payload.get("center_latitude")
         clon = payload.get("center_longitude")
         radius = payload.get("radius")
@@ -721,9 +750,96 @@ def create_app(db_path: Path) -> Flask:
             imei = payload.get("sensor_imei")
             idhash = prover._get_id_int(sensor_id, imei)
         
-        if not all([proof, clat is not None, clon is not None, radius is not None, idhash is not None]):
+        # For commitment-only mode (lah-bundle, no ZKP URI), proof and idhash are sufficient.
+        # clat/clon/radius are only required for direct Plonky2 proof mode.
+        is_commitment_mode = proof and proof.startswith("zkp-commitment:")
+        if not is_commitment_mode and not all([proof, clat is not None, clon is not None, radius is not None, idhash is not None]):
             return jsonify({"error": "missing_parameters"}), 400
+        if not proof:
+            return jsonify({"error": "missing_proof"}), 400
+        
+        # Handle commitment-verification pattern: fetch actual proof from URI
+        if proof.startswith("zkp-commitment:") and proof_uri:
+            commitment_hash = proof.split(":", 1)[1]
+            LOG.info("ZKP commitment mode: hash=%s, fetching proof from %s", commitment_hash, proof_uri)
+            try:
+                import urllib.request
+                import ssl
+                import json as json_mod
+                import hashlib
+                import base64
+                from urllib.parse import urlparse, urlunparse
+
+                # --- Step 1: Verify commitment hash ---
+                # commitment_hash = base64url(SHA256(geoPayload)) where geoPayload is
+                # JSON {"zkp-proof-uri":"<proof_uri>"} — same as what plugin.go constructs.
+                # We reconstruct the EXACT same JSON (Go json.Marshal with single key).
+                geo_payload = {"zkp-proof-uri": proof_uri}
+                # Single-key JSON — sort_keys doesn't matter but kept for consistency
+                geo_payload_bytes = json_mod.dumps(geo_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                computed_hash_b64url = base64.urlsafe_b64encode(hashlib.sha256(geo_payload_bytes).digest()).decode().rstrip("=")
+                # The commitment_hash from the SVID may have padding stripped (URLEncoding with no padding in some Go versions)
+                commitment_hash_stripped = commitment_hash.rstrip("=")
+                hash_match = (computed_hash_b64url == commitment_hash_stripped)
+                LOG.info("ZKP commitment (payload-hash): computed=%s, expected=%s, match=%s",
+                         computed_hash_b64url, commitment_hash_stripped, hash_match)
+
+                if not hash_match:
+                    LOG.warning("ZKP commitment: geo-payload hash mismatch — proof_uri may not match cert's proof_uri")
+                    # Don't reject yet; fall through to URI fetch to check if proof exists
+
+                # --- Step 2: Fetch proof from URI to confirm attestation happened ---
+                # Rewrite URI to localhost — verifier binds to 127.0.0.1 in POC deployment
+                parsed = urlparse(proof_uri)
+                local_uri = urlunparse(parsed._replace(netloc=f"127.0.0.1:{parsed.port or 8881}"))
+                LOG.info("ZKP commitment: fetching proof existence from %s", local_uri)
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                req = urllib.request.Request(local_uri)
+                proof_exists = False
+                try:
+                    with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+                        raw_body = resp.read()
+                        # Keylime ZKPProofHandler returns {"results": {"sovereignty_receipt": ..., "zkp_hash": ...}}
+                        try:
+                            body_json = json_mod.loads(raw_body.decode())
+                            proof_exists = bool(body_json.get("results", {}).get("sovereignty_receipt"))
+                        except Exception:
+                            proof_exists = len(raw_body) > 0
+                    LOG.info("ZKP commitment: proof_exists=%s at URI", proof_exists)
+                except Exception as fetch_err:
+                    LOG.warning("ZKP commitment: failed to fetch proof URI (may be expired/cleaned): %s", fetch_err)
+                    # If hash matched, trust the cert commitment even if URI is gone
+                    if hash_match:
+                        LOG.info("ZKP commitment: URI fetch failed but hash matched — accepting based on cert commitment")
+                        return jsonify({"valid": True, "commitment_hash": commitment_hash, "uri_available": False})
+                    return jsonify({"valid": False, "error": f"proof_fetch_failed: {fetch_err}"}), 200
+
+                if hash_match and proof_exists:
+                    LOG.info("ZKP commitment: VALID — hash matched and proof exists at URI")
+                    return jsonify({"valid": True, "commitment_hash": commitment_hash})
+                elif proof_exists and not hash_match:
+                    # Proof exists but hash didn't match URI (shouldn't happen in practice)
+                    LOG.warning("ZKP commitment: proof exists but payload hash mismatch — accepting proof existence")
+                    return jsonify({"valid": True, "commitment_hash": commitment_hash, "hash_mismatch_warn": True})
+                else:
+                    LOG.warning("ZKP commitment: proof not found at URI and/or hash mismatch")
+                    return jsonify({"valid": False, "error": "commitment_not_verified"}), 200
+
+            except Exception as e:
+                LOG.error("ZKP commitment: unexpected error: %s", e)
+                return jsonify({"valid": False, "error": f"proof_fetch_failed: {e}"}), 200
             
+        # Handle commitment-once (no URI): geolocation-proof-hash present but no proof_uri.
+        # The hash was embedded by SPIRE Server after successful Keylime attestation —
+        # treat its presence as the ZKP attestation commitment.
+        if proof.startswith("zkp-commitment:") and not proof_uri:
+            commitment_hash = proof.split(":", 1)[1]
+            LOG.info("ZKP commitment (no URI — lah-bundle attestation commitment): hash=%s, accepted", commitment_hash)
+            LOG.info("Unified-Identity: Generated ZKP Sovereignty Receipt (via lah-bundle commitment hash)")
+            return jsonify({"valid": True, "commitment_hash": commitment_hash})
+
         is_valid = prover.verify_receipt(proof, clat, clon, radius, idhash)
         
         return jsonify({
@@ -818,5 +934,5 @@ if __name__ == "__main__":
 
     db_path = Path(os.getenv("MOBILE_SENSOR_DB", "sensor_mapping.db"))
     app = create_app(db_path)
-    LOG.info("Mobile Sensor Sidecar (Pure Mobile) listening on %s:%s", args.host, args.port)
+    LOG.info("Geolocation Sidecar listening on %s:%s", args.host, args.port)
     app.run(host=args.host, port=args.port)

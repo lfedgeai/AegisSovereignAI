@@ -288,11 +288,14 @@ Examples:
   # Run full integration test
   ./ci_test_runner.py
 
-  # Run cleanup only
-  ./ci_test_runner.py -- --cleanup-only
+  # Stop all services without running tests
+  ./ci_test_runner.py --cleanup-only
 
-  # Run with custom hosts (all three components on separate machines)
-  ./ci_test_runner.py -- --control-plane-host 10.1.0.11 --agents-host 10.1.0.12 --onprem-host 10.1.0.10
+  # Run tests but leave services running afterwards (for inspection)
+  ./ci_test_runner.py --no-cleanup
+
+  # Run with custom hosts
+  ./ci_test_runner.py -- --control-plane-host <HOST_A> --agents-host <HOST_B> --onprem-host <HOST_A>
 
   # Disable colors (for CI)
   ./ci_test_runner.py --no-color
@@ -304,6 +307,10 @@ Examples:
 
     parser.add_argument('--no-color', action='store_true',
                         help='Disable color output (for CI)')
+    parser.add_argument('--no-cleanup', action='store_true',
+                        help='Leave all services running after tests (skip final cleanup).')
+    parser.add_argument('--cleanup-only', action='store_true',
+                        help='Stop all services and clean up without running any tests.')
     parser.add_argument('test_args', nargs='*',
                         help='Arguments to pass to test_integration.sh (use -- to separate)')
 
@@ -312,6 +319,12 @@ Examples:
 
     # Combine test_args and unknown args
     all_test_args = args.test_args + unknown
+
+    # Pass --no-cleanup / --cleanup-only through to test_integration.sh
+    if args.no_cleanup and '--no-cleanup' not in all_test_args:
+        all_test_args.append('--no-cleanup')
+    if args.cleanup_only and '--cleanup-only' not in all_test_args:
+        all_test_args.append('--cleanup-only')
 
     # Add --no-pause by default for CI usage (unless already present)
     if '--no-pause' not in all_test_args and '--pause' not in ' '.join(all_test_args):

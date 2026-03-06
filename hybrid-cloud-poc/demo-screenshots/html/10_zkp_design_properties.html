@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZKP Design Properties</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── ZKP Design Properties ──</span>
+
+    <span style="font-weight:bold">1. Verification = proof + public inputs ONLY</span>
+       <span style="opacity:0.7">The verifier never sees GPS coordinates.</span>
+       <span style="opacity:0.7">It checks: "given these public inputs, is this proof valid?" → true/false</span>
+
+    <span style="font-weight:bold">2. Circuit code is policy-agnostic</span>
+       <span style="opacity:0.7">Same circuit works for ANY geofence (Paris, Tokyo, São Paulo...)</span>
+       <span style="opacity:0.7">Only the public inputs change (center_lat, center_lon, radius).</span>
+       <span style="opacity:0.7">No recompilation, no redeployment — just new policy parameters.</span>
+
+    <span style="font-weight:bold">3. Everything can live on a public ledger</span>
+       <span style="opacity:0.7">✓ Circuit code (open source — Plonky2, MIT/Apache 2.0)</span>
+       <span style="opacity:0.7">✓ X.509 certificate (contains geo-id-hash + proof-hash)</span>
+       <span style="opacity:0.7">✓ ZKP proof (fetched from zkp-proof-uri in cert)</span>
+       <span style="opacity:0.7">✗ GPS coordinates — NEVER exposed, by mathematical guarantee</span>
+
+    <span style="font-weight:bold"></span><span style="color:#00cd00">Full transparency + full privacy. That's the ZKP value proposition.</span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

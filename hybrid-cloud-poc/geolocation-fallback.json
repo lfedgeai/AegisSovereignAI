@@ -1,0 +1,8 @@
+{
+  "sensor_type": "os",
+  "sensor_id": "os-geolocation",
+  "latitude": 40.33,
+  "longitude": -3.7707,
+  "accuracy": 100.0,
+  "description": "OS-level geolocation fallback. Replace with actual coordinates for your deployment."
+}

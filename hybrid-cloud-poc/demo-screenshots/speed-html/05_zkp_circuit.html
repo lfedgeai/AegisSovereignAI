@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZKP Circuit + Tamper</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+<span style="font-weight:bold"><span style="color:#00cd00">  ZKP Deep Dive — Circuit Verification + Attack Demo</span></span>
+<span style="color:#00cdcd">═══════════════════════════════════════════════════════════════</span>
+
+
+<span style="font-weight:bold"><span style="color:#cdcd00">── ZKP Circuit Verification (Plonky2) ──</span></span>
+
+    <span style="font-weight:bold">Fetching proof from Keylime verifier receipt store...</span>
+    <span style="color:#00cd00">✅  Proof retrieved (96632 chars, base64-encoded)</span>
+
+    <span style="font-weight:bold">Running Plonky2 verifier (verify-only mode):</span>
+    <span style="opacity:0.7">zkp-prover --verify-only --proof=&lt;proof&gt;</span>
+
+    <span style="font-weight:bold"><span style="color:#00cdcd">Public inputs (extracted from proof):</span></span>
+      <span style="color:#00cdcd">center_lat</span>  = <span style="color:#00cd00">130330000</span>  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">center_lon</span>  = <span style="color:#00cd00">176229300</span>  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">radius</span>      = <span style="color:#00cd00">100000</span>  <span style="opacity:0.7">(geofence policy)</span>
+      <span style="color:#00cdcd">idhash</span>      = <span style="color:#00cd00">891421482732113297</span>  <span style="opacity:0.7">← SHA-256(TPM AK) — binds proof to THIS device</span>
+
+    <span style="font-weight:bold"><span style="color:#cd0000">Private inputs (NEVER revealed):</span></span>
+      device-lat    = <span style="color:#cd0000">██████████</span>  ← hidden in proof
+      device-lon    = <span style="color:#cd0000">██████████</span>  ← hidden in proof
+
+    <span style="opacity:0.7">The verifier confirmed the claim WITHOUT learning the GPS coordinates.</span>
+    <span style="opacity:0.7">This is the core ZKP value: <span style="font-weight:bold">verify without knowing.</span></span>
+
+    <span style="color:#00cd00">✅  CIRCUIT VALID — Plonky2 zero-knowledge proof verified</span>
+</pre>
+</body>
+</html>

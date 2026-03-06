@@ -74,7 +74,7 @@ run_cmd "$SUDO_CMD apt-get install -y swtpm swtpm-tools"
 
 echo ""
 echo "--- Installing Build Tools ---"
-run_cmd "$SUDO_CMD apt-get install -y build-essential gcc g++ make cmake pkg-config libclang-dev libclang-14-dev"
+run_cmd "$SUDO_CMD apt-get install -y build-essential gcc g++ make cmake pkg-config libclang-dev libclang-14-dev protobuf-compiler"
 
 echo ""
 echo "--- Installing OpenSSL Development Libraries ---"
@@ -120,7 +120,7 @@ echo ""
 echo "--- Installing Python Packages ---"
 echo "Installing/updating key Python packages..."
 run_cmd "python3 -m pip install --upgrade pip"
-run_cmd "python3 -m pip install --upgrade spiffe>=0.2.0 cryptography>=41.0.0 grpcio>=1.60.0 grpcio-tools>=1.60.0 protobuf>=4.25.0 requests>=2.31.0 pre-commit"
+run_cmd "python3 -m pip install --upgrade 'spiffe>=0.2.0' 'cryptography>=41.0.0' 'grpcio>=1.60.0' 'grpcio-tools>=1.60.0' 'protobuf>=4.25.0' 'requests>=2.31.0' pre-commit"
 
 echo ""
 echo "--- Setting up TSS Group ---"

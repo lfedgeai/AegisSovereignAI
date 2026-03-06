@@ -34,7 +34,7 @@ curl -s -X POST http://localhost:9050/verify -d '{
     "sensor_id": "12d1:1433"
 }'
 
-echo -e "\n\n[+] Testing GNSS rejection (should fail in Pure Mobile sidecar if it ever reaches it)"
+echo -e "\n\n[+] Testing GNSS rejection (should fail in Geolocation Sidecar if it ever reaches it)"
 curl -s -X POST http://localhost:9050/verify -d '{
     "sensor_id": "GNSS-USB-01",
     "sensor_type": "gnss"

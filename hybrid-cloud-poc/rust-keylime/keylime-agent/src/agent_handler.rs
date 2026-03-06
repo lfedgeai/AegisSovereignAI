@@ -73,8 +73,8 @@ pub(crate) fn configure_agent_endpoints(cfg: &mut web::ServiceConfig, unified_id
     // Unified-Identity: Geolocation endpoint (Task 2)
     if unified_identity_enabled {
         _ = cfg.service(
-            web::resource("/attested_geolocation")
-                .route(web::get().to(crate::geolocation_handler::attested_geolocation)),
+            web::resource("/attested_workload_geolocation")
+                .route(web::get().to(crate::geolocation_handler::attested_workload_geolocation)),
         );
     }
 

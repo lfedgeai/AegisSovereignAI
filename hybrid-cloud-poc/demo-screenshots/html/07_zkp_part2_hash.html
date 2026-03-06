@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZKP Part 2 - Hash</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── Part 2: Hash Verification — Does the Proof Match the Certificate? ──</span>
+
+    Geolocation payload JSON:
+      {"zkp-proof-uri":"https://10.1.0.11:8881/v1/proof/21f382e528704250195b98ad913549bacd591182ced50ab35cdae27f2a2ffde6"}
+
+    SHA-256(payload):      <span style="font-weight:bold;color:#00cdcd">5uaygqgQWpFTqTdMowmI36Idok2Z9HRQ5Tm_j93AJEU</span>
+    geolocation-proof-hash: <span style="font-weight:bold;color:#00cdcd">5uaygqgQWpFTqTdMowmI36Idok2Z9HRQ5Tm_j93AJEU</span>
+
+    <span style="font-weight:bold;color:#00cd00">✅  HASH MATCH</span> — the proof URI content is committed in the X.509 cert
+    <span style="opacity:0.7">This means the cert cannot be re-pointed to a different proof</span>
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

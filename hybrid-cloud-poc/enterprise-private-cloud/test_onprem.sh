@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # Test script for enterprise on-prem
-# Sets up: Envoy proxy, mTLS server, mobile location service, WASM filter
+# Sets up: Envoy proxy, mTLS server, Geolocation Sidecar, WASM filter
 
 set -e
 
@@ -97,7 +97,7 @@ IS_TEST_MACHINE=false
 if [ -n "${FORCE_TEST_MACHINE:-}" ]; then
     IS_TEST_MACHINE=true
     echo -e "${GREEN}Running on test machine (forced via FORCE_TEST_MACHINE) - cleanup and auto-start enabled${NC}"
-elif [ "${CURRENT_HOSTNAME}" = "mwserver12" ] || [ "${CURRENT_HOSTNAME}" = "mwserver11" ]; then
+elif echo "${TEST_MACHINE_HOSTNAMES:-}" | grep -qw "${CURRENT_HOSTNAME}"; then
     IS_TEST_MACHINE=true
     echo -e "${GREEN}Running on test machine (hostname: ${CURRENT_HOSTNAME}, IP: ${CURRENT_IP}) - cleanup and auto-start enabled${NC}"
 elif [ -n "${CURRENT_IP}" ] && [ "$CURRENT_IP" != "unknown" ]; then
@@ -140,16 +140,17 @@ cleanup_existing_services() {
     echo "  1. Stopping processes..."
 
     # 1.1: Stop Envoy
+    # NOTE: Use pkill -x (exact name match), NOT pkill -f (full cmdline match).
+    # pkill -f through sudo matches its own cmdline, causing an unkillable deadlock.
     printf '     Stopping Envoy...\n'
-    sudo pkill -f "envoy.*envoy.yaml" >/dev/null 2>&1
-    sudo pkill -f "^envoy " >/dev/null 2>&1
+    sudo pkill -x envoy >/dev/null 2>&1 || true
 
     # 1.2: Stop mTLS server
     printf '     Stopping mTLS server...\n'
     pkill -f "mtls-server-app.py" >/dev/null 2>&1
 
-    # 1.3: Stop mobile location service
-    printf '     Stopping mobile location service...\n'
+    # 1.3: Stop Geolocation Sidecar
+    printf '     Stopping Geolocation Sidecar...\n'
     if [ -f /tmp/mobile-sensor.log ]; then
         LOG_PIDS=$(lsof -t /tmp/mobile-sensor.log 2>/dev/null || echo "")
         if [ -n "$LOG_PIDS" ]; then
@@ -172,22 +173,43 @@ cleanup_existing_services() {
                 sudo systemctl stop "${svc}" >/dev/null 2>&1 || true
                 # Prevent auto-restart while our test is running
                 sudo systemctl mask --now "${svc}" >/dev/null 2>&1 || true
-                printf '     [INFO] Service "%s" masked \u2014 it will NOT auto-restart during test\n' "${svc}"
+                printf '     [INFO] Service "%s" masked — it will NOT auto-restart during test\n' "${svc}"
                 printf '     [INFO] To re-enable after test: sudo systemctl unmask %s && sudo systemctl start %s\n' "${svc}" "${svc}"
             fi
         done
     fi
 
     # 1.6: Free up ports (Force kill if needed)
+    # On single-host setups, avoid killing the test orchestrator process tree.
     printf '     Freeing up ports...\n'
+    # Build a list of PIDS in our own process tree that should be excluded
+    SELF_PIDS="$$ $PPID"
+    _p=$PPID
+    while [ "$_p" -gt 1 ] 2>/dev/null; do
+        _p=$(ps -o ppid= -p "$_p" 2>/dev/null | tr -d ' ')
+        [ -z "$_p" ] && break
+        SELF_PIDS="$SELF_PIDS $_p"
+    done
     for port in 9050 9443 8080; do
         if command -v lsof &> /dev/null; then
             PIDS=$(sudo lsof -ti:${port} 2>/dev/null)
             if [ -n "$PIDS" ]; then
-                # Show process name before killing (helps diagnosis)
-                PROC_NAMES=$(sudo lsof -i:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $1}' | sort -u | tr '\n' ',' | sed 's/,$//')
-                printf '     Force killing process(es) on port %s (PID: %s, names: %s)...\n' "${port}" "$PIDS" "${PROC_NAMES:-unknown}"
-                printf '%s\n' "$PIDS" | xargs -r sudo kill -9 >/dev/null 2>&1
+                # Filter out our own process tree to avoid self-kill on single-host
+                KILL_PIDS=""
+                for pid in $PIDS; do
+                    SKIP=false
+                    for spid in $SELF_PIDS; do
+                        if [ "$pid" = "$spid" ]; then SKIP=true; break; fi
+                    done
+                    if [ "$SKIP" = "false" ]; then
+                        KILL_PIDS="$KILL_PIDS $pid"
+                    fi
+                done
+                if [ -n "$KILL_PIDS" ]; then
+                    PROC_NAMES=$(sudo lsof -i:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $1}' | sort -u | tr '\n' ',' | sed 's/,$//')
+                    printf '     Force killing process(es) on port %s (PID:%s, names: %s)...\n' "${port}" "$KILL_PIDS" "${PROC_NAMES:-unknown}"
+                    printf '%s\n' $KILL_PIDS | xargs -r sudo kill -9 >/dev/null 2>&1
+                fi
             fi
         fi
     done
@@ -277,7 +299,7 @@ Options:
 This script sets up the enterprise on-prem environment:
   - Envoy proxy (port 8080)
   - mTLS server (port 9443)
-  - Mobile location service (port 9050)
+  - Geolocation Sidecar (port 9050)
   - WASM filter for sensor verification
 
 Examples:
@@ -556,7 +578,10 @@ SPIRE_CLIENT_USER="${SPIRE_CLIENT_USER:-mw}"
 # Detect if SPIRE_CLIENT_HOST is the same as current host
 CURRENT_HOST_IPS=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^$' || ip addr show | grep -oP 'inet \K[\d.]+' | grep -v '127.0.0.1' || echo '')
 IS_SAME_HOST=false
-if echo "$CURRENT_HOST_IPS" | grep -q "^${SPIRE_CLIENT_HOST}$"; then
+# Loopback addresses are always local
+if [ "${SPIRE_CLIENT_HOST}" = "127.0.0.1" ] || [ "${SPIRE_CLIENT_HOST}" = "localhost" ] || [ "${SPIRE_CLIENT_HOST}" = "::1" ]; then
+    IS_SAME_HOST=true
+elif echo "$CURRENT_HOST_IPS" | grep -q "^${SPIRE_CLIENT_HOST}$"; then
     IS_SAME_HOST=true
 else
     # Try hostname comparison
@@ -603,7 +628,9 @@ printf '  Fetching SPIRE CA bundle from %s...\n' "${SPIRE_CLIENT_HOST}"
 
 # Re-check if same host (in case SPIRE_CLIENT_HOST was changed)
 IS_SAME_HOST=false
-if echo "$CURRENT_HOST_IPS" | grep -q "^${SPIRE_CLIENT_HOST}$"; then
+if [ "${SPIRE_CLIENT_HOST}" = "127.0.0.1" ] || [ "${SPIRE_CLIENT_HOST}" = "localhost" ] || [ "${SPIRE_CLIENT_HOST}" = "::1" ]; then
+    IS_SAME_HOST=true
+elif echo "$CURRENT_HOST_IPS" | grep -q "^${SPIRE_CLIENT_HOST}$"; then
     IS_SAME_HOST=true
 else
     CURRENT_HOSTNAME=$(hostname 2>/dev/null || echo '')
@@ -794,8 +821,8 @@ else
     echo -e "${YELLOW}  ⚠ Certificates will be generated/added as needed${NC}"
 fi
 
-# 4. Setup mobile location service
-echo -e "\n${GREEN}[4/7] Setting up mobile location service...${NC}"
+# 4. Setup Geolocation Sidecar
+echo -e "\n${GREEN}[4/7] Setting up Geolocation Sidecar...${NC}"
 cd "$REPO_ROOT/mobile-sensor-microservice"
 if [ -d ".venv" ]; then
     # Ensure we own the venv (fix for mixed sudo/non-sudo runs)
@@ -808,14 +835,14 @@ else
 fi
 source .venv/bin/activate
 pip install -q -r requirements.txt
-echo -e "${GREEN}  ✓ Mobile location service dependencies installed${NC}"
+echo -e "${GREEN}  ✓ Geolocation Sidecar dependencies installed${NC}"
 
-# Detect Mobile Sidecar source changes (Python)
+# Detect Geolocation Sidecar source changes (Python)
 if [ -f /tmp/mobile-sensor.log ]; then
     LAST_START=$(stat -c %Y /tmp/mobile-sensor.log 2>/dev/null || echo 0)
     CHANGED_FILES=$(find "$REPO_ROOT/mobile-sensor-microservice" -name "*.py" -newermt "@${LAST_START}" -print -quit 2>/dev/null)
     if [ -n "$CHANGED_FILES" ]; then
-        echo -e "${YELLOW}  ⚠ Mobile sidecar source changes detected since last start${NC}"
+        echo -e "${YELLOW}  ⚠ Geolocation Sidecar source changes detected since last start${NC}"
         echo "  (Python services pick up changes on restart, which we are doing now)"
     fi
 fi
@@ -906,8 +933,7 @@ if [ "$IS_TEST_MACHINE" = "false" ] && [ -n "${CURRENT_IP}" ]; then
        [ "$CURRENT_IP" = "${CONTROL_PLANE_HOST}" ] || \
        [ "$CURRENT_IP" = "${AGENTS_HOST}" ] || \
        [ "$CURRENT_IP" = "${ONPREM_HOST}" ] || \
-       [ "${CURRENT_HOSTNAME}" = "mwserver11" ] || \
-       [ "${CURRENT_HOSTNAME}" = "mwserver12" ]; then
+       ([ -n "${TEST_MACHINE_HOSTNAMES:-}" ] && echo "${TEST_MACHINE_HOSTNAMES}" | grep -qw "${CURRENT_HOSTNAME}"); then
         IS_TEST_MACHINE=true
         printf 'Enabling auto-start (detected test machine: IP=%s, hostname=%s)\n' "${CURRENT_IP}" "${CURRENT_HOSTNAME}"
     fi
@@ -928,7 +954,7 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     # DEMO_MODE defaults to true when CAMARA_BYPASS is enabled (suppresses bypass log messages)
     export DEMO_MODE="${DEMO_MODE:-true}"
 
-    # Set CAMARA_BASIC_AUTH for mobile location service (only if bypass is disabled)
+    # Set CAMARA_BASIC_AUTH for Geolocation Sidecar (only if bypass is disabled)
     if [ "$CAMARA_BYPASS" != "true" ]; then
         # secrets-management: Prefer passing file path over reading content
         CAMARA_AUTH_FILE=""
@@ -977,8 +1003,8 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
         printf '  [OK] CAMARA_BYPASS=true (CAMARA API calls will be skipped)\n'
     fi
 
-    # Start Mobile Location Service
-    printf '  Starting Mobile Location Service (port 9050)...\n'
+    # Start Geolocation Sidecar
+    printf '  Starting Geolocation Sidecar (port 9050)...\n'
 
     # Check if mobile sensor service is already running (e.g., started by test_control_plane.sh)
     MOBILE_SERVICE_RUNNING=false
@@ -997,7 +1023,7 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     fi
 
     if [ "$MOBILE_SERVICE_RUNNING" = "true" ]; then
-        printf '    [INFO] Mobile Location Service already running on port 9050 (likely started by control plane)\n'
+        printf '    [INFO] Geolocation Sidecar already running on port 9050 (likely started by control plane)\n'
         printf '    [INFO] Skipping startup - using existing service\n'
     else
         cd "$REPO_ROOT/mobile-sensor-microservice" 2>/dev/null
@@ -1052,9 +1078,9 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
             MOBILE_PID=$!
             sleep 2
             if ps -p $MOBILE_PID > /dev/null 2>&1; then
-                printf '    [OK] Mobile Location Service started (PID: %s)\n' "$MOBILE_PID"
+                printf '    [OK] Geolocation Sidecar started (PID: %s)\n' "$MOBILE_PID"
             else
-                printf '    [WARN] Mobile Location Service may have failed - check /tmp/mobile-sensor.log\n'
+                printf '    [WARN] Geolocation Sidecar may have failed - check /tmp/mobile-sensor.log\n'
             fi
         else
             printf '    [WARN] Virtual environment or service.py not found - skipping mobile service startup\n'
@@ -1206,7 +1232,8 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     printf '  Starting Envoy Proxy (port 8080)...\n'
     if command -v envoy &> /dev/null; then
         # Stop existing Envoy if running (to pick up new certificate)
-        if pkill -f "envoy.*envoy.yaml" >/dev/null 2>&1; then
+        # NOTE: Use pkill -x (exact name match) to avoid self-matching via -f
+        if pkill -x envoy >/dev/null 2>&1; then
             sleep 1
             printf '    Restarted Envoy to pick up new backend certificate\n'
         fi
@@ -1301,7 +1328,7 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     # Temporarily disable exit on error for verification
     set +e
 
-    MAX_RETRIES=5
+    MAX_RETRIES=30  # Increased for CI stability (covers up to 60s)
     RETRY_DELAY=2
     SERVICES_OK=0
     
@@ -1332,11 +1359,11 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
 
     # Print final status
     if command -v ss &> /dev/null; then
-        sudo ss -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9050[[:space:]]|:9050$" >/dev/null && printf '  [OK] Mobile Location Service listening on port 9050\n' || printf '  [WARN] Mobile Location Service not listening on port 9050\n'
+        sudo ss -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9050[[:space:]]|:9050$" >/dev/null && printf '  [OK] Geolocation Sidecar listening on port 9050\n' || printf '  [WARN] Geolocation Sidecar not listening on port 9050\n'
         sudo ss -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9443[[:space:]]|:9443$" >/dev/null && printf '  [OK] mTLS Server listening on port 9443\n' || printf '  [WARN] mTLS Server not listening on port 9443\n'
         sudo ss -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":8080[[:space:]]|:8080$" >/dev/null && printf '  [OK] Envoy listening on port 8080\n' || printf '  [WARN] Envoy not listening on port 8080\n'
     elif command -v netstat &> /dev/null; then
-        sudo netstat -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9050[[:space:]]|:9050$" >/dev/null && printf '  [OK] Mobile Location Service listening on port 9050\n' || printf '  [WARN] Mobile Location Service not listening on port 9050\n'
+        sudo netstat -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9050[[:space:]]|:9050$" >/dev/null && printf '  [OK] Geolocation Sidecar listening on port 9050\n' || printf '  [WARN] Geolocation Sidecar not listening on port 9050\n'
         sudo netstat -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":9443[[:space:]]|:9443$" >/dev/null && printf '  [OK] mTLS Server listening on port 9443\n' || printf '  [WARN] mTLS Server not listening on port 9443\n'
         sudo netstat -tlnp 2>/dev/null | grep -E "LISTEN" | grep -E ":8080[[:space:]]|:8080$" >/dev/null && printf '  [OK] Envoy listening on port 8080\n' || printf '  [WARN] Envoy not listening on port 8080\n'
     else
@@ -1347,15 +1374,15 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     if [ $SERVICES_OK -eq 3 ]; then
         printf '[SUCCESS] All services are running!\n'
     else
-        printf '[WARN] Some services may not be running. Check logs:\n'
-        printf '  - Mobile Location Service: tail -f /tmp/mobile-sensor.log\n'
+        printf '[ERROR] Some services failed to start after %d seconds. Check logs:\n' "$((MAX_RETRIES * RETRY_DELAY))"
+        printf '  - Geolocation Sidecar: tail -f /tmp/mobile-sensor.log\n'
         printf '  - mTLS Server: tail -f /tmp/mtls-server.log\n'
         printf '  - Envoy: tail -f /opt/envoy/logs/envoy.log\n'
     fi
 
     printf '\n'
     printf 'Service Management:\n'
-    printf '  To stop all services: sudo pkill -f '\''envoy.*envoy.yaml'\''; pkill -f '\''mtls-server-app.py'\''; pkill -f '\''service.py.*9050'\''\n'
+    printf '  To stop all services: sudo pkill -x envoy; pkill -f '\''mtls-server-app.py'\''; pkill -f '\''service.py.*9050'\''\n'
     printf '  To view logs:\n'
     printf '    tail -f /tmp/mobile-sensor.log\n'
     printf '    tail -f /tmp/mtls-server.log\n'
@@ -1365,19 +1392,18 @@ if [ "$IS_TEST_MACHINE" = "true" ]; then
     # Reset terminal colors before exit (ignore errors)
     [ -t 1 ] && tput sgr0 2>/dev/null || true
 
-    # Exit successfully if services are running
+    # Exit with error if services are not running
     if [ $SERVICES_OK -eq 3 ]; then
         exit 0
     else
-        # Still exit 0 even if verification had warnings (services may still be starting)
-        exit 0
+        exit 1
     fi
 else
     # Not on test machine - show manual startup instructions
     printf '\n'
     printf 'To start all services manually (in separate terminals):\n'
     printf '\n'
-    printf 'Terminal 1 - Mobile Location Service:\n'
+    printf 'Terminal 1 - Geolocation Sidecar:\n'
     printf '  cd %s/mobile-sensor-microservice\n' "$REPO_ROOT"
     printf '  source .venv/bin/activate\n'
     printf '  export CAMARA_BYPASS=true  # or set CAMARA_BASIC_AUTH\n'

@@ -19,7 +19,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# SPIRE binaries are produced by the overlay build system into build/spire-binaries/
+# SPIRE binaries are built from spire-fork/ and placed in build/spire-binaries/
 # SCRIPT_DIR is hybrid-cloud-poc/python-app-demo/, so ../../build/spire-binaries/ is the repo root
 SPIRE_SERVER="${SCRIPT_DIR}/../../build/spire-binaries/spire-server"
 

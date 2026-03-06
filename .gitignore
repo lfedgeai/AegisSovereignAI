@@ -111,3 +111,10 @@ build/spire-api-sdk/
 build/spire-binaries/
 build/BUILD_INFO.txt
 .spire-version
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.*.local
+**/.envrc
+!**/.env.example

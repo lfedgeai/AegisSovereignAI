@@ -42,10 +42,10 @@ echo "║  CAMARA Caching and GPS Bypass Integration Test               ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check if mobile location service is running
-echo -e "${CYAN}Checking if mobile location service is running...${NC}"
+# Check if Geolocation Sidecar is running
+echo -e "${CYAN}Checking if Geolocation Sidecar is running...${NC}"
 if ! curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" -d '{}' http://localhost:5000/verify | grep -qE '200|404'; then
-    echo -e "${RED}✗ Mobile location service is not running on port 5000${NC}"
+    echo -e "${RED}✗ Geolocation Sidecar is not running on port 5000${NC}"
     echo -e "${YELLOW}  Please start it first:${NC}"
     echo "    cd $REPO_ROOT/mobile-sensor-microservice"
     echo "    source .venv/bin/activate"
@@ -53,7 +53,7 @@ if ! curl -s -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" 
     echo "    python3 service.py --port 5000 --host 0.0.0.0 > /tmp/mobile-sensor.log 2>&1 &"
     exit 1
 fi
-echo -e "${GREEN}✓ Mobile location service is running${NC}"
+echo -e "${GREEN}✓ Geolocation Sidecar is running${NC}"
 echo ""
 
 # Clear log file for clean test

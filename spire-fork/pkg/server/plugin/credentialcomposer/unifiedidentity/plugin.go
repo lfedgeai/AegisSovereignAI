@@ -2,14 +2,11 @@ package unifiedidentity
 
 import (
 	"context"
-	"crypto"
-	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/json"
-	"encoding/pem"
-	"fmt"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/hcl"
 	"github.com/sirupsen/logrus"
@@ -62,15 +59,18 @@ type Plugin struct {
 	keylimeClient *keylime.Client
 	policyEngine  *policy.Engine
 
-	// Gen 4: Cache verified claims for workload inheritance
+	// LAH-Bundle: Cache verified location evidence for workload inheritance
 	// Key: Agent SPIFFE ID (keylime_agent_uuid)
-	claimsCache  map[string]*types.AttestedClaims
-	latestClaims *types.AttestedClaims
+	lahBundleCache  map[string]*types.LAHBundle
+	mnoCache        map[string]*types.LAHMNOEndorsement
+	latestLAHBundle *types.LAHBundle
+	latestMNO       *types.LAHMNOEndorsement
 }
 
 func New() *Plugin {
 	return &Plugin{
-		claimsCache: make(map[string]*types.AttestedClaims),
+		lahBundleCache: make(map[string]*types.LAHBundle),
+		mnoCache:       make(map[string]*types.LAHMNOEndorsement),
 	}
 }
 
@@ -131,16 +131,16 @@ func (p *Plugin) ComposeAgentX509SVID(ctx context.Context, req *credentialcompos
 	// Debug logging
 	logrus.Infof("Unified-Identity: ComposeAgentX509SVID called for %s", req.SpiffeId)
 
-	claims, unifiedJSON, err := p.processSovereignAttestation(ctx, req.SpiffeId, req.PublicKey, unifiedidentity.KeySourceTPMApp, true)
+	lahBundle, unifiedJSON, err := p.processSovereignAttestation(ctx, req.SpiffeId, req.PublicKey, unifiedidentity.KeySourceTPMApp, true)
 	if err != nil {
 		logrus.Errorf("Unified-Identity: processSovereignAttestation failed: %v", err)
 		return nil, err
 	}
 
-	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := attestedClaimsExtension(claims, unifiedJSON)
+	if lahBundle != nil || len(unifiedJSON) > 0 {
+		ext, err := attestedClaimsExtension(lahBundle, unifiedJSON)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to create LAH-Bundle extension: %v", err)
 		}
 		if ext.Id != nil {
 			attributes.ExtraExtensions = append(attributes.ExtraExtensions, &credentialcomposerv1.X509Extension{
@@ -162,15 +162,16 @@ func (p *Plugin) ComposeWorkloadX509SVID(ctx context.Context, req *credentialcom
 	}
 
 	attributes := req.Attributes
-	claims, unifiedJSON, err := p.processSovereignAttestation(ctx, req.SpiffeId, req.PublicKey, unifiedidentity.KeySourceWorkload, false)
+	lahBundle, unifiedJSON, err := p.processSovereignAttestation(ctx, req.SpiffeId, req.PublicKey, unifiedidentity.KeySourceWorkload, false)
+	_ = lahBundle // workload SVIDs use unifiedJSON only
 	if err != nil {
 		return nil, err
 	}
 
-	if claims != nil || len(unifiedJSON) > 0 {
-		ext, err := attestedClaimsExtension(claims, unifiedJSON)
+	if len(unifiedJSON) > 0 {
+		ext, err := attestedClaimsExtension(nil, unifiedJSON)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create AttestedClaims extension: %v", err)
+			return nil, status.Errorf(codes.Internal, "failed to create LAH-Bundle extension: %v", err)
 		}
 		if ext.Id != nil {
 			attributes.ExtraExtensions = append(attributes.ExtraExtensions, &credentialcomposerv1.X509Extension{
@@ -186,44 +187,53 @@ func (p *Plugin) ComposeWorkloadX509SVID(ctx context.Context, req *credentialcom
 	}, nil
 }
 
-func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID string, publicKey []byte, keySource string, isAgent bool) (*types.AttestedClaims, []byte, error) {
+func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID string, publicKey []byte, keySource string, isAgent bool) (*types.LAHBundle, []byte, error) {
 	sa := unifiedidentity.FromSovereignAttestation(ctx)
 	if sa == nil {
-		logrus.Infof("Unified-Identity: SovereignAttestation is nil in context (falling back to legacy/empty)")
-		// Fallback to legacy context claims if any
-		claims, unifiedJSON := unifiedidentity.FromContext(ctx)
-		return claims, unifiedJSON, nil
+		if !isAgent {
+			// Normal for workloads: no SA in context — fall through to cache lookup below
+			logrus.Infof("Unified-Identity: SovereignAttestation is nil for workload %s — will inherit from agent cache", spiffeID)
+		} else {
+			// Agent with no SA: emit workload identity only (Keylime not configured)
+			logrus.Infof("Unified-Identity: SovereignAttestation is nil for agent %s (no location evidence)", spiffeID)
+			unifiedJSON, err := unifiedidentity.BuildLAHBundle(spiffeID, keySource, nil, nil)
+			return nil, unifiedJSON, err
+		}
 	}
-	logrus.Infof("Unified-Identity: SovereignAttestation found in context for %s", spiffeID)
-	logrus.Infof("Unified-Identity: SA Details: TpmAttestation len=%d, AppKeyCert len=%d", len(sa.TpmSignedAttestation), len(sa.AppKeyCertificate))
+	if sa != nil {
+		logrus.Infof("Unified-Identity: SovereignAttestation found in context for %s", spiffeID)
+		logrus.Infof("Unified-Identity: SA Details: TpmAttestation len=%d, AppKeyCert len=%d", len(sa.TpmSignedAttestation), len(sa.AppKeyCertificate))
+	}
 
 	p.mu.RLock()
 	client := p.keylimeClient
 	engine := p.policyEngine
 	p.mu.RUnlock()
 
-	// Workload SVIDs inherit claims from the agent SVID (node attestation results)
+	// Workload SVIDs inherit LAH-Bundle from the agent SVID (node attestation results)
 	if !isAgent {
 		nodeID := ""
 		if sa != nil {
 			nodeID = sa.KeylimeAgentUuid
 		}
 		p.mu.RLock()
-		cached, ok := p.claimsCache[nodeID]
-		if !ok && p.latestClaims != nil {
-			// Fallback to latest verified claims for POC (single node environment)
-			cached = p.latestClaims
+		cachedBundle, ok := p.lahBundleCache[nodeID]
+		cachedMNO := p.mnoCache[nodeID]
+		if !ok && p.latestLAHBundle != nil {
+			// Fallback to latest verified bundle for POC (single node environment)
+			cachedBundle = p.latestLAHBundle
+			cachedMNO = p.latestMNO
 			ok = true
 		}
 		p.mu.RUnlock()
 
 		if ok {
-			logrus.Infof("Unified-Identity: Inheriting verified claims for workload %s from cache (node=%s)", spiffeID, nodeID)
-			unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, cached)
-			return cached, unifiedJSON, err
+			logrus.Infof("Unified-Identity: Inheriting LAH-Bundle for workload %s from cache (node=%s)", spiffeID, nodeID)
+			unifiedJSON, err := unifiedidentity.BuildLAHBundle(spiffeID, keySource, cachedBundle, cachedMNO)
+			return cachedBundle, unifiedJSON, err
 		}
-		logrus.Infof("Unified-Identity: No cached claims for node %s - workload SVID will have legacy claims only", nodeID)
-		unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, "", sa, nil)
+		logrus.Infof("Unified-Identity: No cached LAH-Bundle for node %s - workload SVID will have workload identity only", nodeID)
+		unifiedJSON, err := unifiedidentity.BuildLAHBundle(spiffeID, keySource, nil, nil)
 		return nil, unifiedJSON, err
 	}
 
@@ -266,17 +276,13 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 
 	// Evaluate policy
 	if engine != nil {
-		policyGeoStr := ""
-		if keylimeClaims.Geolocation != nil {
-			if keylimeClaims.Geolocation.Value != "" {
-				policyGeoStr = fmt.Sprintf("%s:%s:%s", keylimeClaims.Geolocation.Type, keylimeClaims.Geolocation.SensorID, keylimeClaims.Geolocation.Value)
-			} else {
-				policyGeoStr = fmt.Sprintf("%s:%s", keylimeClaims.Geolocation.Type, keylimeClaims.Geolocation.SensorID)
-			}
-		}
 
 		policyClaims := policy.ConvertKeylimeAttestedClaims(&policy.KeylimeAttestedClaims{
-			Geolocation: policyGeoStr,
+			GeolocationType:        keylimeClaims.Geolocation.Type,
+			ClassID:                keylimeClaims.Geolocation.SensorID,
+			IdentityHash:           keylimeClaims.Geolocation.IdentityHash,
+			SovereigntyReceiptHash: keylimeClaims.SovereigntyReceiptHash,
+			SovereigntyReceiptURI:  keylimeClaims.SovereigntyReceiptUri,
 		})
 
 		policyResult, err := engine.Evaluate(policyClaims)
@@ -289,70 +295,93 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 		}
 	}
 
-	// Convert Geolocation object to protobuf Geolocation
-	var protoGeo *types.Geolocation
+	// Build the geolocation-payload inner JSON
+	// privacy-technique="zkp" (ZKP): {zkp-proof-uri} only — scheme is implicit in the deployed system
+	// privacy-technique="none" (Raw): use Geolocation.Value for lat/lon string or just record sensor type
+	var privacyTechnique string
+	var geoPayloadBytes []byte
+	if keylimeClaims.SovereigntyReceiptHash != "" {
+		// ZKP commitment-verification mode
+		privacyTechnique = "zkp"
+		geoPayload := map[string]any{
+			"zkp-proof-uri": keylimeClaims.SovereigntyReceiptUri,
+		}
+		geoPayloadBytes, _ = json.Marshal(geoPayload)
+	} else {
+		// Raw mode — embed what Keylime returned
+		privacyTechnique = "none"
+		geoValue := ""
+		if keylimeClaims.Geolocation != nil {
+			geoValue = keylimeClaims.Geolocation.Value
+		}
+		geoPayload := map[string]any{
+			"value": geoValue, // raw location string from sensor
+		}
+		geoPayloadBytes, _ = json.Marshal(geoPayload)
+	}
+
+	// Compute geolocation-id-hash: SHA-256(tpm-ak || sensor-unique-id)
+	// Sensor-unique-id = SensorID (class_id from keylime), which encodes IMEI/IMSI or serial
+	sensorUniqueID := ""
 	if keylimeClaims.Geolocation != nil {
-		protoGeo = &types.Geolocation{
-			Type:               keylimeClaims.Geolocation.Type,
-			SensorId:           keylimeClaims.Geolocation.SensorID,
-			Value:              keylimeClaims.Geolocation.Value,
-			SensorImei:         keylimeClaims.Geolocation.IMEI,
-			SensorImsi:         keylimeClaims.Geolocation.IMSI,
-			SensorMsisdn:       keylimeClaims.Geolocation.MSISDN,       // Task 2f: MSISDN from Keylime
-			SensorSerialNumber: keylimeClaims.Geolocation.SerialNumber, // Task 12b: Serial from Keylime
-			Latitude:           keylimeClaims.Geolocation.Latitude,
-			Longitude:          keylimeClaims.Geolocation.Longitude,
-			Accuracy:           keylimeClaims.Geolocation.Accuracy,
-		}
+		sensorUniqueID = keylimeClaims.Geolocation.SensorID
 	}
+	geoIDHash := unifiedidentity.GeolocationIDHash(
+		[]byte(sa.AppKeyPublic),
+		[]byte(sensorUniqueID),
+	)
 
-	// Convert MNO Endorsement to protobuf
-	sovereigntyReceipt := keylimeClaims.SovereigntyReceipt
-
-	var protoMNO *types.MNOEndorsement
-	if keylimeClaims.MNOEndorsement != nil {
-		endorsementJSON, _ := json.Marshal(keylimeClaims.MNOEndorsement.Endorsement)
-		protoMNO = &types.MNOEndorsement{
-			Verified:        keylimeClaims.MNOEndorsement.Verified,
-			EndorsementJson: string(endorsementJSON),
-			Signature:       keylimeClaims.MNOEndorsement.Signature,
-			KeyId:           keylimeClaims.MNOEndorsement.KeyID,
-		}
+	// Build LAHBundle proto
+	// tpm_quote_seal: prefer the Keylime-verified quote (piped via attested_claims)
+	// over sa.TpmSignedAttestation (empty — agent doesn't carry the quote itself).
+	tpmQuoteSeal := sa.TpmSignedAttestation
+	if keylimeClaims.TpmQuoteSeal != "" {
+		tpmQuoteSeal = keylimeClaims.TpmQuoteSeal
+		logrus.Infof("Unified-Identity: Using Keylime-verified TPM quote seal (len=%d)", len(tpmQuoteSeal))
 	}
-
-	claims := &types.AttestedClaims{
-		Geolocation:        protoGeo,
-		MnoEndorsement:     protoMNO,
-		SovereigntyReceipt: sovereigntyReceipt,
-	}
-
-	// Build unified identity JSON
-	var workloadKeyPEM string
-	if keySource == unifiedidentity.KeySourceWorkload {
-		parsedKey, err := x509.ParsePKIXPublicKey(publicKey)
-		if err == nil {
-			workloadKeyPEM, _ = publicKeyToPEM(parsedKey)
-		}
-	}
-
-	if sovereigntyReceipt != "" {
-		logrus.Infof("Unified-Identity: Generated ZKP Sovereignty Receipt (len=%d) from Keylime", len(sovereigntyReceipt))
-	}
-
-	unifiedJSON, err := unifiedidentity.BuildClaimsJSON(spiffeID, keySource, workloadKeyPEM, sa, claims)
+	lahBundle, err := unifiedidentity.BuildLAHBundleFromKeylimeClaims(
+		sa.AppKeyPublic,
+		geoIDHash,
+		privacyTechnique,
+		geoPayloadBytes,
+		tpmQuoteSeal,      // tpm_quote_seal (from Keylime verifier)
+		sa.ChallengeNonce, // nonce (chained, issued by management plane)
+		time.Now().Unix(),
+		keylimeClaims.AgentImageDigest,
+	)
 	if err != nil {
-		return nil, nil, status.Errorf(codes.Internal, "failed to build claims JSON: %v", err)
+		return nil, nil, status.Errorf(codes.Internal, "failed to build LAH bundle: %v", err)
 	}
 
-	// Cache verified claims for workloads on this node
+	// Build MNO endorsement if carrier co-attestation is present
+	// mno-sig = MNOEndorsement.Signature; mno-key-cert = KeyID (cert not returned by Keylime client)
+	var protoMNO *types.LAHMNOEndorsement
+	if keylimeClaims.MNOEndorsement != nil && keylimeClaims.MNOEndorsement.Signature != "" {
+		protoMNO = &types.LAHMNOEndorsement{
+			MnoKeyCert: keylimeClaims.MNOEndorsement.KeyID, // KeyID as cert reference
+			MnoSig:     keylimeClaims.MNOEndorsement.Signature,
+		}
+	}
+
+	logrus.Infof("Unified-Identity: Built LAH-Bundle (pt=%d, geo-id-hash=%s, proof-hash=%s)",
+		privacyTechnique, geoIDHash, lahBundle.GeolocationProofHash)
+
+	unifiedJSON, err := unifiedidentity.BuildLAHBundle(spiffeID, keySource, lahBundle, protoMNO)
+	if err != nil {
+		return nil, nil, status.Errorf(codes.Internal, "failed to build LAH bundle JSON: %v", err)
+	}
+
+	// Cache LAH-Bundle for workloads on this node
 	p.mu.Lock()
 	if sa != nil && sa.KeylimeAgentUuid != "" {
-		p.claimsCache[sa.KeylimeAgentUuid] = claims
+		p.lahBundleCache[sa.KeylimeAgentUuid] = lahBundle
+		p.mnoCache[sa.KeylimeAgentUuid] = protoMNO
 	}
-	p.latestClaims = claims
+	p.latestLAHBundle = lahBundle
+	p.latestMNO = protoMNO
 	p.mu.Unlock()
 
-	return claims, unifiedJSON, nil
+	return lahBundle, unifiedJSON, nil
 }
 
 // attestedClaimsOID is the OID for the AegisSovereignAI attested claims X.509 extension.
@@ -361,9 +390,9 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 // that passed all integration tests. Must match the OID checked by dump-svid-attested-claims.sh.
 var attestedClaimsOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55744, 1, 1}
 
-// attestedClaimsExtension encodes unified identity attestation data as a pkix.Extension.
-// The extension value is the raw unifiedJSON bytes (JSON-encoded sovereign identity claims).
-func attestedClaimsExtension(_ *types.AttestedClaims, unifiedJSON []byte) (pkix.Extension, error) {
+// attestedClaimsExtension encodes LAH-Bundle unified identity data as a pkix.Extension.
+// The extension value is the raw unifiedJSON bytes (JSON-encoded lah-bundle claims).
+func attestedClaimsExtension(_ any, unifiedJSON []byte) (pkix.Extension, error) {
 	if len(unifiedJSON) == 0 {
 		// Return a zero-value extension; callers check ext.Id != nil before appending.
 		return pkix.Extension{}, nil
@@ -373,15 +402,6 @@ func attestedClaimsExtension(_ *types.AttestedClaims, unifiedJSON []byte) (pkix.
 		Critical: false,
 		Value:    unifiedJSON,
 	}, nil
-}
-
-func publicKeyToPEM(pub crypto.PublicKey) (string, error) {
-	der, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		return "", err
-	}
-	block := &pem.Block{Type: "PUBLIC KEY", Bytes: der}
-	return string(pem.EncodeToMemory(block)), nil
 }
 
 func (p *Plugin) ComposeWorkloadJWTSVID(context.Context, *credentialcomposerv1.ComposeWorkloadJWTSVIDRequest) (*credentialcomposerv1.ComposeWorkloadJWTSVIDResponse, error) {

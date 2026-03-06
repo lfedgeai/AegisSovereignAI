@@ -435,7 +435,7 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate, manager Manager) (*wo
 		// Chain should be: Workload SVID + Agent SVID
 		// The server verifies the entire chain before issuing the workload certificate
 		certChain := identity.SVID
-		
+
 		// Check if agent SVID is already in the chain (to avoid duplication)
 		// Compare serial numbers to detect if agent SVID is already present
 		agentSVIDInChain := false
@@ -448,7 +448,7 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate, manager Manager) (*wo
 				}
 			}
 		}
-		
+
 		if len(agentSVID) > 0 && !agentSVIDInChain {
 			// Append agent SVID to workload SVID chain
 			certChain = append(certChain, agentSVID...)
@@ -474,11 +474,10 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate, manager Manager) (*wo
 				geolocationStr := ""
 				if claims.Geolocation != nil {
 					geoMap := map[string]any{
-						"type":      claims.Geolocation.Type,
-						"sensor_id": claims.Geolocation.SensorId,
-					}
-					if claims.Geolocation.Value != "" {
-						geoMap["value"] = claims.Geolocation.Value
+						"type":          claims.Geolocation.Type,
+						"class_id":      claims.Geolocation.ClassId,
+						"identity_hash": claims.Geolocation.IdentityHash,
+						"provider":      claims.Geolocation.Provider,
 					}
 					geoJSON, err := json.Marshal(geoMap)
 					if err == nil {
@@ -498,7 +497,6 @@ func composeX509SVIDResponse(update *cache.WorkloadUpdate, manager Manager) (*wo
 
 	return resp, nil
 }
-
 
 func sendJWTBundlesResponse(update *cache.WorkloadUpdate, stream workload.SpiffeWorkloadAPI_FetchJWTBundlesServer, selectors []*common.Selector, log logrus.FieldLogger, allowUnauthenticatedVerifiers bool, previousResponse *workload.JWTBundlesResponse) (*workload.JWTBundlesResponse, error) {
 	if !allowUnauthenticatedVerifiers && !update.HasIdentity() {

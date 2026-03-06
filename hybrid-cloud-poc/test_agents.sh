@@ -35,7 +35,7 @@ export KEYLIME_LOGGING_CONFIG="${KEYLIME_DIR}/logging.conf"
 PYTHON_KEYLIME_DIR="${KEYLIME_DIR}"
 RUST_KEYLIME_DIR="${SCRIPT_DIR}/rust-keylime"
 SPIRE_DIR="${SCRIPT_DIR}/spire"
-# SPIRE binaries are built by the overlay system into build/spire-binaries/
+# SPIRE binaries are built from spire-fork/ and placed in build/spire-binaries/
 SPIRE_BIN_DIR="${SCRIPT_DIR}/../build/spire-binaries"
 
 # Detect host IPs for flexible deployment
@@ -144,13 +144,13 @@ stop_agent_services_only() {
 
     # 1.1: Stop rust-keylime Agent
     echo "     Stopping rust-keylime Agent..."
-    pkill -f "keylime_agent" >/dev/null 2>&1 || true
-    pkill -f "rust-keylime" >/dev/null 2>&1 || true
-    pkill -f "target/release/keylime_agent" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_agent"
+    _safe_pkill "rust-keylime"
+    _safe_pkill "target/release/keylime_agent"
 
     # 1.2: Stop TPM Plugin Server
     echo "     Stopping TPM Plugin Server..."
-    pkill -f "tpm_plugin_server" >/dev/null 2>&1 || true
+    _safe_pkill "tpm_plugin_server"
 
     # 1.3: Stop SPIRE Agent (not Server)
     echo "     Stopping SPIRE Agent..."
@@ -776,12 +776,12 @@ cleanup() {
     echo ""
     echo -e "${YELLOW}Cleaning up on exit...${NC}"
     # Only stop processes on exit, don't delete data (user may want to inspect)
-    pkill -f "keylime_verifier" >/dev/null 2>&1 || true
-    pkill -f "python.*keylime" >/dev/null 2>&1 || true
-    pkill -f "keylime_agent" >/dev/null 2>&1 || true
-    pkill -f "spire-server" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_verifier"
+    _safe_pkill "python.*keylime"
+    _safe_pkill "keylime_agent"
+    _safe_pkill "spire-server"
     pkill -x "spire-agent" >/dev/null 2>&1 || true
-    pkill -f "tpm2-abrmd" >/dev/null 2>&1 || true
+    _safe_pkill "tpm2-abrmd"
 }
 
 RUN_INITIAL_CLEANUP=true
@@ -1576,7 +1576,7 @@ cd "${RUST_KEYLIME_DIR}"
 
 # Cleanup existing rust-keylime agent before starting
 echo "  Cleaning up existing rust-keylime Agent..."
-pkill -f "keylime_agent" >/dev/null 2>&1 || true
+_safe_pkill "keylime_agent"
 sleep 1
 rm -f /tmp/rust-keylime-agent.pid 2>/dev/null || true
 rm -f /tmp/keylime-agent.sock 2>/dev/null || true
@@ -2337,7 +2337,7 @@ mkdir -p /tmp/spire-data/tpm-plugin 2>/dev/null || true
 
 # Cleanup existing TPM Plugin Server before starting
 echo "  Cleaning up existing TPM Plugin Server..."
-pkill -f "tpm_plugin_server" >/dev/null 2>&1 || true
+_safe_pkill "tpm_plugin_server"
 sleep 1
 rm -f /tmp/tpm-plugin-server.pid 2>/dev/null || true
 rm -f /tmp/spire-data/tpm-plugin/tpm-plugin.sock 2>/dev/null || true
@@ -2552,10 +2552,14 @@ elif [ "${FORCE_BUILD:-false}" = "true" ]; then
     echo "  Forced build requested."
     NEEDS_REBUILD=true
 else
-    # Check if SPIRE overlay patches are newer than binary
-    OVERLAY_DIR="${PROJECT_DIR}/../spire-overlay"
-    if [ -d "${OVERLAY_DIR}" ] && [ -n "$(find "${OVERLAY_DIR}" -name "*.patch" -newer "${SPIRE_AGENT}" -print -quit 2>/dev/null)" ]; then
-        echo -e "${YELLOW}  ⚠ SPIRE overlay patches modified, need rebuild...${NC}"
+    # Check if spire-fork source files are newer than the binary
+    FORK_DIR="${PROJECT_DIR}/../spire-fork"
+    FORK_SDK_DIR="${PROJECT_DIR}/../spire-fork-sdk"
+    if [ -d "${FORK_DIR}" ] && [ -n "$(find "${FORK_DIR}" \( -name "*.go" -o -name "*.proto" \) -newer "${SPIRE_AGENT}" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ spire-fork source modified, need rebuild...${NC}"
+        NEEDS_REBUILD=true
+    elif [ -d "${FORK_SDK_DIR}" ] && [ -n "$(find "${FORK_SDK_DIR}" \( -name "*.go" -o -name "*.proto" \) -newer "${SPIRE_AGENT}" -print -quit 2>/dev/null)" ]; then
+        echo -e "${YELLOW}  ⚠ spire-fork-sdk source modified, need rebuild...${NC}"
         NEEDS_REBUILD=true
     fi
 fi
@@ -2570,17 +2574,16 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         echo -e "${GREEN}============================================================${NC}"
         echo ""
         echo "To complete full integration test:"
-        echo "  1. Build SPIRE with overlay: cd ${PROJECT_DIR}/.. && ./scripts/spire-build.sh"
+        echo "  1. Build SPIRE: cd ${PROJECT_DIR}/.. && ./scripts/spire-build.sh"
         echo "  2. Run this script again"
         exit 0
     else
-        echo -e "${YELLOW}  ⚠ SPIRE Agent binary not found, building with overlay system...${NC}"
+        echo -e "${YELLOW}  ⚠ SPIRE Agent binary not found, building from spire-fork/...${NC}"
         cd "${PROJECT_DIR}/.."
 
-        # Use SPIRE overlay build system
-        echo "    Building SPIRE with overlay system..."
+        echo "    Building SPIRE..."
         if [ -x "./scripts/spire-build.sh" ]; then
-            ./scripts/spire-build.sh 2>&1 | tee /tmp/spire-overlay-build.log
+            ./scripts/spire-build.sh 2>&1 | tee /tmp/spire-build.log
             BUILD_EXIT_CODE=${PIPESTATUS[0]}
         else
             echo -e "${RED}    ✗ Build script not found: ./scripts/spire-build.sh${NC}"
@@ -2588,15 +2591,15 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
         fi
 
         if [ ${BUILD_EXIT_CODE} -eq 0 ] && [ -f "build/spire-binaries/spire-agent" ]; then
-            echo -e "${GREEN}    ✓ SPIRE Agent built successfully with overlay system${NC}"
+            echo -e "${GREEN}    ✓ SPIRE Agent built successfully${NC}"
         else
-            echo -e "${RED}    ✗ SPIRE overlay build failed${NC}"
-            echo "    Check /tmp/spire-overlay-build.log for details"
+            echo -e "${RED}    ✗ SPIRE build failed${NC}"
+            echo "    Check /tmp/spire-build.log for details"
             echo ""
             echo "  Troubleshooting:"
             echo "    1. Check if Go is installed: go version"
             echo "    2. Try building manually: ./scripts/spire-build.sh"
-            echo "    3. Check logs: cat /tmp/spire-overlay-build.log"
+            echo "    3. Check logs: cat /tmp/spire-build.log"
             exit 1
         fi
         cd "${PROJECT_DIR}"
@@ -2626,7 +2629,7 @@ AGENT_CONFIG="${PROJECT_DIR}/python-app-demo/spire-agent.conf"
         fi
     fi
     # Also check for any other agent processes
-    pkill -f "spire-agent.*run" >/dev/null 2>&1 || true
+    _safe_pkill "spire-agent.*run"
     sleep 1
     # Clean up PID, socket, and log files
     rm -f /tmp/spire-agent.pid 2>/dev/null || true

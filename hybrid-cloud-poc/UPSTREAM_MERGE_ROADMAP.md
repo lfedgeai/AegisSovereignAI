@@ -302,7 +302,7 @@ Effort: 2 days
 
 **rust-keylime Agent (`rust-keylime/keylime-agent/src/`):**
 - `delegated_certification_handler.rs` - `/v2.2/delegated_certification/certify_app_key` endpoint for TPM App Key certification
-- `geolocation_handler.rs` - `/v2.2/agent/attested_geolocation` endpoint for nonce-bound geolocation attestation
+- `geolocation_handler.rs` - `/v2.2/agent/attested_workload_geolocation` endpoint for nonce-bound geolocation attestation
 - `quotes_handler.rs` - Extended TPM quote handling for unified identity
 - `agent_handler.rs` - Agent handler extensions for unified identity flows
 - `api.rs` - API routing for new endpoints
@@ -378,7 +378,7 @@ Benefit: Future-proofed schema for heterogeneous sensor attestation.
 | SPIRE TPM Plugin (`pkg/agent/tpmplugin/`) | `spiffe/spire` | TPM integration for App Key signing |
 | **Keylime Modifications:** | | |
 | rust-keylime Delegated Certification (`keylime-agent/src/delegated_certification_handler.rs`) | `keylime/rust-keylime` | New API extension `/v2.2/delegated_certification/certify_app_key` |
-| rust-keylime Geolocation API (`keylime-agent/src/geolocation_handler.rs`) | `keylime/rust-keylime` | New API extension `/v2.2/agent/attested_geolocation` |
+| rust-keylime Geolocation API (`keylime-agent/src/geolocation_handler.rs`) | `keylime/rust-keylime` | New API extension `/v2.2/agent/attested_workload_geolocation` |
 | rust-keylime TPM Extensions (`keylime/src/quote.rs`, `keylime/src/tpm.rs`) | `keylime/rust-keylime` | TPM operations for App Key and geolocation |
 | Keylime Verifier App Key Verification (`keylime/app_key_verification.py`) | `keylime/keylime` | App Key certificate verification |
 | Keylime Verifier Geolocation (`keylime/cloud_verifier_tornado.py`, `keylime/fact_provider.py`) | `keylime/keylime` | Geolocation database integration and fact provider |
@@ -396,8 +396,8 @@ Benefit: Future-proofed schema for heterogeneous sensor attestation.
 | **Task 8** | Envoy WASM Plugin - MSISDN Extraction from SVID | P1 | `[x]` | — | Done |
 | **Task 9** | Envoy WASM Plugin - Package for standalone release | P2 | `[ ]` | TBD | Week 4 |
 | **Task 10** | Envoy WASM Plugin - Publish Signed WASM to OCI registry | P2 | `[ ]` | TBD | Week 5 |
-| **Task 11** | Mobile Sensor Sidecar - Pure Mobile & DB-less Flow | P1 | `[x]` | — | Done |
-| **Task 12** | Mobile Sensor Sidecar - Pluggable Backends | P3 | `[ ]` | — | [#190](https://github.com/lfedgeai/AegisSovereignAI/issues/190) |
+| **Task 11** | Geolocation Sidecar - Pure Mobile & DB-less Flow | P1 | `[x]` | — | Done |
+| **Task 12** | Geolocation Sidecar - Pluggable Backends | P3 | `[ ]` | — | [#190](https://github.com/lfedgeai/AegisSovereignAI/issues/190) |
 
 ### Task 7 Details (Complete)
   - Implemented `verification_mode` config: `trust`, `runtime`, `strict`
@@ -498,7 +498,7 @@ Effort: 2 days
 
 **Why Standalone (not Envoy upstream)?**
 - Extracts custom X.509 extensions specific to Unified Identity
-- Requires Mobile Sensor Sidecar for CAMARA integration
+- Requires Geolocation Sidecar for CAMARA integration
 - Target audience: Sovereign AI / telco / regulated industries (niche)
 
 **Technical Approach**:

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Part 5 - Approx vs ZKP</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold;color:#cdcd00">── Part 5: Why ZKP — Not Approximate Location? ──</span>
+
+    <span style="font-weight:bold"></span><span style="color:#00cdcd">                    ZKP (Plonky2)             Approx. Location</span>
+    <span style="font-weight:bold">────────────────────────────────────────────────────────────────────</span>
+    <span style="color:#00cd00">Privacy</span>            Exact coords stay         Coarsened but reveals
+                       private (zero-knowledge)     approximate area
+
+    <span style="color:#00cd00">Verifiability</span>      Cryptographic proof       Trust-the-server
+                       (anyone can verify)          (no proof, just assertion)
+
+    <span style="color:#00cd00">Auditability</span>       Proof can live on a       No proof to store
+                       public ledger forever        or audit later
+
+    <span style="color:#00cd00">Tamper-proof</span>       Circuit rejects wrong     Approx. location can be
+                       inputs (idhash mismatch)     fabricated trivially
+
+    <span style="color:#00cd00">Device binding</span>     idhash = SHA-256(AK)      No hardware binding
+                       → TPM-rooted                 → software-only
+
+    <span style="font-weight:bold"></span><span style="color:#00cdcd">Why Plonky2 specifically?</span>
+    <span style="font-weight:bold">────────────────────────────────────────────────────────────────────</span>
+    <span style="color:#00cd00">No trusted setup</span>     Transparent — no ceremony, no toxic waste
+                         Anyone can verify without trusting a setup phase
+
+    <span style="color:#00cd00">Hash-based</span>           Commitments use Poseidon hash (no elliptic curves)
+                         → Post-quantum resistant (PQC-ready)
+
+    <span style="color:#00cd00">Fast</span>                 ~50ms proof generation, ~100ms verification
+                         Recursive proof composition for complex policies
+
+    <span style="color:#00cd00">CPU-native</span>           64-bit prime field (Goldilocks)
+                         → Maps to native CPU instructions, no BigInt overhead
+
+    <span style="font-weight:bold">Bottom line:</span> Approximate location is <span style="color:#cd0000">privacy theatre</span> —
+    it obscures from humans but not from algorithms.
+    ZKP provides <span style="color:#00cd00">mathematical privacy</span> with <span style="color:#00cd00">cryptographic verifiability</span>.
+
+<span style="opacity:0.7">
+</span>
+</pre>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TEE Comparison</title>
+<style>
+.body_foreground { color: #AAAAAA; }
+.body_background { background-color: #000000; }
+pre {
+  padding: 24px 32px;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', monospace;
+  line-height: 1.5;
+  min-width: 900px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+body { margin: 0; }
+</style>
+</head>
+<body class="body_foreground body_background" style="font-size: 16px;">
+<pre>
+<span style="font-weight:bold"><span style="color:#cdcd00">── Part 6: ZKP + TEE — Complementary, Not Competing ──</span></span>
+
+    <span style="font-weight:bold"><span style="color:#00cdcd">Each layer covers the other's blind spots:</span></span>
+
+    <span style="font-weight:bold">Threat                           ZKP alone    TEE alone    ZKP inside TEE</span>
+    <span style="font-weight:bold">──────────────────────────────────────────────────────────────────────────</span>
+    <span style="color:#00cd00">Verifier learns GPS</span>              <span style="color:#00cd00">✅ hidden</span>    <span style="color:#cd0000">❌ output</span>    <span style="color:#00cd00">✅ hidden</span>
+    <span style="color:#00cd00">Kernel 0-day reads GPS</span>           <span style="color:#cd0000">❌ ptrace</span>    <span style="color:#00cd00">✅ encrypted</span> <span style="color:#00cd00">✅ both protect</span>
+    <span style="color:#00cd00">TEE side-channel leaks data</span>      n/a          <span style="color:#cd0000">❌ Spectre</span>   <span style="color:#00cd00">✅ proof only</span>
+    <span style="color:#00cd00">Fake GPS from compromised OS</span>     <span style="color:#cd0000">❌</span>           <span style="color:#cdcd00">⚠ ecalls*</span>   <span style="color:#cdcd00">⚠ ecalls*</span>
+    <span style="opacity:0.7">    * Mitigated by SR-IOV (DMA-isolated sensor) + signed location from GPS hardware</span>
+
+    <span style="font-weight:bold"><span style="color:#00cdcd">The TEE integrity tradeoff:</span></span>
+    <span style="opacity:0.7">  Co-located TEEs (TDX/SEV) disable ASLR for consistent launch measurement</span>
+    <span style="font-weight:bold">  TEE buys confidentiality by trading away a runtime integrity defense</span>
+
+    <span style="font-weight:bold">Where to run the ZKP prover:</span>
+    <span style="opacity:0.7">Option 1:</span>  Userspace sidecar      <span style="opacity:0.7">(today's POC)</span>
+    <span style="opacity:0.7">Option 2:</span>  TDX/SEV confidential VM  <span style="opacity:0.7">(confidentiality ✅ but ASLR ❌)</span>
+    <span style="font-weight:bold"><span style="color:#00cd00">Option 3:</span></span>  <span style="color:#00cd00">Management processor (iLO7)    </span><span style="font-weight:bold"><span style="color:#00cd00">← Strongest (ASLR preserved)</span></span>
+
+    <span style="font-weight:bold">Confidentiality by physics. Integrity without compromise.</span>
+</pre>
+</body>
+</html>

@@ -55,35 +55,67 @@ def generate_proto_stubs():
     # Check if already generated
     generated_file = output_dir / "spiffe" / "workload" / "workload_pb2.py"
     if generated_file.exists():
+        # Ensure __init__.py files exist for package imports
+        _ensure_init_files(output_dir)
         return True
 
-    try:
-        import subprocess
-        output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    proto_path = str(proto_dir.parent.parent)  # go-spiffe/proto
 
-        # Generate Python stubs using protoc
+    # Method 1: Try grpc_tools.protoc first (generates stubs compatible with installed protobuf library)
+    try:
+        from grpc_tools import protoc as grpc_protoc
+        ret = grpc_protoc.main([
+            'grpc_tools.protoc',
+            f'--proto_path={proto_path}',
+            f'--python_out={output_dir}',
+            f'--grpc_python_out={output_dir}',
+            str(proto_file)
+        ])
+        if ret == 0:
+            print(f"✓ Generated Python protobuf stubs via grpc_tools.protoc")
+            _ensure_init_files(output_dir)
+            return True
+        else:
+            print(f"Warning: grpc_tools.protoc failed with return code {ret}")
+    except ImportError:
+        print("Warning: grpc_tools not installed. Trying system protoc...")
+    except Exception as e:
+        print(f"Warning: grpc_tools.protoc failed: {e}")
+
+    # Method 2: Fall back to system protoc (may generate old-style stubs)
+    try:
         result = subprocess.run(
             [
                 "protoc",
-                f"--proto_path={proto_dir.parent.parent.parent}",
+                f"--proto_path={proto_path}",
                 f"--python_out={output_dir}",
                 str(proto_file)
             ],
             capture_output=True,
             text=True
         )
-
         if result.returncode == 0:
-            print(f"✓ Generated Python protobuf stubs in {output_dir}")
+            print(f"✓ Generated Python protobuf stubs via system protoc")
+            _ensure_init_files(output_dir)
             return True
         else:
-            print(f"Warning: Failed to generate protobuf stubs: {result.stderr}")
-            print("You may need to install protoc: https://grpc.io/docs/protoc-installation/")
-            return False
+            print(f"Warning: system protoc failed: {result.stderr}")
     except FileNotFoundError:
-        print("Warning: protoc not found. Cannot generate protobuf stubs.")
-        print("Install protoc: https://grpc.io/docs/protoc-installation/")
-        return False
+        print("Warning: protoc not found.")
+
+    print("Install protoc: https://grpc.io/docs/protoc-installation/")
+    print("Or install grpc_tools: pip install grpcio-tools")
+    return False
+
+
+def _ensure_init_files(output_dir):
+    """Create __init__.py files so generated stubs are importable as packages."""
+    for sub in ["spiffe", "spiffe/workload"]:
+        init_file = output_dir / sub / "__init__.py"
+        if not init_file.exists():
+            init_file.parent.mkdir(parents=True, exist_ok=True)
+            init_file.touch()
 
 def wait_for_agent_svid_in_logs(agent_log_path="/tmp/spire-agent.log", max_wait_seconds=60, check_interval=2):
     """
@@ -166,7 +198,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=5):
     if not os.path.exists(socket_path):
         print(f"Error: SPIRE Agent socket not found at {socket_path}")
         print("Make sure SPIRE Agent is running")
-        return None, None
+        return None, None, None
 
     print("Connecting to SPIRE Agent Workload API via gRPC...")
     print("  Socket: /tmp/spire-agent/public/api.sock")
@@ -174,25 +206,28 @@ def fetch_from_workload_api_grpc(max_wait_seconds=5):
     print()
 
     try:
-        # Try to import generated protobufs
+        # Check if protobuf stubs exist before importing
+        # (Protobuf descriptors register in a global pool on import — if import
+        #  fails mid-way, retrying causes 'duplicate symbol' errors. So we MUST
+        #  ensure files exist before the first import attempt.)
         generated_dir = Path(__file__).parent / "generated"
-        if generated_dir.exists():
-            sys.path.insert(0, str(generated_dir))
-
-        try:
-            from spiffe.workload import workload_pb2
-            from spiffe.workload import workload_pb2_grpc
-        except ImportError:
-            # If protobufs not generated, try to generate them
-            if generate_proto_stubs():
-                from spiffe.workload import workload_pb2
-                from spiffe.workload import workload_pb2_grpc
-            else:
+        pb2_file = generated_dir / "spiffe" / "workload" / "workload_pb2.py"
+        if not pb2_file.exists():
+            if not generate_proto_stubs():
                 print("Error: Cannot import workload protobufs")
                 print("Please generate them manually:")
                 print(f"  protoc --proto_path=../go-spiffe/proto --python_out=generated ../go-spiffe/proto/spiffe/workload/workload.proto")
                 print(f"  python -m grpc_tools.protoc --proto_path=../go-spiffe/proto --python_out=generated --grpc_python_out=generated ../go-spiffe/proto/spiffe/workload/workload.proto")
-                return None, None
+                return None, None, None
+            # Ensure __init__.py files exist
+            _ensure_init_files(generated_dir)
+
+        gen_str = str(generated_dir)
+        if gen_str not in sys.path:
+            sys.path.insert(0, gen_str)
+
+        from spiffe.workload import workload_pb2
+        from spiffe.workload import workload_pb2_grpc
 
         # Create gRPC channel to Unix socket
         # gRPC uses 'unix:' prefix for Unix domain sockets (absolute path required)
@@ -281,7 +316,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=5):
                     print("  Try:")
                     print("    - Check agent logs: tail -20 /tmp/spire-agent.log")
                     print("    - Verify entry: ../spire/bin/spire-server entry show -spiffeID spiffe://example.org/python-app")
-                    return None, None
+                    return None, None, None
 
                 # Show progress for long waits
                 if update_count % 5 == 0:
@@ -290,7 +325,7 @@ def fetch_from_workload_api_grpc(max_wait_seconds=5):
             if not response:
                 print("  ⚠ No SVID received from agent")
                 print("  Check agent logs for details: tail -20 /tmp/spire-agent.log")
-                return None, None
+                return None, None, None
 
         except grpc.RpcError as e:
             # If we get a permission denied error, log it and return
@@ -301,13 +336,13 @@ def fetch_from_workload_api_grpc(max_wait_seconds=5):
                     print("  This means the agent doesn't have an SVID for this workload yet.")
                     print("  Check agent logs: tail -20 /tmp/spire-agent.log")
                     print("  Verify registration entry matches this process's selectors")
-                    return None, None
+                    return None, None, None
             # Re-raise other errors
             raise
 
         if not response.svids:
             print("Error: No SVIDs in response")
-            return None, None
+            return None, None, None
 
         # Get the first SVID
         svid = response.svids[0]

@@ -402,6 +402,6 @@ def send_single_request(server_host, server_port):
     print("\n✓ Single request completed successfully")
 
 if __name__ == '__main__':
-    server_host = os.environ.get('SERVER_HOST', '10.1.0.10')
+    server_host = os.environ.get('SERVER_HOST', 'localhost')
     server_port = int(os.environ.get('SERVER_PORT', '8080'))
     send_single_request(server_host, server_port)

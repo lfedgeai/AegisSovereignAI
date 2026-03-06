@@ -6,7 +6,7 @@
 
 - Linux machine with TPM 2.0 hardware
 - SSH access to test machine
-- Clean checkout of the overlay branch
+- Clean checkout of the main branch
 
 ## Phase 1: Build Verification
 
@@ -19,7 +19,7 @@ cd <PROJECT_ROOT>
 git fetch origin
 git checkout <BRANCH_NAME>
 
-# Build SPIRE with overlay
+# Build SPIRE from spire-fork/
 ./scripts/spire-build.sh
 
 # Verify binaries
@@ -67,7 +67,7 @@ cd hybrid-cloud-poc
   --onprem-host <HOST>
 
 # This will:
-# 1. Build SPIRE with overlay
+# 1. Build SPIRE from spire-fork/
 # 2. Start SPIRE server
 # 3. Start SPIRE agents with TPM attestation
 # 4. Run Keylime verification
@@ -227,7 +227,7 @@ See attached: tpm-test-evidence.tar.gz
 
 ## Conclusion
 
-The SPIRE overlay system successfully performs hardware attestation
+The SPIRE fork-based build successfully performs hardware attestation
 on real TPM 2.0 hardware. Ready for upstream submission.
 ```
 
@@ -278,7 +278,7 @@ rm -rf build/
 go version  # Should be 1.21+
 
 # Install dependencies
-cd spire-overlay
+cd spire-fork
 go mod download
 ```
 

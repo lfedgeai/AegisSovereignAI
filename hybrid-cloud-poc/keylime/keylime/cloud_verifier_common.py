@@ -487,7 +487,7 @@ def get_agent_geolocation_with_nonce(agent_ip: str, agent_port: int, nonce: str,
     
     # Use v2.2 as required by the agent in this POC
     scheme = "https" if not allow_insecure_http else "http"
-    url = f"{scheme}://{agent_ip}:{agent_port}/v2.2/agent/attested_geolocation?nonce={nonce_str}"
+    url = f"{scheme}://{agent_ip}:{agent_port}/v2.2/agent/attested_workload_geolocation?nonce={nonce_str}"
     
     try:
         cert = None

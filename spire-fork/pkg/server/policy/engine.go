@@ -26,7 +26,12 @@ type PolicyResult struct {
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
 // AttestedClaims represents verified facts from Keylime
 type AttestedClaims struct {
-	Geolocation string
+	Geolocation            string // Legacy/Pattern match string
+	GeolocationType        string
+	ClassID                string
+	IdentityHash           string
+	SovereigntyReceiptHash string
+	SovereigntyReceiptURI  string
 }
 
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
@@ -115,13 +120,20 @@ func (e *Engine) matchesGeolocation(geolocation, pattern string) bool {
 // ConvertKeylimeAttestedClaims converts Keylime AttestedClaims to policy AttestedClaims
 func ConvertKeylimeAttestedClaims(keylimeClaims *KeylimeAttestedClaims) *AttestedClaims {
 	return &AttestedClaims{
-		Geolocation: keylimeClaims.Geolocation,
+		GeolocationType:        keylimeClaims.GeolocationType,
+		ClassID:                keylimeClaims.ClassID,
+		IdentityHash:           keylimeClaims.IdentityHash,
+		SovereigntyReceiptHash: keylimeClaims.SovereigntyReceiptHash,
+		SovereigntyReceiptURI:  keylimeClaims.SovereigntyReceiptURI,
 	}
 }
 
 // Unified-Identity - Verification: Hardware Integration & Delegated Certification
 // KeylimeAttestedClaims represents the AttestedClaims from Keylime client
 type KeylimeAttestedClaims struct {
-	Geolocation string
+	GeolocationType        string
+	ClassID                string
+	IdentityHash           string
+	SovereigntyReceiptHash string
+	SovereigntyReceiptURI  string
 }
-

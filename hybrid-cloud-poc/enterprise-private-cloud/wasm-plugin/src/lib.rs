@@ -48,6 +48,8 @@ struct VerifyRequest {
 #[derive(Serialize, Deserialize)]
 struct VerifyZkpRequest {
     proof: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proof_uri: Option<String>,
     center_latitude: f64,
     center_longitude: f64,
     radius: f64,
@@ -100,7 +102,7 @@ struct MetricIds {
 impl Default for PluginConfig {
     fn default() -> Self {
         PluginConfig {
-            verification_mode: VerificationMode::Runtime, // Default to runtime (cached CAMARA verification)
+            verification_mode: VerificationMode::Trust, // Default to trust (attestation-time ZKP proof in SVID)
             sidecar_endpoint: "http://localhost:9050".to_string(),
         }
     }
@@ -172,7 +174,7 @@ impl RootContext for SensorVerificationRoot {
                 ));
             }
         } else {
-            proxy_wasm::hostcalls::log(LogLevel::Info, "WASM filter using default config: verification_mode=runtime");
+            proxy_wasm::hostcalls::log(LogLevel::Info, "WASM filter using default config: verification_mode=trust");
         }
 
         // Define metrics (Task 18: Observability)
@@ -219,6 +221,7 @@ impl RootContext for SensorVerificationRoot {
             sensor_longitude: None,
             sensor_accuracy: None,
             sensor_sovereignty_receipt: None,
+            sensor_sovereignty_receipt_uri: None,
             sidecar_call_start_ms: None,
         }))
     }
@@ -241,11 +244,12 @@ struct SensorVerificationFilter {
     sensor_longitude: Option<f64>,
     sensor_accuracy: Option<f64>,
     sensor_sovereignty_receipt: Option<String>, // Gen 4: ZKP Receipt
+    sensor_sovereignty_receipt_uri: Option<String>, // Gen 4: ZKP Proof URI
     sidecar_call_start_ms: Option<u64>,
 }
 
 impl Context for SensorVerificationFilter {
-    // Handle HTTP call response from mobile location service
+    // Handle HTTP call response from Geolocation Sidecar
     fn on_http_call_response(&mut self, _token_id: u32, num_headers: usize, body_size: usize, _num_trailers: usize) {
         // Get HTTP status code
         let status_code = self.get_http_call_response_header(":status")
@@ -277,7 +281,7 @@ impl Context for SensorVerificationFilter {
         };
         let body_str = String::from_utf8_lossy(&body);
 
-        proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Mobile location service response: status={}, body={}", status_code, body_str));
+        proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Geolocation Sidecar response: status={}, body={}", status_code, body_str));
 
         // Check if status code indicates error
         if status_code >= 400 {
@@ -289,7 +293,7 @@ impl Context for SensorVerificationFilter {
             } else {
                 "http error".to_string()
             };
-            proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Mobile location service error (status {}): {}", status_code, error_msg));
+            proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Geolocation Sidecar error (status {}): {}", status_code, error_msg));
             // On service error, reject request (fail closed for security)
             self.send_http_response(
                 503,
@@ -308,7 +312,7 @@ impl Context for SensorVerificationFilter {
 
                 // Check if response has an error field
                 if let Some(error) = &response.error {
-                    proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Mobile location service returned error: {} for sensor_id: {}, sensor_imei: {}, sensor_imsi: {}", error, sensor_id, sensor_imei, sensor_imsi));
+                    proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Geolocation Sidecar returned error: {} for sensor_id: {}, sensor_imei: {}, sensor_imsi: {}", error, sensor_id, sensor_imei, sensor_imsi));
                     self.send_http_response(
                         503,
                         vec![("content-type", "text/plain")],
@@ -444,6 +448,8 @@ impl HttpContext for SensorVerificationFilter {
         self.sensor_latitude = sensor_info.latitude;
         self.sensor_longitude = sensor_info.longitude;
         self.sensor_accuracy = sensor_info.accuracy;
+        self.sensor_sovereignty_receipt = sensor_info.sovereignty_receipt.clone(); // Gen 4: Store ZKP receipt from SVID
+        self.sensor_sovereignty_receipt_uri = sensor_info.sovereignty_receipt_uri.clone(); // Gen 4: Store ZKP proof URI
 
         let sensor_id = sensor_info.sensor_id;
         let sensor_type_str = self.sensor_type.as_ref().map(|s| s.as_str()).unwrap_or("unknown");
@@ -555,6 +561,7 @@ impl HttpContext for SensorVerificationFilter {
                     if let Some(receipt) = &self.sensor_sovereignty_receipt {
                         let verify_body = serde_json::to_string(&VerifyZkpRequest {
                             proof: receipt.clone(),
+                            proof_uri: self.sensor_sovereignty_receipt_uri.clone(),
                             center_latitude: self.sensor_latitude.unwrap_or(0.0),
                             center_longitude: self.sensor_longitude.unwrap_or(0.0),
                             radius: 0.1, // 100m default in POC
@@ -612,7 +619,7 @@ impl HttpContext for SensorVerificationFilter {
                 }
             }
         } else {
-            // Task 12b: GNSS sensors are always trusted hardware - no sidecar call needed (Pure Mobile Sidecar)
+            // Task 12b: GNSS sensors are always trusted hardware - no sidecar call needed (Pure Geolocation Sidecar)
             proxy_wasm::hostcalls::log(LogLevel::Info, &format!(
                 "{} sensor (sensor_id={}): Trusted hardware - allowing directly",
                 sensor_type_str, sensor_id
@@ -634,6 +641,7 @@ struct SensorInfo {
     longitude: Option<f64>,
     accuracy: Option<f64>,
     sovereignty_receipt: Option<String>,
+    sovereignty_receipt_uri: Option<String>,
 }
 
 fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
@@ -658,173 +666,245 @@ fn extract_sensor_info_from_cert(cert_pem: &[u8]) -> Option<SensorInfo> {
 
     proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Parsed certificate chain: found {} certificate(s)", cert_blocks.len()));
 
+    let mut best_info: Option<SensorInfo> = None;
+
     // Try each certificate in the chain (leaf first, then intermediates)
     for (cert_idx, cert_block) in cert_blocks.iter().enumerate() {
-        // Extract base64 content from PEM
+        // ... previous parsing code ...
         let lines: Vec<&str> = cert_block
             .lines()
             .filter(|l| !l.starts_with("-----"))
             .collect();
         let cert_bytes = match base64::decode(&lines.join("")) {
             Ok(bytes) => bytes,
-            Err(e) => {
-                proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: Failed to decode base64: {:?}", cert_idx, e));
-                continue;
-            }
+            Err(_) => continue,
         };
 
-        // Parse X.509 certificate
         let (_, cert) = match x509_parser::parse_x509_certificate(&cert_bytes) {
             Ok(parsed) => parsed,
-            Err(e) => {
-                proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: Failed to parse X.509: {:?}", cert_idx, e));
-                continue;
-            }
+            Err(_) => continue,
         };
 
-        proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: Examining {} extension(s)", cert_idx, cert.extensions().len()));
-
-        // Find Unified Identity extension in this certificate
-        for (ext_idx, ext) in cert.extensions().iter().enumerate() {
+        for ext in cert.extensions() {
             let oid_str = format!("{}", ext.oid);
-
-            proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: Extension {}: OID = {}", cert_idx, ext_idx, oid_str));
-
             if oid_str == UNIFIED_IDENTITY_OID_STR || oid_str == LEGACY_OID_STR {
-                proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found Unified Identity extension (OID: {})", cert_idx, oid_str));
-
-                // Parse extension value as JSON
                 let ext_value = &ext.value;
-                match std::str::from_utf8(ext_value) {
-                    Ok(json_str) => {
-                        proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: Extension value (first 500 chars): {}", cert_idx, json_str.chars().take(500).collect::<String>()));
+                if let Ok(json_str) = std::str::from_utf8(ext_value) {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        // 0. Check for lah-bundle (Priority — new format from migration)
+                        if let Some(lah) = json.get("lah-bundle") {
+                            let geo_id_hash = lah.get("geolocation-id-hash")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown");
+                            let privacy_technique = lah.get("privacy-technique")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("none");
 
-                        match serde_json::from_str::<serde_json::Value>(json_str) {
-                            Ok(json) => {
-                                // 3. Parse Nested grc.geolocation (Refined Schema)
-                                // IMPORTANT: Check grc.geolocation BEFORE grc.workload.
-                                // All SVIDs (agent + workload) contain grc.workload, but only
-                                // agent SVIDs contain grc.geolocation with mobile/IMEI claims.
-                                // Envoy forwards the full mTLS chain (leaf workload SVID + agent SVID);
-                                // we must not short-circuit on grc.workload or we skip the agent
-                                // SVID that holds the actual location evidence.
-                                if let Some(geo) = json.get("grc.geolocation") {
-                                    proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.geolocation claim", cert_idx));
+                            // sovereignty_receipt: use geolocation-proof-hash as commitment
+                            let sovereignty_receipt = lah.get("geolocation-proof-hash")
+                                .and_then(|v| v.as_str())
+                                .map(|h| format!("zkp-commitment:{}", h));
 
-                                    // Check for "mobile" nested object
-                                    if let Some(mobile) = geo.get("mobile") {
-                                        return Some(SensorInfo {
-                                            sensor_id: mobile.get("sensor_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                            sensor_type: Some("mobile".to_string()),
-                                            sensor_imei: mobile.get("sensor_imei").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                            sensor_imsi: mobile.get("sim_imsi").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                            sensor_serial_number: None,
-                                            sensor_msisdn: mobile.get("sim_msisdn").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                            latitude: mobile.get("location_verification").and_then(|v| v.get("latitude")).and_then(|v| v.as_f64()),
-                                            longitude: mobile.get("location_verification").and_then(|v| v.get("longitude")).and_then(|v| v.as_f64()),
-                                            accuracy: mobile.get("location_verification").and_then(|v| v.get("accuracy")).and_then(|v| v.as_f64()),
-                                            sovereignty_receipt: json.get("grc.sovereignty_receipt")
-                                                .and_then(|v| {
-                                                    if v.is_string() {
-                                                        v.as_str()
-                                                    } else {
-                                                        v.get("proof_b64").and_then(|p| p.as_str())
-                                                    }
-                                                })
-                                                .map(|s| s.to_string()),
-                                        });
-                                    }
-
-                                    // Check for "gnss" nested object
-                                    if let Some(gnss) = geo.get("gnss") {
-                                        return Some(SensorInfo {
-                                            sensor_id: gnss.get("sensor_id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                            sensor_type: Some("gnss".to_string()),
-                                            sensor_imei: None,
-                                            sensor_imsi: None,
-                                            sensor_serial_number: gnss.get("sensor_serial_number").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                            sensor_msisdn: None,
-                                            latitude: gnss.get("retrieved_location").and_then(|v| v.get("latitude")).and_then(|v| v.as_f64()),
-                                            longitude: gnss.get("retrieved_location").and_then(|v| v.get("longitude")).and_then(|v| v.as_f64()),
-                                            accuracy: gnss.get("retrieved_location").and_then(|v| v.get("accuracy")).and_then(|v| v.as_f64()),
-                                            sovereignty_receipt: None,
-                                        });
-                                    }
-
-                                    // Fallback for legacy flattened grc.geolocation (Backward Compatibility)
-                                    if let Some(sensor_id_val) = geo.get("sensor_id") {
-                                        if let Some(sensor_id_str) = sensor_id_val.as_str() {
-                                            return Some(SensorInfo {
-                                                sensor_id: sensor_id_str.to_string(),
-                                                sensor_type: geo.get("type").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                                sensor_imei: geo.get("sensor_imei").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                                sensor_imsi: geo.get("sensor_imsi").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                                sensor_serial_number: geo.get("sensor_serial_number").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                                sensor_msisdn: geo.get("sensor_msisdn").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                                                latitude: geo.get("latitude").and_then(|v| v.as_f64()),
-                                                longitude: geo.get("longitude").and_then(|v| v.as_f64()),
-                                                accuracy: geo.get("accuracy").and_then(|v| v.as_f64()),
-                                                sovereignty_receipt: None,
-                                            });
+                            // For ZKP mode (privacy-technique="zkp"), also extract proof URI
+                            let sovereignty_receipt_uri = if privacy_technique == "zkp" {
+                                lah.get("geolocation-payload")
+                                    .and_then(|p| {
+                                        if let Some(s) = p.as_str() {
+                                            serde_json::from_str::<serde_json::Value>(s).ok()
+                                                .and_then(|v| v.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string()))
+                                        } else {
+                                            p.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string())
                                         }
-                                    }
-                                }
+                                    })
+                            } else {
+                                None
+                            };
 
-                                // 4. Parse grc.workload (Gen 4 Workload SVIDs) — checked AFTER geolocation.
-                                // All SVIDs carry grc.workload, so this is a fallback for certs that
-                                // have no inline grc.geolocation (e.g. workload SVIDs).
-                                // - If a grc.sovereignty_receipt is present this is a Gen 4 ZKP workload:
-                                //   route through the mobile ZKP verification path.
-                                // - If no receipt is present, do NOT return here — let the cert-chain
-                                //   loop continue so we can inspect the agent SVID (cert index 1+)
-                                //   which may carry a grc.geolocation.mobile extension.
-                                if let Some(workload) = json.get("grc.workload") {
-                                    let sovereignty_receipt = json.get("grc.sovereignty_receipt")
-                                        .and_then(|v| {
-                                            if v.is_string() {
-                                                v.as_str()
-                                            } else {
-                                                v.get("proof_b64").and_then(|p| p.as_str())
-                                            }
-                                        })
-                                        .map(|s| s.to_string());
+                            proxy_wasm::hostcalls::log(LogLevel::Info, &format!(
+                                "Certificate {}: Found lah-bundle claim (geo-id-hash={}, privacy-technique={})",
+                                cert_idx, geo_id_hash, privacy_technique
+                            ));
 
-                                    if let Some(receipt) = sovereignty_receipt {
-                                        // Gen 4: workload SVID carries a ZKP sovereignty receipt.
-                                        // Treat as "mobile" type so it routes through the mobile
-                                        // ZKP verification branch in on_http_request_headers.
-                                        proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.workload + grc.sovereignty_receipt — Gen 4 ZKP workload SVID", cert_idx));
-                                        return Some(SensorInfo {
-                                            sensor_id: workload.get("workload-id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                                            sensor_type: Some("mobile".to_string()),
-                                            sensor_imei: None,
-                                            sensor_imsi: None,
-                                            sensor_serial_number: None,
-                                            sensor_msisdn: None,
-                                            latitude: None,
-                                            longitude: None,
-                                            accuracy: None,
-                                            sovereignty_receipt: Some(receipt),
-                                        });
-                                    }
-                                    // No receipt: this cert carries no verifiable geo evidence.
-                                    // Fall through to continue scanning the rest of the chain.
-                                    proxy_wasm::hostcalls::log(LogLevel::Debug, &format!("Certificate {}: grc.workload present but no grc.sovereignty_receipt — continuing chain scan", cert_idx));
-                                }
-                            }
-                            Err(e) => {
-                                proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Certificate {}: Failed to parse JSON: {:?}", cert_idx, e));
+                            if best_info.is_none() {
+                                best_info = Some(SensorInfo {
+                                    sensor_id: geo_id_hash.to_string(),
+                                    sensor_type: Some("mobile".to_string()),
+                                    sensor_imei: None,
+                                    sensor_imsi: None,
+                                    sensor_serial_number: None,
+                                    sensor_msisdn: None,
+                                    latitude: None,
+                                    longitude: None,
+                                    accuracy: None,
+                                    sovereignty_receipt,
+                                    sovereignty_receipt_uri,
+                                });
                             }
                         }
-                    }
-                    Err(e) => {
-                        proxy_wasm::hostcalls::log(LogLevel::Warn, &format!("Certificate {}: Extension value is not valid UTF-8: {:?}", cert_idx, e));
+
+                        // 1. Check for grc.geolocation (Priority)
+                        if let Some(geo) = json.get("grc.geolocation") {
+                            proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found grc.geolocation claim", cert_idx));
+
+
+                            let sensor_type = geo.get("type").and_then(|v| v.as_str()).unwrap_or("mobile");
+                            let class_id = geo.get("class_id").or_else(|| geo.get("sensor_id"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown");
+                                
+                            let mut final_sensor_id = class_id.to_string();
+                            let mut final_sensor_type = sensor_type.to_string();
+                            let mut sensor_imei = geo.get("sensor_imei").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            let mut sensor_imsi = geo.get("sensor_imsi").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            let mut sensor_msisdn = geo.get("sensor_msisdn").or_else(|| geo.get("msisdn")).and_then(|v| v.as_str()).map(|s| s.to_string());
+                            let mut sensor_serial_number = geo.get("sensor_serial_number").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            let mut latitude = geo.get("latitude").and_then(|v| v.as_f64());
+                            let mut longitude = geo.get("longitude").and_then(|v| v.as_f64());
+                            let mut accuracy = geo.get("accuracy").and_then(|v| v.as_f64());
+
+                            // Handle nested mobile/gnss for backward compatibility
+                            if let Some(mobile) = geo.get("mobile") {
+                                final_sensor_type = "mobile".to_string();
+                                if let Some(m_id) = mobile.get("sensor_id").and_then(|v| v.as_str()) {
+                                    final_sensor_id = m_id.to_string();
+                                }
+                                sensor_imei = mobile.get("sensor_imei").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                sensor_imsi = mobile.get("sensor_imsi").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                sensor_msisdn = mobile.get("msisdn").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let ver = mobile.get("location_verification");
+                                latitude = ver.and_then(|v| v.get("latitude")).and_then(|v| v.as_f64());
+                                longitude = ver.and_then(|v| v.get("longitude")).and_then(|v| v.as_f64());
+                                accuracy = ver.and_then(|v| v.get("accuracy")).and_then(|v| v.as_f64());
+                            } else if let Some(gnss) = geo.get("gnss") {
+                                final_sensor_type = "gnss".to_string();
+                                if let Some(g_id) = gnss.get("sensor_id").and_then(|v| v.as_str()) {
+                                    final_sensor_id = g_id.to_string();
+                                }
+                                sensor_serial_number = gnss.get("sensor_serial_number").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                let loc = gnss.get("retrieved_location");
+                                latitude = loc.and_then(|v| v.get("latitude")).and_then(|v| v.as_f64());
+                                longitude = loc.and_then(|v| v.get("longitude")).and_then(|v| v.as_f64());
+                                accuracy = loc.and_then(|v| v.get("accuracy")).and_then(|v| v.as_f64());
+                            }
+
+                            // lah-bundle path (new): read proof commitment hash + URI
+                            let sovereignty_receipt = json.get("lah-bundle")
+                                .and_then(|b| b.get("geolocation-proof-hash"))
+                                .and_then(|v| v.as_str())
+                                .map(|h| format!("zkp-commitment:{}", h))
+                                // grc.* fallback for SVIDs issued before lah-bundle migration
+                                .or_else(|| json.get("grc.sovereignty_receipt")
+                                    .and_then(|v| {
+                                        if v.is_string() {
+                                            v.as_str().map(|s| s.to_string())
+                                        } else {
+                                            v.get("proof_b64").and_then(|p| p.as_str()).map(|s| s.to_string())
+                                                .or_else(|| v.get("hash").and_then(|h| h.as_str()).map(|h| format!("zkp-commitment:{}", h)))
+                                        }
+                                    }))
+                                .or(best_info.as_ref().and_then(|i| i.sovereignty_receipt.clone()));
+
+                            // lah-bundle path (new): read URI from geolocation-payload.zkp-proof-uri
+                            let sovereignty_receipt_uri = json.get("lah-bundle")
+                                .and_then(|b| b.get("geolocation-payload"))
+                                .and_then(|p| {
+                                    // geolocation-payload may be a JSON string or object
+                                    if let Some(s) = p.as_str() {
+                                        serde_json::from_str::<serde_json::Value>(s).ok()
+                                            .and_then(|v| v.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string()))
+                                    } else {
+                                        p.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string())
+                                    }
+                                })
+                                // grc.* fallback
+                                .or_else(|| json.get("grc.sovereignty_receipt")
+                                    .and_then(|v| v.get("uri"))
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()))
+                                .or(best_info.as_ref().and_then(|i| i.sovereignty_receipt_uri.clone()));
+
+                            return Some(SensorInfo {
+                                sensor_id: final_sensor_id,
+                                sensor_type: Some(final_sensor_type),
+                                sensor_imei,
+                                sensor_imsi,
+                                sensor_serial_number,
+                                sensor_msisdn,
+                                latitude,
+                                longitude,
+                                accuracy,
+                                sovereignty_receipt,
+                                sovereignty_receipt_uri,
+                            });
+                        }
+
+                        // 2. Check for workload (Secondary/Fallback)
+                        if let Some(workload) = json.get("workload") {
+                            // lah-bundle path (new): read proof commitment hash + URI
+                            let sovereignty_receipt = json.get("lah-bundle")
+                                .and_then(|b| b.get("geolocation-proof-hash"))
+                                .and_then(|v| v.as_str())
+                                .map(|h| format!("zkp-commitment:{}", h))
+                                // grc.* fallback
+                                .or_else(|| json.get("grc.sovereignty_receipt")
+                                    .and_then(|v| {
+                                        if v.is_string() {
+                                            v.as_str().map(|s| s.to_string())
+                                        } else {
+                                            v.get("proof_b64").and_then(|p| p.as_str()).map(|s| s.to_string())
+                                                .or_else(|| v.get("hash").and_then(|h| h.as_str()).map(|h| format!("zkp-commitment:{}", h)))
+                                        }
+                                    }));
+
+                            let sovereignty_receipt_uri = json.get("lah-bundle")
+                                .and_then(|b| b.get("geolocation-payload"))
+                                .and_then(|p| {
+                                    if let Some(s) = p.as_str() {
+                                        serde_json::from_str::<serde_json::Value>(s).ok()
+                                            .and_then(|v| v.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string()))
+                                    } else {
+                                        p.get("zkp-proof-uri").and_then(|u| u.as_str()).map(|s| s.to_string())
+                                    }
+                                })
+                                // grc.* fallback
+                                .or_else(|| json.get("grc.sovereignty_receipt")
+                                    .and_then(|v| v.get("uri"))
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()));
+
+                            if let Some(receipt) = sovereignty_receipt {
+                                proxy_wasm::hostcalls::log(LogLevel::Info, &format!("Certificate {}: Found workload + receipt (Gen 4 ZKP workload)", cert_idx));
+                                if best_info.is_none() {
+                                    best_info = Some(SensorInfo {
+                                        sensor_id: workload.get("workload-id").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
+                                        sensor_type: Some("mobile".to_string()),
+                                        sensor_imei: None,
+                                        sensor_imsi: None,
+                                        sensor_serial_number: None,
+                                        sensor_msisdn: None,
+                                        latitude: None,
+                                        longitude: None,
+                                        accuracy: None,
+                                        sovereignty_receipt: Some(receipt),
+                                        sovereignty_receipt_uri,
+                                    });
+                                } else if let Some(info) = best_info.as_mut() {
+                                    if info.sovereignty_receipt.is_none() {
+                                        info.sovereignty_receipt = Some(receipt);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    proxy_wasm::hostcalls::log(LogLevel::Warn, "=== SENSOR INFORMATION MISSING ===\n  sensor_id: MISSING\n  sensor_imei: MISSING\n  sensor_imsi: MISSING\n========================================\nNo sensor information found in certificate chain");
+    if best_info.is_some() {
+        return best_info;
+    }
+
+    proxy_wasm::hostcalls::log(LogLevel::Warn, "No sensor information found in certificate chain");
     None
 }

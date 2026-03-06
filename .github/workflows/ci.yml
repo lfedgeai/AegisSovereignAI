@@ -149,9 +149,9 @@ jobs:
             - name: Build SPIRE Components
               timeout-minutes: 10
               run: |
-                  echo "=== Building SPIRE with Overlay ==="
+                  echo "=== Building SPIRE from spire-fork/ ==="
                   
-                  # Use SPIRE overlay build system instead of building from fork
+                  # Build SPIRE from the committed spire-fork/ source tree
                   if [ -f "build/spire-binaries/spire-server" ] && [ -f "build/spire-binaries/spire-agent" ]; then
                       echo "SPIRE binaries already exist."
                   else

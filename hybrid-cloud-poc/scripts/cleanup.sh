@@ -61,6 +61,58 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo ""
 fi
 
+# Safe pkill wrapper: prevents pkill -f from killing ancestor shells.
+# When invoked via bash -c "... pkill -f X ...", the bash -c process's cmdline
+# contains "X" as part of the -c argument, so pkill matches and kills it (exit 143).
+# This function uses pgrep + grep to exclude the current process tree.
+_safe_pkill() {
+    local signal=""
+    local pattern=""
+    # Parse arguments: support _safe_pkill [-9] "pattern"
+    if [[ "$1" == -* ]]; then
+        signal="$1"
+        pattern="$2"
+    else
+        pattern="$1"
+    fi
+    # Strategy: pgrep -f matches ANY process with the pattern anywhere in its
+    # cmdline. This includes `bash -c '... spire-server ...'`, sshd handlers,
+    # and pgrep itself. We filter these out by checking the process's actual
+    # binary name (comm): only kill if the comm is NOT a shell/utility.
+    # Service daemons (spire-server, keylime_verifier, etc.) have their own
+    # comm names, so this safely targets only actual service processes.
+    local _skip_comms="^(bash|sh|dash|zsh|fish|sshd|ssh|pgrep|grep|xargs|cat|awk|sed|kill|test_|run-demo|ci_test)$"
+
+    local pids
+    pids=$(pgrep -f "$pattern" 2>/dev/null) || true
+    if [ -z "$pids" ]; then
+        return 0
+    fi
+
+    local kill_pids=""
+    while read -r _p; do
+        [ -z "$_p" ] && continue
+        # Skip our own PID and parent
+        [ "$_p" = "$$" ] && continue
+        [ "$_p" = "$PPID" ] && continue
+        [ "$_p" = "$BASHPID" ] && continue
+        # Get the comm (actual binary name) of the process
+        local _comm
+        _comm=$(ps -o comm= -p "$_p" 2>/dev/null) || continue
+        # Skip if it's a shell, SSH, or utility — these only have the pattern
+        # because it appears in their command-line arguments, not because
+        # they ARE the service we want to stop
+        if echo "$_comm" | grep -qEi "$_skip_comms"; then
+            continue
+        fi
+        kill_pids="${kill_pids} $_p"
+    done <<< "$pids"
+
+    if [ -n "${kill_pids}" ]; then
+        echo $kill_pids | xargs -r kill ${signal} 2>/dev/null || true
+    fi
+}
+
 # Function to clean up temporary files in /tmp (shared across all test scripts)
 # This can be called independently or as part of full cleanup
 cleanup_tmp_files() {
@@ -89,39 +141,39 @@ stop_all_instances_and_cleanup() {
 
     # 1.1: Stop SPIRE processes
     echo "     Stopping SPIRE Server and Agent..."
-    pkill -f "spire-server" >/dev/null 2>&1 || true
-    pkill -f "spire-agent" >/dev/null 2>&1 || true
+    _safe_pkill "spire-server"
+    _safe_pkill "spire-agent"
 
     # 1.2: Stop Keylime processes
     echo "     Stopping Keylime Verifier and Registrar..."
-    pkill -f "keylime_verifier" >/dev/null 2>&1 || true
-    pkill -f "keylime\.cmd\.verifier" >/dev/null 2>&1 || true
-    pkill -f "keylime_registrar" >/dev/null 2>&1 || true
-    pkill -f "keylime\.cmd\.registrar" >/dev/null 2>&1 || true
-    pkill -f "python.*keylime" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_verifier"
+    _safe_pkill "keylime\.cmd\.verifier"
+    _safe_pkill "keylime_registrar"
+    _safe_pkill "keylime\.cmd\.registrar"
+    _safe_pkill "python.*keylime"
 
     # 1.3: Stop rust-keylime Agent
     echo "     Stopping rust-keylime Agent..."
-    pkill -f "keylime_agent" >/dev/null 2>&1 || true
-    pkill -f "rust-keylime" >/dev/null 2>&1 || true
-    pkill -f "target/release/keylime_agent" >/dev/null 2>&1 || true
+    _safe_pkill "keylime_agent"
+    _safe_pkill "rust-keylime"
+    _safe_pkill "target/release/keylime_agent"
 
     # 1.4: Stop TPM Plugin Server
     echo "     Stopping TPM Plugin Server..."
-    pkill -f "tpm_plugin_server" >/dev/null 2>&1 || true
+    _safe_pkill "tpm_plugin_server"
 
     # 1.5: Stop mobile location verification microservice
     echo "     Stopping Mobile Location Verification microservice..."
-    pkill -f "mobile-sensor-microservice" >/dev/null 2>&1 || true
-    pkill -f "mobile_sensor_service" >/dev/null 2>&1 || true
-    pkill -f "mobile-sensor-microservice/service.py" >/dev/null 2>&1 || true
-    pkill -f "service.py.*--port.*9050" >/dev/null 2>&1 || true
-    pkill -f "service.py.*--host.*127.0.0.1" >/dev/null 2>&1 || true
-    pkill -f "python3.*service.py.*--port" >/dev/null 2>&1 || true
+    _safe_pkill "mobile-sensor-microservice"
+    _safe_pkill "mobile_sensor_service"
+    _safe_pkill "mobile-sensor-microservice/service.py"
+    _safe_pkill "service.py.*--port.*9050"
+    _safe_pkill "service.py.*--host.*127.0.0.1"
+    _safe_pkill "python3.*service.py.*--port"
 
     # 1.6: Stop TPM resource manager and any software TPM emulators
-    pkill -f "tpm2-abrmd" >/dev/null 2>&1 || true
-    pkill -f "swtpm" >/dev/null 2>&1 || true
+    _safe_pkill "tpm2-abrmd"
+    _safe_pkill "swtpm"
 
     # 1.7: Free up ports
     if command -v lsof >/dev/null 2>&1; then
@@ -136,7 +188,7 @@ stop_all_instances_and_cleanup() {
     # Force kill any remaining processes if they didn't exit gracefully
     if pgrep -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" >/dev/null 2>&1; then
         echo "     Force killing remaining processes..."
-        pkill -9 -f "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port" >/dev/null 2>&1 || true
+        _safe_pkill -9 "spire-server|spire-agent|keylime|tpm_plugin|service.py.*--port"
         sleep 1
     fi
 

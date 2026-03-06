@@ -92,9 +92,12 @@ message BatchNewX509SVIDResponse {
         // The newly created X509-SVID. This will be set if the status is OK.
         spire.api.types.X509SVID svid = 2;
 
-        // Unified-Identity - Phase 1: SPIRE API & Policy Staging (Stubbed Keylime)
-        // Optional. Verified claims from Keylime about host geolocation, integrity, and GPU metrics.
-        repeated spire.api.types.AttestedClaims attested_claims = 30;
+        // Unified-Identity: LAH-Bundle — privacy-preserving hardware-sealed location evidence.
+        // Contains geolocation commitment (hash only), sensor binding hash, and TPM quote seal.
+        spire.api.types.LAHBundle lah_bundle = 30;
+
+        // Unified-Identity: Optional carrier co-attestation over location data only.
+        spire.api.types.MNOEndorsement mno_endorsement = 31;
     }
 
     // Result for each X509-SVID requested (order is maintained).
