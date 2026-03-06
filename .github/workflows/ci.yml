@@ -56,40 +56,6 @@ jobs:
                   clean: true
                   fetch-depth: 0
 
-            - name: Restore Cached Build Artifacts
-              run: |
-                  CACHE_DIR="/home/mw/.ci-build-cache"
-                  mkdir -p "$CACHE_DIR"
-
-                  # Restore ZKP prover binary (avoids 15+ min rebuild)
-                  ZKP_TARGET="hybrid-cloud-poc/mobile-sensor-microservice/zkp-prover-plonky2/target/release"
-                  if [ -f "$CACHE_DIR/zkp-prover" ]; then
-                      mkdir -p "$ZKP_TARGET"
-                      cp "$CACHE_DIR/zkp-prover" "$ZKP_TARGET/zkp-prover"
-                      echo "✓ ZKP prover restored from cache"
-                  fi
-
-                  # Restore SPIRE binaries
-                  if [ -f "$CACHE_DIR/spire-server" ] && [ -f "$CACHE_DIR/spire-agent" ]; then
-                      mkdir -p build/spire-binaries
-                      cp "$CACHE_DIR/spire-server" build/spire-binaries/spire-server
-                      cp "$CACHE_DIR/spire-agent" build/spire-binaries/spire-agent
-                      echo "✓ SPIRE binaries restored from cache"
-                  fi
-
-            - name: Save Build Cache
-              if: always()
-              run: |
-                  CACHE_DIR="/home/mw/.ci-build-cache"
-                  mkdir -p "$CACHE_DIR"
-
-                  ZKP_BIN="hybrid-cloud-poc/mobile-sensor-microservice/zkp-prover-plonky2/target/release/zkp-prover"
-                  [ -f "$ZKP_BIN" ] && cp "$ZKP_BIN" "$CACHE_DIR/zkp-prover"
-
-                  [ -f "build/spire-binaries/spire-server" ] && cp build/spire-binaries/spire-server "$CACHE_DIR/spire-server"
-                  [ -f "build/spire-binaries/spire-agent" ] && cp build/spire-binaries/spire-agent "$CACHE_DIR/spire-agent"
-                  echo "Build cache updated"
-
             - name: Debug Information
               run: |
                   echo "Triggering Reference: ${{ github.ref }}"
