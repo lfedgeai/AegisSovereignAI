@@ -478,50 +478,9 @@ if [ "$NEEDS_REBUILD" = "true" ]; then
     fi
 fi
 
-# Unified-Identity - Verifier: ZKP Prover Build (Plonky2)
-# NOTE: plonky2 release build takes 15+ minutes on first build
-ZKP_PROVER_DIR="$REPO_ROOT/mobile-sensor-microservice/zkp-prover-plonky2"
-ZKP_BINARY="$ZKP_PROVER_DIR/target/release/zkp-prover"
-echo -e "${CYAN}Checking ZKP Prover (Plonky2) build status...${NC}"
-
-ZKP_NEEDS_REBUILD=false
-if [ ! -f "$ZKP_BINARY" ]; then
-    echo "  ZKP prover binary not found, need to build."
-    ZKP_NEEDS_REBUILD=true
-elif [ "${FORCE_BUILD:-false}" = "true" ]; then
-    echo "  Forced build requested for ZKP prover."
-    ZKP_NEEDS_REBUILD=true
-else
-    # Check if any .rs or Cargo.toml file is newer than the binary
-    if [ -n "$(find "$ZKP_PROVER_DIR/src" -maxdepth 2 \( -name "*.rs" -o -name "Cargo.toml" \) -newer "$ZKP_BINARY" -print -quit 2>/dev/null)" ]; then
-        echo -e "${YELLOW}  ⚠ ZKP prover source changes detected, rebuilding...${NC}"
-        ZKP_NEEDS_REBUILD=true
-    fi
-fi
-
-if [ "$ZKP_NEEDS_REBUILD" = "true" ]; then
-    if [ "$NO_BUILD" != "true" ]; then
-        echo -e "${GREEN}  Building ZKP prover (Plonky2)...${NC}"
-        cd "$ZKP_PROVER_DIR"
-        source "$HOME/.cargo/env" 2>/dev/null || true
-        if cargo build --release > /tmp/zkp-prover-onprem-build.log 2>&1; then
-            echo -e "${GREEN}  ✓ ZKP prover (Plonky2) built successfully${NC}"
-        else
-            echo -e "${YELLOW}  ⚠ ZKP prover build failed (non-fatal, sidecar will use mock receipts)${NC}"
-            echo -e "${YELLOW}  Check /tmp/zkp-prover-onprem-build.log for details${NC}"
-        fi
-    else
-        echo -e "${YELLOW}  ⚠ ZKP prover rebuild needed but --no-build specified${NC}"
-        if [ ! -f "$ZKP_BINARY" ]; then
-            echo -e "${YELLOW}  ⚠ ZKP prover binary missing (non-fatal, sidecar will use mock receipts)${NC}"
-        fi
-    fi
-else
-    echo -e "${GREEN}  ✓ ZKP prover is up to date${NC}"
-fi
-
-# Restore on-prem directory for subsequent steps
-cd "$ONPREM_DIR"
+# NOTE: ZKP prover build is NOT needed on-prem — the verifier only checks
+# ZKP proof hashes in the sovereignty receipt. The prover binary is built
+# in test_agents.sh (geolocation sidecar) where proofs are generated.
 
 # 3. Setup certificates
 echo -e "\n${GREEN}[3/7] Setting up certificates...${NC}"
