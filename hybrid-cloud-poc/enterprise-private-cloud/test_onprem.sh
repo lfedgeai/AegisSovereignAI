@@ -390,8 +390,12 @@ if command -v apt-get &> /dev/null; then
     sudo apt-get update || true
     sudo apt-get install -y \
         python3 python3-pip python3-venv \
-        curl wget \
-        docker.io docker-compose || true
+        curl wget || true
+    # Install docker.io only if Docker is not already installed
+    # (avoids containerd vs containerd.io conflict on CI runners with Docker pre-installed)
+    if ! command -v docker &> /dev/null; then
+        sudo apt-get install -y docker.io docker-compose || true
+    fi
 elif command -v yum &> /dev/null; then
     sudo yum install -y \
         python3 python3-pip \
