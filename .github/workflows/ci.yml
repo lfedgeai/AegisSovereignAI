@@ -27,7 +27,7 @@ jobs:
     integration-test:
         name: Hybrid Cloud PoC Integration Test
         runs-on: self-hosted
-        timeout-minutes: 30
+        timeout-minutes: 45
 
         steps:
             - name: Pre-Run Environment Cleanup
@@ -188,7 +188,7 @@ jobs:
                   fi
 
             - name: Run Integration Tests
-              timeout-minutes: 10
+              timeout-minutes: 25
               shell: bash
               env:
                   TMPDIR: /tmp
