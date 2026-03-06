@@ -27,7 +27,7 @@ jobs:
     integration-test:
         name: Hybrid Cloud PoC Integration Test
         runs-on: self-hosted
-        timeout-minutes: 45
+        timeout-minutes: 60
 
         steps:
             - name: Pre-Run Environment Cleanup
@@ -151,20 +151,17 @@ jobs:
               run: |
                   echo "=== Building SPIRE from spire-fork/ ==="
                   
-                  # Build SPIRE from the committed spire-fork/ source tree
-                  if [ -f "build/spire-binaries/spire-server" ] && [ -f "build/spire-binaries/spire-agent" ]; then
-                      echo "SPIRE binaries already exist."
-                  else
-                      chmod +x scripts/spire-build.sh
-                      ./scripts/spire-build.sh
-                  fi
+                  # Always rebuild from source (true fresh clone)
+                  rm -rf build/spire-binaries
+                  chmod +x scripts/spire-build.sh
+                  ./scripts/spire-build.sh
                   
                   # Create symlink for backward compatibility with test scripts
                   mkdir -p hybrid-cloud-poc/spire/bin
                   ln -sf "$PWD/build/spire-binaries/spire-server" hybrid-cloud-poc/spire/bin/spire-server
                   ln -sf "$PWD/build/spire-binaries/spire-agent" hybrid-cloud-poc/spire/bin/spire-agent
                   
-                  echo "✓ SPIRE binaries available at:"
+                  echo "✓ SPIRE binaries built at:"
                   echo "  - build/spire-binaries/spire-server"
                   echo "  - build/spire-binaries/spire-agent"
                   echo "  - hybrid-cloud-poc/spire/bin/ (symlinked)"
@@ -175,16 +172,13 @@ jobs:
                   echo "=== Building Rust-Keylime ==="
                   cd hybrid-cloud-poc
 
-                  if [ -f "rust-keylime/target/release/keylime_agent" ]; then
-                      echo "rust-keylime agent already built."
+                  # Always rebuild from source (true fresh clone)
+                  if [ -d "rust-keylime" ]; then
+                      cd rust-keylime
+                      cargo build --release
                   else
-                      if [ -d "rust-keylime" ]; then
-                          cd rust-keylime
-                          cargo build --release
-                      else
-                          echo "rust-keylime directory not found!"
-                          exit 1
-                      fi
+                      echo "rust-keylime directory not found!"
+                      exit 1
                   fi
 
             - name: Run Integration Tests
