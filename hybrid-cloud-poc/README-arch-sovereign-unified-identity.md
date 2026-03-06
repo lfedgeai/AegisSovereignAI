@@ -5,8 +5,231 @@
 For the operational proof-of-concept (PoC) implementation demonstrating this architecture in a hybrid cloud environment, see:
 👉 **[Sovereign Hybrid Cloud PoC](README.md)**
 
+**IETF Standards Alignment:** This implementation realizes the **Verifiable Geofencing Attestation Profile (V-GAP)** defined in:
+👉 **[draft-lkspa-wimse-verifiable-geo-fence](https://github.com/ramkri123/ietf-tpm-geofencing/blob/master/draft-lkspa-wimse-verifiable-geo-fence.md)**
+
+| IETF V-GAP Term | Implementation Name | Description |
+|---|---|---|
+| `lah-bundle` | `AttestedClaims` (X.509 extension) | Hardware-sealed evidence structure in SVID |
+| OID `1.3.6.1.4.1.<PEN>.1.1` | OID `1.3.6.1.4.1.55744.1.1` | X.509 extension identifier (PEN registration pending) |
+| Sensor Type Input Recipe | `detect_geolocation_sensor()` | Mobile/GNSS/OS-fallback sensor detection |
+| TPM Quote Verification | Keylime Verifier `sovereignattestation` | 6-step TPM quote verification procedure |
+| Nonce Chain | `nonce` field in LAH bundle | TOCTOU protection via PCR 15 extension (recursive HMAC chaining: [ROADMAP]) |
+
 > [!IMPORTANT]
 > **Implementation Scope**: This documentation covers the complete end-to-end vision. The current PoC implementation focuses on **Stage 2 (Trusted Processing)** and **Stage 3 (Verifiable Egress)**. Sections marked with **[ROADMAP]** describe Stage 1 (Verified Ingress) features.
+
+## Contents
+
+**Start Here**
+- [End-to-End Flow: Hardware → Workload → Gateway](#end-to-end-flow-hardware-workload-gateway) ← **start here**
+
+**Architecture & Vision**
+- [Open Source Upstreaming-Ready Design](#open-source-upstreaming-ready-design)
+- [Strategic Vision: Silicon-to-Audit](#strategic-vision-silicon-to-audit)
+- [The Aegis Verifier: The Trust Bridge](#the-aegis-verifier-the-trust-bridge)
+- [Zero-Knowledge Proofs (No Trusted Third Party)](#transparent-zero-knowledge-proofs-no-trusted-third-party)
+- [Category-Based Geofencing](#strategic-scaling-category-based-geofencing)
+- [Governance, Compliance & Standards](#governance-compliance-standards)
+
+**End-to-End Flows (Detailed)**
+- [SPIRE Agent Sovereign SVID Attestation](#end-to-end-flow-spire-agent-sovereign-svid-attestation)
+- [Workload SVID Issuance](#end-to-end-flow-workload-svid-issuance)
+- [Enterprise On-Prem Runtime Access (Envoy WASM)](#end-to-end-flow-enterprise-on-prem-runtime-access-envoy-wasm-filter)
+
+**Component Deep-Dives**
+- [Verified Ingress (Edge Workloads)](#technical-details-verified-ingress-edge-workloads)
+- [Mobile Location Verification Microservice](#mobile-location-verification-microservice)
+- [Enterprise On-Prem Envoy WASM Filter](#enterprise-on-prem-envoy-wasm-filter)
+- [SPIRE Agent TLS vs mTLS Communication](#spire-agent-attestation-tls-vs-mtls-communication)
+- [Hierarchical Workload SVID Options](#hierarchical-workload-svid-architecture-options)
+
+**Advanced**
+- [Gen 4: Zero-Knowledge Proof Layer](#gen-4-zero-knowledge-proof-layer)
+- [Zero-Knowledge Identity Model](#zero-knowledge-identity-model)
+- [Production Readiness & Implementation Status](#production-readiness-implementation-status)
+---
+
+## End-to-End Flow: Hardware → Workload → Gateway
+
+> This section traces what happens when you run `./run-demo.sh`, from TPM hardware through a verified workload accessing an enterprise gateway. Every step maps to actual code.
+
+### The Trust Chain
+
+```
+┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌──────────────┐
+│  TPM 2.0    │────▶│  Keylime     │────▶│  SPIRE        │────▶│  Enterprise  │
+│  Hardware   │     │  Agent +     │     │  Agent +      │     │  Gateway     │
+│  (EK → AK)  │     │  Verifier    │     │  Server       │     │  (Envoy +    │
+│             │     │              │     │  (SVID issuer) │     │   WASM)      │
+└─────────────┘     └──────────────┘     └───────────────┘     └──────────────┘
+   generates           attests host         issues SVID          verifies
+   hardware keys       integrity +          with embedded        AttestedClaims
+                       geolocation          AttestedClaims       at request time
+```
+
+### Phase 1: Infrastructure Startup
+
+| Step | Component | What Happens | Code |
+|------|-----------|-------------|------|
+| 1a | SPIRE Server | Creates trust domain, starts gRPC API | `spire-server run` |
+| 1b | Keylime Verifier | Starts verification service | `keylime_verifier` |
+| 1c | Keylime Registrar | Starts agent registration service | `keylime_registrar` |
+| 1d | rust-keylime Agent | Registers with Registrar (TPM EK + AK) | [`agent_handler.rs`](rust-keylime/keylime-agent/src/agent_handler.rs) |
+| 1e | TPM Plugin Server | Starts gRPC server for SPIRE ↔ TPM bridge | [`tpm-plugin/`](tpm-plugin/) |
+| 1f | SPIRE Agent | Attests to SPIRE Server via TPM NodeAttestor | `spire-agent run` |
+| 1g | Envoy + WASM | Enterprise gateway starts with sensor filter | [`enterprise-private-cloud/wasm-plugin/`](enterprise-private-cloud/wasm-plugin/) |
+
+### Phase 2a: Agent SVID Issuance (the critical path)
+
+The SPIRE Agent attests to the SPIRE Server during node attestation or renewal. The Server issues a **challenge nonce**; the Agent collects a TPM App Key and its delegated certification (binding the key to the TPM's AK), packages them into a `SovereignAttestation` payload, and sends it back. The Server delegates verification to the **Keylime Verifier**, which independently fetches the geolocation + TPM quote from the Keylime Agent, validates everything, and returns the result. The Server then issues the Agent SVID with the `lah-bundle` baked in.
+
+```
+                              SPIRE Agent                   Keylime Agent
+SPIRE Server    SPIRE Agent   TPM Sidecar   Keylime Agent    Geo Sidecar   TPM HW   Keylime Verifier
+     │               │              │              │              │          │              │
+     │               │── GenAppKey ▶│── TPM2_Create ─────────────────────────▶│              │
+     │               │   (init)     │              │              │          │              │
+     │               │◀─ AppKey ────│              │              │          │              │
+     │               │              │              │              │          │              │
+     │◀─ RenewAgent ─│              │              │              │          │              │
+     │── challenge ──▶│             │             │               │          │              │
+     │   nonce       │              │              │              │          │              │
+     │               │── POST /delegated_certification ─────────▶│          │              │
+     │               │   /certify_app_key(nonce)   │              │          │              │
+     │               │◀─ AppKey + TPM2_Certify ───│              │          │              │
+     │               │              │              │              │          │              │
+     │◀─ RenewAgent ─│              │              │              │          │              │
+     │  (with        │              │              │              │          │              │
+     │   SovereignAttestation:      │              │              │          │              │
+     │   app_key_public +           │              │              │          │              │
+     │   app_key_certificate +      │              │              │          │              │
+     │   challenge_nonce +          │              │              │          │              │
+     │   keylime_agent_uuid +       │              │              │          │              │
+     │   workload_code_hash)        │              │              │          │              │
+     │               │              │              │              │          │              │
+     │── POST /verify/evidence (SovereignAttestation) ─────────────────────────────────────▶│
+     │               │              │              │              │          │              │
+     │               │              │              │              │          │      Keylime Verifier:
+     │               │              │              │◀── GET /attested_workload_geolocation?nonce=N ──│
+     │               │              │              │── SHA-256(spire-agent binary) ──┐      │
+     │               │              │              │── detect ───▶│          │      │      │
+     │               │              │              │   sensor     │          │      │      │
+     │               │              │              │  ┌─ GPS/GNSS: raw lat/lon from device ─┐
+     │               │              │              │  └─ Mobile: Sidecar → CAMARA API ──────┘
+     │               │              │              │── ZKP prove ─▶│ Plonky2 │      │      │
+     │               │              │              │◀─ ZKP proof ──│ circuit │      │      │
+     │               │              │              │  (sovereignty_receipt)  │      │      │
+     │               │              │              │  (PCR 15 extend: geo + agent_binary_digest + nonce)
+     │               │              │              │  (TPM Quote covers PCR 15)     │      │
+     │               │              │              │── LAH bundle + agent_binary_digest ──▶│
+     │               │              │              │              │          │              │
+     │               │              │              │              │          │      Verifier validates:
+     │               │              │              │              │          │      • TPM2_Certify (AK→AppKey)
+     │               │              │              │              │          │      • TPM Quote (PCR 15 + nonce)
+     │               │              │              │              │          │      • PCR 15 integrity: geo + agent digest
+     │               │              │              │              │          │        bound in TPM Quote (structural check)
+     │               │              │              │              │          │      • TPM fixAK registered in Registrar
+     │◀─ attestation result (includes agent_binary_digest) ──────────────────────────────────│
+     │               │              │              │              │          │              │
+     │  SPIRE Server:               │              │              │          │              │
+     │  Check agent binary_digest   │              │              │          │              │
+     │  vs allowlist                 │              │              │          │              │
+     │  CredentialComposer:         │              │              │          │              │
+     │  Embed lah-bundle in X.509   │              │              │          │              │
+     │  extension (OID 55744.1.1)   │              │              │          │              │
+     │               │              │              │              │          │              │
+     │── Sovereign   │              │              │              │          │              │
+     │   Agent SVID ▶│              │              │              │          │              │
+     │  (with lah-   │              │              │              │          │              │
+     │   bundle)     │              │              │              │          │              │
+```
+
+**Key steps:**
+
+- **Geolocation Detection** (`detect_geolocation_sensor()` in [geolocation_handler.rs](rust-keylime/keylime-agent/src/geolocation_handler.rs)) — the Keylime Agent tries each source in priority order and uses the first one found:
+
+  | Priority | Source | Detection | Trust Level | Location Acquisition |
+  |----------|--------|-----------|-------------|---------------------|
+  | 1 | **USB mobile modem** | `lsusb` → "mobile" keyword (e.g., Huawei `12d1:1433`) | ✅ Carrier-verified | Geolocation Sidecar → CAMARA API → carrier-signed lat/lon |
+  | 2 | **USB GNSS/GPS** | `lsusb` → "gnss"/"gps"/"nmea" keyword | ✅ Hardware sensor | Raw coordinates from device |
+  | 3 | **GNSS device node** | `/dev/ttyUSB0`, `/dev/ttyACM0`, `/dev/gps0` | ✅ Hardware sensor | Raw coordinates from device |
+  | 4 | **Config file fallback** | [geolocation-fallback.json](geolocation-fallback.json) from `./`, `/etc/keylime/`, or `../` | ⚠️ Operator-declared | Static coordinates from JSON file |
+  | — | **No sensor** | All above fail | — | Graceful skip (SVID issued without location claims) |
+
+- **App Key Certification**: Keylime Agent's [delegated_certification_handler.rs](rust-keylime/keylime-agent/src/delegated_certification_handler.rs) uses `TPM2_Certify` to bind a workload key to the AK
+- **ZKP Proof Generation**: Plonky2 prover generates a geofence proof — proves "I am inside this region" without revealing exact coordinates → [mobile-sensor-microservice/zkp-prover-plonky2/](mobile-sensor-microservice/zkp-prover-plonky2/)
+- **PCR 15 Extension**: Geolocation + ZKP proof hash + nonce hashed into TPM PCR 15 (TOCTOU protection)
+- **TPM Quote**: TPM signs PCR values with AK — hardware root of trust
+- **Keylime Verifier Validation** (`_tpm_app_key_verify()` in [cloud_verifier_tornado.py](keylime/keylime/cloud_verifier_tornado.py)): independently fetches geolocation + TPM quote from Keylime Agent, verifies TPM2_Certify, checks AK is registered
+- **SVID Issuance**: SPIRE Server's CredentialComposer embeds `lah-bundle` + `sovereignty_receipt` as X.509 extension
+
+### Phase 2b: Workload SVID Issuance
+
+A workload requests an SVID from the local SPIRE Agent via the Workload API. The Agent returns a Workload SVID that inherits the `lah-bundle` from the Agent SVID.
+
+```
+Workload         SPIRE Agent
+    │                 │
+    │─ FetchX509SVID ▶│
+    │  (Workload API) │
+    │                 │  (lah-bundle inherited from Agent SVID)
+    │◀── Workload ────│
+    │    SVID          │
+```
+
+### Phase 3: Runtime Request Verification
+
+The workload uses its SVID to access an enterprise service through Envoy. The WASM filter reads the `lah-bundle` from the SVID's X.509 extension (OID `1.3.6.1.4.1.55744.1.1`) — the ZKP proof and TPM-signed location are already embedded at attestation time.
+
+```
+mTLS Client      Envoy Gateway     WASM Filter                   Backend Server
+    │                  │                │                               │
+    │── mTLS ─────────▶│                │                               │
+    │   (SVID cert)    │── extract ────▶│                               │
+    │                  │  lah-bundle    │  Parse lah-bundle:             │
+    │                  │  from X.509    │   • geolocation-id-hash       │
+    │                  │  extension     │   • geolocation-proof-hash    │
+    │                  │                │   • privacy-technique (zkp)   │
+    │                  │                │                               │
+    │                  │                │  [Trust mode — default]        │
+    │                  │                │  ZKP receipt present in SVID   │
+    │                  │                │  → Action::Continue (allow)    │
+    │                  │                │                               │
+    │                  │◀── allow ──────│                               │
+    │                  │── proxy ──────────────────────────────────────▶│
+    │◀── response ─────│◀─────────────────────────────────────────────│
+```
+
+The gateway no longer needs to call the Geolocation Sidecar at request time because the location was already verified during attestation:
+- **GPS/GNSS**: Raw coordinates → ZKP proof, TPM-signed
+- **Mobile**: CAMARA API verified → ZKP proof, TPM-signed
+
+Both sensor types produce the same result in the SVID: a TPM-bound ZKP sovereignty receipt.
+
+| Sensor Type | Location Source | ZKP Proof | CAMARA at Attestation | CAMARA at Gateway |
+|-------------|----------------|-----------|----------------------|-------------------|
+| `gnss` | GPS hardware / config | ✅ | ❌ (not needed) | ❌ (not needed) |
+| `mobile` | Carrier via CAMARA | ✅ | ✅ (in sidecar) | ❌ (already done) |
+| `os-config` | Fallback config file | ✅ | ❌ (not needed) | ❌ (not needed) |
+
+### Phase 4: Insider Threat Detection
+
+Rogue admin tampers with binary → Keylime detects PCR mismatch → agent marked failed → SPIRE revokes SVID → gateway rejects subsequent requests.
+
+#### Security Benefits
+
+| Problem (Before) | Solution (After) | Evidence |
+|---|---|---|
+| **Spoofable bootstrap token** — SPIRE agent identity based on a software join token that can be stolen or replayed | **TPM App Key** — Agent identity anchored to a hardware-generated key (`TPM2_Create`) that never leaves the TPM | `app_key_public` + `TPM2_Certify` binds key to AK |
+| **Spoofable workload identity agent** — No proof that an approved SPIRE agent runs on approved hardware | **Proof of Residency** — SPIRE agent bound to TPM via delegated certification; AK chain proves approved agent is on specific authorized hardware | `app_key_certificate` proves key was created in the same TPM as the AK |
+| **Spoofable geolocation** — IP-based or software-reported location easily faked | **Proof of Geofencing** — Geolocation bound to TPM via PCR 15 extension + TPM Quote; hardware seals the location data | `tpm-quote-seal` in LAH bundle covers PCR 15 (geo + nonce) |
+| **Location privacy exposure** — Raw coordinates leaked in attestation payloads | **ZKP Sovereignty Receipt** — Plonky2 zero-knowledge proof verifies sovereignty without revealing exact coordinates | `sovereignty_receipt` + `geolocation-proof-hash` |
+| **Replay attacks** — Stale attestation evidence reused by attacker | **Server Challenge Nonce** — SPIRE Server issues a fresh nonce per renewal; nonce is bound into PCR 15 extension, TPM Quote qualifying data, and `TPM2_Certify` qualifying data | `challenge_nonce` in 3 places: PCR 15, TPM Quote, TPM2_Certify |
+| **Key exfiltration** — Agent private key extracted from software store | **Delegated Certification** — `TPM2_Certify` cryptographically proves app key was generated in the same TPM as the AK; key material never exists outside hardware | Keylime agent performs `TPM2_Certify` with AK over app key |
+| **Third-party audit exposes location** — Auditor/regulator must see raw coordinates to verify compliance, leaking sensitive operational data | **Privacy-Preserving ZKP Verification** — Third-party auditor verifies the `sovereignty_receipt` (Plonky2 proof) to confirm workload is within the required jurisdiction without learning exact coordinates | `sovereignty_receipt` is publicly verifiable; auditor checks proof validity without access to raw lat/lon |
+
+---
 
 ## 🚀 Open Source Upstreaming-Ready Design
 
@@ -25,7 +248,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 
 **Data Isolation for Clean Open Sourcing**:
 - **Keylime Verifier DB**: Existing database for agent attestation state (no schema changes)
-- **Mobile Sensor Sidecar DB**: Separate SQLite database for sensor-to-subscriber mapping
+- **Geolocation Sidecar DB**: Separate SQLite database for sensor-to-subscriber mapping
   - Key: `sensor_imei` + `sim_imsi` (composite key)
   - Value: `sim_msisdn`, `location_verification` (lat/lon/acc)
 - **Decoupled Components**: Sidecar can be deployed independently as standalone CAMARA API wrapper
@@ -35,9 +258,9 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 
 ---
 
-## Strategic Vision: Silicon-to-Audit
+## Strategic Vision: Hardware-to-Audit
 
-The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "organization's (e.g., a Global Bank like JPMC's, or a Command Center's) core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
+The AegisSovereignAI framework establishes an unbroken **Chain of Trust** from the "customer's glass" to the "organization's (e.g., a Global Bank's, or a Command Center's) core". By treating every participant—whether a retail customer on an iPhone or a microservice in the data center—as a **First-Class Workload**, we move from fragmented "App Security" to a holistic **Workload Provenance** model.
 
 ### Edge Workload Integration: Managed vs. BYOD (Unmanaged)
 
@@ -48,7 +271,7 @@ The framework treats both internal infrastructure and external end-user devices 
 | Feature | Tier 1: Managed (LOB Hardware) | Tier 2: BYOD (Retail/BYOD) |
 | :--- | :--- | :--- |
 | **Integrity Signal** | Continuous (Keylime/IMA/SGRM) | Point-in-Time (App Attest/EAT) |
-| **Trust Anchor** | Enterprise Managed Root of Trust (e.g., JPMC/HSBC or a Gov Agency) | OEM Root of Trust (Apple/Google) |
+| **Trust Anchor** | Enterprise Managed Root of Trust (e.g., a Global Bank or Gov Agency) | OEM Root of Trust (Apple/Google) |
 | **Session Model** | Persistent Workload Identity | Just-in-Time (JIT) AI Session |
 | **Remediation** | MDM Lockdown + Revocation | Gateway Quarantine (403 Forbidden) |
 
@@ -142,7 +365,7 @@ Maintaining a global hardware fleet requires managing **Attestation Drift**, whe
 
 ### Compromise Detection & Remediation (Unmanaged Devices)
 
-For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the organization (e.g., a Global Bank like JPMC, or a Healthcare Provider) does not control relies on three cryptographic feedback loops:
+For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI moves from "Software Trustedness" to "Hardware-Rooted Attestation." Detecting a compromise on a device the organization (e.g., a Global Bank, or a Healthcare Provider) does not control relies on three cryptographic feedback loops:
 
 1.  **Hardware-Rooted State Verification (RATS/EAT)**: Even without MDM/Management, smartphones (iOS/Android) and laptops (TPM 2.0) can generate an **Entity Attestation Token (EAT)**. This token is signed by the **Secure Enclave** or **TPM**, proving that the device is not rooted or jailbroken, and that the regulated application's (e.g., a banking or healthcare app) code is untampered.
 2.  **App-Level Integrity Proofs**: The framework uses **ZKP-based circuits** to verify that the AI engagement app is running in a secure, non-debuggable memory space. If an attacker attempts to attach a debugger or intercept the AI prompt, the hardware-rooted "Environment Claim" fails, and the attestation quote is rejected by the Sovereign Cloud.
@@ -150,7 +373,7 @@ For **unmanaged** retail or employee-owned (BYOD) devices, AegisSovereignAI move
     *   **Remediation**: The Envoy API Gateway, seeing a revoked or "Hardware-Fail" SVID, returns a **403 Forbidden** for all sensitive PII endpoints. This ensures that a compromised device is cryptographically and instantaneously quarantined from the Sovereign AI Loop, regardless of its management status.
 
 > [!NOTE]
-> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the organization's (e.g., JPMC's or a Defense/Government agency's) security requirements.
+> **Jailbreak/Root Resilience**: While an OS *can* be jailbroken, hardware-rooted attestation makes that compromise **mathematically visible**. Because the hardware Secure Enclave measures the kernel during boot, a jailbroken OS cannot produce a valid "integrity quote" that matches the organization's (e.g., a Global Bank or a Defense/Government agency's) security requirements.
 
 ### Security & Trust Model Assumptions (IETF RATS Alignment)
 
@@ -173,9 +396,7 @@ The answer is **No.** AegisSovereignAI utilizes **Reference Integrity Manifests 
 4.  **Zero-Touch Verification**: The organization doesn't "guess" what a good build looks like; it simply verifies that the device **proves** it matches the **OEM-signed global manifest.**
 5.  **Scaling**: This allows high-compliance organizations (e.g., banks) to support billions of unmanaged devices without ever having to manually manage an OS hash. The organization trusts the **OEM's Signature** on the manifest, and the **Hardware's Signature** on the quote.
 
----
 
-## End-to-End Flow Visualization
 
 ### Detailed Flow Diagram (Full View)
 
@@ -264,7 +485,7 @@ SPIRE AGENT SVID ISSUANCE & WORKLOAD SVID ISSUANCE: (Roadmap)
 **Keylime Ecosystem (Optional API Extensions):**
 - **rust-keylime Agent**: High-privilege TPM operations (EK, AK, Quotes, Certify)
   - New API: `/v2.2/agent/certify_appkey` (delegated certification)
-  - New API: `/v2.2/agent/attested_geolocation` (nonce-bound geolocation)
+  - New API: `/v2.2/agent/attested_workload_geolocation` (nonce-bound geolocation)
     - **Standalone Value**: Geolocation API provides TPM-bound host location **independent of Unified Identity**
     - Can be used by any verifier for location-aware attestation
    - Backward compatible - existing functionality unaffected
@@ -337,7 +558,7 @@ A managed laptop, mobile device, or edge sensor uses its **Secure Enclave** or *
 | :--- | :--- | :--- |
 | **Workload Identity** | SPIRE SVID (Server App) | **SPIRE SVID (Enterprise App Instance)** |
 | **Host Integrity Manager** | Keylime (TPM 2.0) | **Apple App Attest / Windows SGRM** |
-| **Location Provider** | GNSS / Mobile Sidecar | **Location ZKP (Device-side)** |
+| **Location Provider** | GNSS / Geolocation Sidecar | **Location ZKP (Device-side)** |
 | **Unified Credential** | SVID with Geo Claims | **SVID with Ingress Context Claims** |
 
 ---
@@ -350,7 +571,7 @@ The Ingress process is a **Remote Attestation Loop** that mirrors the backend pi
 The Enterprise App instance invokes the native platform hardware—**Secure Enclave** (Apple) or **TPM/SGRM** (Windows)—to generate a hardware-rooted "Quote." This replaces the need for a separate Keylime Agent on the end-user OS.
 
 #### **B. Workload Identity Issuance ("The SPIRE Role")**
-Once the hardware and app integrity are verified by the **Aegis Verifier**—acting as the **"Trust Bridge"** between OEM Root CAs (Apple/Google) and the Enterprise Internal PKI (e.g., JPMC or Citi)—the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
+Once the hardware and app integrity are verified by the **Aegis Verifier**—acting as the **"Trust Bridge"** between OEM Root CAs (Apple/Google) and the Enterprise Internal PKI (e.g., a Global Bank)—the **Aegis Control Plane** issues a short-lived **Unified SVID**. This certificate contains the `grc.geolocation` and `grc.tpm-attestation` claims required for Sovereign Loop access.
 
 #### **C. Access Enforcement ("The Envoy Role")**
 The Enterprise App presents its **Unified SVID** to the Ingress Gateway (**Envoy**). Envoy’s WASM filter validates the **Attested Claims** inside the SVID, ensuring the workload is untampered and geofence-compliant.
@@ -387,7 +608,7 @@ Hardware attestation (TPM/SGRM) proves the "Identity" and "Health" of the OS ker
 
 ### Aegis Mitigation: Multi-Factor Provenance
 AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
-- **Mobile Sensor Sidecar**: Instead of trusting the OS's high-level API, raw sensor data (Cell Tower ID, WiFi triangulation, GNSS signal delay) is verified via a hardware-rooted sidecar.
+- **Geolocation Sidecar**: Instead of trusting the OS's high-level API, raw sensor data (Cell Tower ID, WiFi triangulation, GNSS signal delay) is verified via a hardware-rooted sidecar.
 - **ZKP Integration**: The location claim is bound to a hardware-rooted **Entity Attestation Token (EAT)**. A spoofed location from an unmanaged OS will not have the corresponding signed sensor footprint from the Secure Enclave, causing the ZKP verification to fail at the Ingress Gateway.
 
 > [!IMPORTANT]
@@ -398,7 +619,7 @@ AegisSovereignAI closes the Perception Gap by moving beyond single-source trust:
 ## Edge Ecosystems (Apple, Android, Windows, Linux)
 
 Aegis provides a unified security strategy for billions of managed and unmanaged endpoints:
-1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., at JPMC or Barclays), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
+1.  **Apple (iOS & Apple Silicon macOS)**: Uses **App Attest** for app-level hardware binding. Note that on macOS, App Attest requires **Apple Silicon** (M-series chips). For Enterprise-managed hardware (e.g., a Global Bank), **Managed Device Attestation (MDA)** provides enterprise policy enforcement across both iOS and macOS (Intel & Silicon).
 2.  **Android (StrongBox/TEE)**: Uses **Android Key Attestation**. The Aegis Verifier validates the hardware-rooted certificate chain (signed by Google's Root CA) to verify Bootloader status and ensure the application's (e.g., a banking or regulated healthcare app) keys are stored in a dedicated **StrongBox** or **Trusted Execution Environment (TEE)**.
 
 > [!TIP]
@@ -440,7 +661,7 @@ The implementation provides granular metrics for both the attestation control pl
 | **SPIRE** | `agent_manager.unified_identity.reattest.success` | Counter | Successful TPM-based re-attestations |
 | **SPIRE** | `agent_manager.unified_identity.reattest.error` | Counter | Failed TPM-based re-attestations |
 | **Envoy** | `wasm_filter_request_total` | Counter | Total requests processed by the sovereign filter |
-| **Envoy** | `wasm_filter_sidecar_call_total` | Counter | Total calls to the mobile sensor sidecar |
+| **Envoy** | `wasm_filter_sidecar_call_total` | Counter | Total calls to the Geolocation Sidecar |
 | **Envoy** | `wasm_filter_sidecar_latency_ms` | Histogram | Latency of sidecar verification calls |
 | **Envoy** | `wasm_filter_verification_success_total` | Counter | Successful sidecar verifications |
 | **Envoy** | `wasm_filter_verification_failure_total` | Counter | Failed sidecar verifications |
@@ -452,11 +673,9 @@ The implementation provides granular metrics for both the attestation control pl
 **Scrape Configuration:**
 - **SPIRE Server**: Port `9988` (HCL `telemetry` block)
 - **Envoy Proxy**: Port `9901`, path `/stats/prometheus`
-- **Mobile Sidecar**: Port `9050`, path `/metrics`
+- **Geolocation Sidecar**: Port `9050`, path `/metrics`
 
----
 
-## 🔐 Key Architecture Highlights
 
 ### TPM Hardware Binding for All Operations
 
@@ -479,7 +698,7 @@ TPM Hardware
 **Every workload SVID request requires:**
 1. SPIRE Agent initiates mTLS connection to SPIRE Server
 2. TLS handshake needs signature
-3. `TPMSigner.Sign()` invoked ([tpm_signer.go:122](./spire/pkg/agent/tpmplugin/tpm_signer.go#L122))
+3. `TPMSigner.Sign()` invoked ([tpm_signer.go:122](../spire-fork/pkg/agent/tpmplugin/tpm_signer.go#L122))
 4. **Real-time gRPC/HTTP call to TPM Plugin Server**
 5. TPM Plugin calls `tpm2_sign` on physical TPM
 6. Signature returned and used in TLS handshake
@@ -497,7 +716,7 @@ TPM Hardware
 | Phase | TLS Private Key | Purpose |
 |-------|----------------|---------|
 | **Initial Attestation** | Ephemeral SPIRE key | Standard agent enrollment |
-| **After Attestation** ([client.go:597](./spire/pkg/agent/client/client.go#L597)) | **TPM App Key** | All workload SVID operations |
+| **After Attestation** ([client.go:597](../spire-fork/pkg/agent/client/client.go#L597)) | **TPM App Key** | All workload SVID operations |
 
 **Code Reference:**
 ```go
@@ -530,7 +749,7 @@ c.c.Log.Info("Unified-Identity - Verification: Using TPM App Key for mTLS signin
 | **Keylime Agent** | Standard TPM attestation<br>**+ Geolocation API available*** | + Delegated certification API<br>+ Geolocation API (same)*** |
 | **Keylime Verifier** | Standard quote verification<br>**+ Geolocation fetch available*** | + Unified verification API<br>+ Geolocation fetch (same)*** |
 
-**Note**: The geolocation APIs (`/v2.2/agent/attested_geolocation` and verifier geolocation fetch) provide standalone value for **host location attestation** regardless of Unified Identity integration. Any verifier can use these APIs to obtain TPM-bound geolocation claims.
+**Note**: The geolocation APIs (`/v2.2/agent/attested_workload_geolocation` and verifier geolocation fetch) provide standalone value for **host location attestation** regardless of Unified Identity integration. Any verifier can use these APIs to obtain TPM-bound geolocation claims.
 
 ### Configuration
 
@@ -562,7 +781,7 @@ unified_identity_enabled = true  # Default: false
 1. **rust-keylime Agent Registration**
    - The rust-keylime agent starts and registers with the Keylime Registrar
    - The agent generates its TPM Endorsement Key (EK) and Attestation Key (AK)
-   - The registrar stores the agent's UUID, IP address (e.g., 10.1.0.11), port, TPM keys, and mTLS certificate
+   - The registrar stores the agent's UUID, IP address, port, TPM keys, and mTLS certificate
    - The agent is now registered and ready to serve attestation requests
 
 2. **TPM Plugin Server (External Process) Startup**
@@ -617,7 +836,7 @@ unified_identity_enabled = true  # Default: false
 
 9. **Verifier Looks Up Agent Information**
    - The verifier uses the agent UUID to query the Keylime Registrar
-   - The registrar returns the agent's IP address (e.g., 10.1.0.11), port, TPM AK, and mTLS certificate
+   - The registrar returns the agent's IP address, port, TPM AK, and mTLS certificate
    - This allows the verifier to contact the agent directly
 
 10. **Verifier Verifies App Key Certificate Signature**
@@ -701,7 +920,7 @@ unified_identity_enabled = true  # Default: false
 - **SPIRE Agent Attestation Transport**: SPIRE Agent uses standard TLS (not mTLS) for gRPC communication with SPIRE Server
 - **Token Caching** (Runtime Verification): Mobile location verification microservice (used by Envoy WASM Filter) caches CAMARA auth_req_id (persisted to file) and access_token (with expiration) to reduce API calls and improve performance
 - **Location Verification Caching** (Runtime Verification): The `verify_location` API result is cached with configurable TTL (default: 15 minutes). The actual CAMARA API is called at most once per TTL period; subsequent calls within the TTL return the cached result. This significantly reduces CAMARA API calls and improves performance. Note: This caching is for runtime verification at the enterprise gateway, not during attestation.
-- **GPS/GNSS Sensor Bypass** (Runtime Verification): GPS/GNSS sensors (trusted hardware) bypass mobile location service entirely at the enterprise gateway, allowing requests directly without CAMARA API calls
+- **GPS/GNSS Sensor Bypass** (Runtime Verification): GPS/GNSS sensors (trusted hardware) bypass Geolocation Sidecar entirely at the enterprise gateway, allowing requests directly without CAMARA API calls
 
 This flow provides hardware-backed identity attestation where the SPIRE Agent proves its identity using the TPM, and the SPIRE Server verifies this proof through the Keylime Verifier before issuing credentials.
 
@@ -1114,20 +1333,20 @@ After workloads receive their SPIRE SVIDs, they can use these certificates to ac
 ### Setup: Enterprise On-Prem Gateway
 
 1. **Envoy Proxy Setup**
-   - Envoy proxy runs on enterprise on-prem gateway (e.g., 10.1.0.10:8080)
+   - Envoy proxy runs on enterprise on-prem gateway (default: `localhost:8080`)
    - Configured to terminate mTLS from SPIRE clients
    - Verifies SPIRE certificate signatures using SPIRE CA bundle
    - Uses WASM filter to extract sensor information from certificate chain
 
-2. **Mobile Location Service Setup**
-   - Mobile location service runs on enterprise on-prem gateway (localhost:9050)
+2. **Geolocation Sidecar Setup**
+   - Geolocation Sidecar runs on enterprise on-prem gateway (localhost:9050)
    - Handles CAMARA API calls with caching (15-minute TTL, configurable)
-   - No caching in WASM filter - all caching centralized in mobile location service
+   - No caching in WASM filter - all caching centralized in Geolocation Sidecar
 
 ### Runtime: Workload Access Request
 
 3. **Workload Initiates Request**
-   - Workload (on 10.1.0.11) makes HTTPS request to enterprise gateway (10.1.0.10:8080)
+   - Workload makes HTTPS request to enterprise gateway (`$ONPREM_HOST:8080`)
    - Uses SPIRE workload SVID certificate chain for mTLS client authentication
    - Certificate chain includes: [Workload SVID, Agent SVID] (Agent SVID contains Unified Identity extension)
 
@@ -1145,13 +1364,13 @@ After workloads receive their SPIRE SVIDs, they can use these certificates to ac
 
 6. **WASM Filter Sensor Type Handling**
    - **GPS/GNSS sensors** (`sensor_type == "gnss"`):
-     - Trusted hardware, bypass mobile location service entirely
+     - Trusted hardware, bypass Geolocation Sidecar entirely
      - Logs bypass message and allows request directly
      - Adds `X-Sensor-ID` header and forwards to backend
    - **Mobile sensors** (`sensor_type == "mobile"`):
-     - Calls mobile location service at `localhost:9050/verify` (blocking call)
+     - Calls Geolocation Sidecar at `localhost:9050/verify` (blocking call)
      - Request: `POST /verify` with sensor metadata AND coordinates (if available)
-     - Mobile location service:
+     - Geolocation Sidecar:
        - **Flow Selection**: Uses DB-LESS flow if coordinates are provided; falls back to DB-BASED lookup if missing
        - Checks `verify_location` cache (TTL: 15 minutes, configurable)
        - If cache hit: Returns cached result (no CAMARA API call)
@@ -1160,37 +1379,37 @@ After workloads receive their SPIRE SVIDs, they can use these certificates to ac
      - If verification fails: Returns 403 Forbidden
 
 7. **Request Forwarding**
-   - If verification succeeds (or GPS sensor bypassed), Envoy forwards request to backend mTLS server (10.1.0.10:9443)
+   - If verification succeeds (or GPS sensor bypassed), Envoy forwards request to backend mTLS server (`localhost:9443`)
    - Request includes `X-Sensor-ID` header for audit trail
    - Backend server logs sensor ID for compliance
 
 ### Key Design Points
 
-- **No Caching in WASM Filter**: The WASM filter does NOT implement any caching. All caching (CAMARA API result caching with 15-minute TTL) is handled by the mobile location service. This simplifies the filter logic and ensures a single source of truth for caching behavior.
-- **GPS Sensor Bypass**: GPS/GNSS sensors (trusted hardware) bypass mobile location service entirely, allowing requests directly without verification
-- **Mobile Sensor Verification**: Mobile sensors require CAMARA API verification via mobile location service (with caching)
-- **Blocking Verification**: For mobile sensors, requests pause until mobile location service responds
+- **No Caching in WASM Filter**: The WASM filter does NOT implement any caching. All caching (CAMARA API result caching with 15-minute TTL) is handled by the Geolocation Sidecar. This simplifies the filter logic and ensures a single source of truth for caching behavior.
+- **GPS Sensor Bypass**: GPS/GNSS sensors (trusted hardware) bypass Geolocation Sidecar entirely, allowing requests directly without verification
+- **Mobile Sensor Verification**: Mobile sensors require CAMARA API verification via Geolocation Sidecar (with caching)
+- **Blocking Verification**: For mobile sensors, requests pause until Geolocation Sidecar responds
 - **Certificate Chain**: WASM filter extracts sensor information from Agent SVID (second certificate in chain, contains attestation claims)
-- **Centralized Caching**: All caching logic centralized in mobile location service, making it easier to maintain and debug
+- **Centralized Caching**: All caching logic centralized in Geolocation Sidecar, making it easier to maintain and debug
 
 ### Flow Diagram
 
 ```
-Workload (10.1.0.11)
+Workload (Agent Host)
     │
     │ mTLS (SPIRE cert chain: [Workload SVID, Agent SVID])
     v
-Envoy Proxy (10.1.0.10:8080)
+Envoy Proxy (On-Prem Gateway:8080)
     │
     ├─> 1. Terminate mTLS
     ├─> 2. Verify SPIRE cert chain (using SPIRE CA bundle)
     ├─> 3. WASM filter extracts sensor info from Agent SVID (Unified Identity extension)
     │
     ├─> 4. Check sensor_type:
-    │   ├─> If "gnss": Bypass mobile location service, allow directly
+    │   ├─> If "gnss": Bypass Geolocation Sidecar, allow directly
     │   └─> If "mobile":
     │       │
-    │       └─> POST /verify → Mobile Location Service (localhost:9050)
+    │       └─> POST /verify → Geolocation Sidecar (localhost:9050)
     │           │
     │           ├─> Check verify_location cache (TTL: 15 min)
     │           │   ├─> Cache hit: Return cached result
@@ -1202,15 +1421,13 @@ Envoy Proxy (10.1.0.10:8080)
     └─>    If not verified: Return 403 Forbidden
     │
     v
-Backend mTLS Server (10.1.0.10:9443)
+Backend mTLS Server (On-Prem Gateway:9443)
     │
     └─> Receives request with X-Sensor-ID header
         └─> Logs sensor ID for audit trail
 ```
 
----
 
-## Complete Security Flow: SPIRE Agent Sovereign SVID Attestation
 
 The following diagram illustrates the complete end-to-end flow for SPIRE Agent Sovereign SVID attestation, showing all components, interactions, and data transformations.
 
@@ -1386,7 +1603,7 @@ Keylime Verifier (Port 8881)
 ```
 Keylime Verifier (Port 8881)
     │
-    └─> GET /v2.2/agent/attested_geolocation?nonce={nonce} (HTTPS/mTLS)
+    └─> GET /v2.2/agent/attested_workload_geolocation?nonce={nonce} (HTTPS/mTLS)
         │
         └─> rust-keylime Agent (High Privilege, Port 9002)
             │
@@ -1866,7 +2083,7 @@ POST http://localhost:9050/verify
 
 ---
 
-## Gen 4: Zero-Knowledge Proof Layer (Roadmap)
+## Gen 4: Zero-Knowledge Proof Layer
 
 > [!NOTE]
 > Gen 4 builds on the Gen 3 foundation. All TPM attestation, delegated certification, and unified identity infrastructure remains unchanged. Gen 4 adds a **privacy-preserving verification layer**.
@@ -2038,7 +2255,7 @@ SPIRE Server ──▶ Keylime Verifier `/v2.2/verify/sovereignattestation`
 | Aspect | Gen 3 (Current) | Gen 4 (Planned) |
 |--------|-----------------|-----------------|
 | **When** | Runtime (every request) | Attestation-time (once) |
-| **Where** | Envoy → Mobile Sidecar | Keylime Verifier API (extended) |
+| **Where** | Envoy → Geolocation Sidecar | Keylime Verifier API (extended) |
 | **Output** | Pass/Fail verification | Signed MNO Anchor → ZKP input |
 | **API Change** | N/A | None — extends existing `/v2.2/verify/sovereignattestation` |
 
@@ -2496,7 +2713,7 @@ func (c *CircularGeofence) Define(api frontend.API) error {
 
 **Status**: ✅ Functional PoC on Real Hardware (TPM 2.0)
 
-The "Unified Identity" feature is **fully functional** and has been verified on real TPM hardware (10.1.0.11). The system successfully:
+The "Unified Identity" feature is **fully functional** and has been verified on real TPM hardware. The system successfully:
 - Generates TPM App Keys for SPIRE workloads
 - Performs delegated certification (AK signs App Key)
 - Verifies TPM quotes with geolocation data
@@ -2511,7 +2728,7 @@ The "Unified Identity" feature is **fully functional** and has been verified on 
 The delegated certification endpoint (`/certify_app_key`) now includes production-grade security controls:
 
 **Features:**
-- **IP Allowlist**: Configurable list of allowed IPs (e.g., 10.1.0.11; default: localhost only)
+- **IP Allowlist**: Configurable list of allowed IPs (default: localhost only)
 - **Rate Limiting**: Per-IP request limiting (default: 10 requests/minute, 60s sliding windows)
 - **Secure Defaults**: Disabled by default, requires explicit configuration
 
@@ -2548,4 +2765,5 @@ For a comprehensive view of production readiness, identified security gaps, and 
 
 ### Advanced Threat Research
 
-For a detailed analysis of how this architecture mitigates advanced GPS spoofing and runtime 'gaslighting' attacks on unmanaged devices, see the **[Threat Model: Unmanaged Device Security](THREAT-MODEL-unmanaged-device.md)**.
+For a detailed analysis of how this architecture mitigates advanced GPS spoofing and runtime 'gaslighting' attacks on unmanaged devices, see the **Advanced Threat Research** section in the threat model documentation.
+

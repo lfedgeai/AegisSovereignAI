@@ -1445,6 +1445,28 @@ class MbpolicyHandler(BaseHandler):
         raise NotImplementedError()
 
 
+class ZKPProofHandler(BaseHandler):
+    def get(self, zkp_hash):
+        try:
+            # Task 12c: Proof Depository retrieval
+            proof_depository = GLOBAL_POLICY_CACHE.get('proof_depository', {})
+            proof = proof_depository.get(zkp_hash)
+            
+            if proof:
+                self.write({
+                    "results": {
+                        "zkp_hash": zkp_hash,
+                        "sovereignty_receipt": proof
+                    }
+                })
+            else:
+                self.set_status(404)
+                self.write({"error": f"ZKP proof with hash {zkp_hash} not found"})
+        except Exception as e:
+            logger.error("Error retrieving ZKP proof: %s", e)
+            self.set_status(500)
+            self.write({"error": "Internal server error"})
+
 class VerifyEvidenceHandler(BaseHandler):
     def head(self) -> None:
         web_util.echo_json_response(self, 405, "Not Implemented: Use POST interface instead")
@@ -2411,20 +2433,36 @@ class VerifyEvidenceHandler(BaseHandler):
             }
             
             # Extract fields from nested objects if present
+            # Unified-Identity: Privacy-Preserving Hardware Identity anchoring (Task 12b)
+            # Map raw IDs to class_id and identity_hash
             if geo_type == 'mobile' and quote_geolocation.get('mobile'):
                 mobile = quote_geolocation['mobile']
                 if isinstance(mobile, dict):
-                    mapped_geo['sensor_id'] = mobile.get('sensor_id', '')
-                    mapped_geo['sensor_imei'] = mobile.get('sensor_imei', '')
-                    mapped_geo['sensor_imsi'] = mobile.get('sensor_imsi', '')
+                    mapped_geo['class_id'] = mobile.get('sensor_id', '')
+                    # Compute identity_hash: H(IMEI || IMSI)
+                    imei = mobile.get('sensor_imei', '')
+                    imsi = mobile.get('sensor_imsi', '')
+                    data = f"{imei}||{imsi}".encode("utf-8")
+                    mapped_geo['identity_hash'] = hashlib.sha256(data).hexdigest()
+                    
+                    mapped_geo['sensor_id'] = mobile.get('sensor_id', '') # Keep for internal logic
+                    mapped_geo['sensor_imei'] = imei
+                    mapped_geo['sensor_imsi'] = imsi
                     mapped_geo['latitude'] = mobile.get('latitude', 0.0)
                     mapped_geo['longitude'] = mobile.get('longitude', 0.0)
                     mapped_geo['accuracy'] = mobile.get('accuracy', 0.0)
             elif geo_type == 'gnss' and quote_geolocation.get('gnss'):
                 gnss = quote_geolocation['gnss']
                 if isinstance(gnss, dict):
-                    mapped_geo['sensor_id'] = gnss.get('sensor_id', '')
-                    mapped_geo['sensor_serial_number'] = gnss.get('sensor_serial_number', '')
+                    mapped_geo['class_id'] = gnss.get('sensor_id', '')
+                    # Compute identity_hash: H(ID || Serial)
+                    serial = gnss.get('sensor_serial_number', '')
+                    sid = gnss.get('sensor_id', '')
+                    data = f"{sid}||{serial}".encode("utf-8")
+                    mapped_geo['identity_hash'] = hashlib.sha256(data).hexdigest()
+
+                    mapped_geo['sensor_id'] = sid
+                    mapped_geo['sensor_serial_number'] = serial
                     mapped_geo['latitude'] = gnss.get('latitude', 0.0)
                     mapped_geo['longitude'] = gnss.get('longitude', 0.0)
                     mapped_geo['accuracy'] = gnss.get('accuracy', 0.0)
@@ -2432,10 +2470,19 @@ class VerifyEvidenceHandler(BaseHandler):
                     mapped_geo['value'] = f"lat:{mapped_geo['latitude']},lon:{mapped_geo['longitude']},acc:{mapped_geo['accuracy']}"
             else:
                 # Fallback for already flattened or legacy objects
+                mapped_geo['class_id'] = quote_geolocation.get('sensor_id', '')
                 mapped_geo['sensor_id'] = quote_geolocation.get('sensor_id', '')
                 mapped_geo['sensor_imei'] = quote_geolocation.get('sensor_imei', '')
                 mapped_geo['sensor_imsi'] = quote_geolocation.get('sensor_imsi', '')
                 mapped_geo['sensor_serial_number'] = quote_geolocation.get('sensor_serial_number', '')
+                
+                # Try to compute identity_hash for fallback too
+                if mapped_geo['sensor_imei'] and mapped_geo['sensor_imsi']:
+                    data = f"{mapped_geo['sensor_imei']}||{mapped_geo['sensor_imsi']}".encode("utf-8")
+                    mapped_geo['identity_hash'] = hashlib.sha256(data).hexdigest()
+                else:
+                    mapped_geo['identity_hash'] = ""
+
                 mapped_geo['latitude'] = quote_geolocation.get('latitude', 0.0)
                 mapped_geo['longitude'] = quote_geolocation.get('longitude', 0.0)
                 mapped_geo['accuracy'] = quote_geolocation.get('accuracy', 0.0)
@@ -2483,31 +2530,46 @@ class VerifyEvidenceHandler(BaseHandler):
             if geo_type == 'mobile':
                 mno_endorsement = None
                 mno_service_url = os.getenv('MNO_SERVICE_URL', sidecar_url)
-                try:
-                    mno_payload = {
-                        'imei': mapped_geo.get('sensor_imei'),
-                        'imsi': mapped_geo.get('sensor_imsi'),
-                        'nonce': nonce,
-                        'tower_id': '49201-LAB-001',
-                        'latitude': mapped_geo.get('latitude'),
-                        'longitude': mapped_geo.get('longitude'),
-                        'accuracy': mapped_geo.get('accuracy'),
-                    }
-                    mno_res = requests.post(
-                        f"{mno_service_url}/signed-endorsement",
-                        json=mno_payload,
-                        timeout=5
-                    )
-                    if mno_res.status_code == 200:
-                        mno_result = mno_res.json()
-                        if mno_result.get('verified'):
-                            mno_endorsement = mno_result
-                            logger.info(
-                                "Gen 4: Signed MNO endorsement fetched successfully for IMEI %s",
-                                mapped_geo.get('sensor_imei')
-                            )
-                except Exception as e:
-                    logger.warning("Gen 4: Failed to fetch signed MNO endorsement: %s", e)
+                
+                # Retry logic for MNO service (handles race conditions during CI service restarts)
+                max_retries = 10  # Increased for CI stability
+                retry_delay = 2
+                logger.info("Gen 4: Attempting to fetch signed MNO endorsement from %s", mno_service_url)
+                for attempt in range(max_retries):
+                    try:
+                        mno_payload = {
+                            'imei': mapped_geo.get('sensor_imei'),
+                            'imsi': mapped_geo.get('sensor_imsi'),
+                            'nonce': nonce,
+                            'tower_id': '49201-LAB-001',
+                            'latitude': mapped_geo.get('latitude'),
+                            'longitude': mapped_geo.get('longitude'),
+                            'accuracy': mapped_geo.get('accuracy'),
+                        }
+                        mno_res = requests.post(
+                            f"{mno_service_url}/signed-endorsement",
+                            json=mno_payload,
+                            timeout=5
+                        )
+                        if mno_res.status_code == 200:
+                            mno_result = mno_res.json()
+                            if mno_result.get('verified'):
+                                mno_endorsement = mno_result
+                                logger.info(
+                                    "Gen 4: Signed MNO endorsement fetched successfully for IMEI %s (attempt %d)",
+                                    mapped_geo.get('sensor_imei'), attempt + 1
+                                )
+                                break
+                        else:
+                            logger.warning("Gen 4: MNO service (%s) returned %d (attempt %d)", mno_service_url, mno_res.status_code, attempt + 1)
+                    except Exception as e:
+                        logger.warning("Gen 4: Failed to fetch signed MNO endorsement from %s (attempt %d): %s", mno_service_url, attempt + 1, e)
+                    
+                    if attempt < max_retries - 1:
+                        logger.info("Gen 4: Retrying MNO endorsement fetch in %.1fs...", retry_delay)
+                        time.sleep(retry_delay)
+                        retry_delay *= 1.5  # Exponential backoff
+
                 
                 if mno_endorsement:
                     attested_claims['grc.mno_endorsement'] = mno_endorsement
@@ -2521,8 +2583,60 @@ class VerifyEvidenceHandler(BaseHandler):
             # Gen 4: Extract and Verify ZKP Sovereignty Receipt from sidecar
             sovereignty_receipt = quote_geolocation.get('sovereignty_receipt')
             if sovereignty_receipt:
-                logger.info("Gen 4: Found ZKP Sovereignty Receipt in geolocation payload, carrying to SPIRE")
+                logger.info("Gen 4: Found ZKP Sovereignty Receipt in geolocation payload (len=%d), carrying to SPIRE", len(sovereignty_receipt))
+
+                # Commitment-Verification pattern (Task 12c)
+                # Calculate hash for tiny SVID certificates
+                zkp_hash = hashlib.sha256(sovereignty_receipt.encode('utf-8')).hexdigest()
+                logger.info("Gen 4: Calculated ZKP Sovereignty Receipt Hash: %s", zkp_hash)
+
+                # Mock URI for proof retrieval (using existing verifier port for POC Depository)
+                verifier_base = os.getenv('KEYLIME_VERIFIER_PUBLIC_URL', 'https://localhost:8881')
+                proof_uri = f"{verifier_base}/v1/proof/{zkp_hash}"
+
+                # lah-bundle fields (canonical new namespace)
+                # privacy-technique="zkp": ZKP mode — geolocation-payload contains URI only
+                attested_claims['lah-bundle.privacy-technique'] = "zkp"
+                attested_claims['lah-bundle.geolocation-proof-hash'] = zkp_hash
+                attested_claims['lah-bundle.geolocation-payload'] = json.dumps({
+                    'zkp-proof-uri': proof_uri
+                })
+
+                # Backward-compat keys (used by sidecar /verify_zkp — kept during transition)
                 attested_claims['grc.sovereignty_receipt'] = sovereignty_receipt
+                attested_claims['sovereignty_receipt'] = sovereignty_receipt
+                attested_claims['grc.sovereignty_receipt_hash'] = zkp_hash
+                attested_claims['sovereignty_receipt_hash'] = zkp_hash
+                attested_claims['grc.sovereignty_receipt_uri'] = proof_uri
+                attested_claims['sovereignty_receipt_uri'] = proof_uri
+
+                # Store proof in ephemeral cache for Depository endpoint
+                # (GLOBAL_POLICY_CACHE repurposed as simple Proof Depository for POC)
+                if 'proof_depository' not in GLOBAL_POLICY_CACHE:
+                    GLOBAL_POLICY_CACHE['proof_depository'] = {}
+                GLOBAL_POLICY_CACHE['proof_depository'][zkp_hash] = sovereignty_receipt
+
+            # SPIRE Agent binary digest — reported by Keylime Agent, TPM-attested via PCR 15.
+            # The Verifier trusts this hash because it's bound in the TPM Quote.
+            # SPIRE Server checks it against an allowlist of known agent binaries.
+            # Key must match LAHBundle Go struct JSON tag: "workload-identity-agent-image-digest"
+            agent_reported_hash = quote_geolocation.get('spire_agent_code_hash')
+            if agent_reported_hash:
+                attested_claims['lah-bundle.workload-identity-agent-image-digest'] = agent_reported_hash
+                logger.info("Unified-Identity: Agent binary digest (TPM-attested): %s", agent_reported_hash)
+
+            # TPM Quote Seal — pipe the verified TPM quote into the SVID certificate
+            # for external auditor verification. The quote was already validated at L2376.
+            try:
+                if quote:
+                    if isinstance(quote, bytes):
+                        tpm_quote_b64 = base64.b64encode(quote).decode('ascii')
+                    else:
+                        tpm_quote_b64 = str(quote)
+                    attested_claims['lah-bundle.tpm-quote-seal'] = tpm_quote_b64
+                    logger.info("Unified-Identity: TPM Quote Seal piped to attested_claims (len=%d)", len(tpm_quote_b64))
+            except NameError:
+                logger.debug("TPM quote not available in this attestation path")
 
             sensor_id = mapped_geo.get('sensor_id')
             
@@ -2544,6 +2658,7 @@ class VerifyEvidenceHandler(BaseHandler):
                     "mobile": quote_geolocation.get("mobile"),
                     "gnss": quote_geolocation.get("gnss"),
                     "sovereignty_receipt": quote_geolocation.get("sovereignty_receipt"),
+                    "spire_agent_code_hash": quote_geolocation.get("spire_agent_code_hash"),
                     "tpm_attested": quote_geolocation.get("tpm_attested"),
                     "tpm_pcr_index": quote_geolocation.get("tpm_pcr_index"),
                 }
@@ -3308,6 +3423,7 @@ def main() -> None:
             (r"/v?[0-9]+(?:\.[0-9]+)?/allowlists/.*", AllowlistHandler),
             (r"/v?[0-9]+(?:\.[0-9]+)?/mbpolicies/.*", MbpolicyHandler),
             (r"/v?[0-9]+(?:\.[0-9]+)?/verify/evidence", VerifyEvidenceHandler),
+            (r"/v?[0-9]+(?:\.[0-9]+)?/proof/([a-f0-9]+)", ZKPProofHandler),
             (r"/versions?", VersionHandler),
             (r".*", MainHandler),
         ]
