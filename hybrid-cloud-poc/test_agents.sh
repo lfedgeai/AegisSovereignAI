@@ -3097,6 +3097,23 @@ echo "  (Reusing demo.sh to avoid code duplication)"
 echo ""
 
 # Unified-Identity: Reuse demo script for Step 7
+# First ensure the SPIRE Agent Workload API socket is ready
+# (Step 7 attestation may complete server-side before socket is created)
+AGENT_SOCKET="/tmp/spire-agent/public/api.sock"
+if [ ! -S "$AGENT_SOCKET" ]; then
+    echo "  Waiting for SPIRE Agent Workload API socket..."
+    for i in {1..30}; do
+        if [ -S "$AGENT_SOCKET" ]; then
+            echo -e "${GREEN}  ✓ Workload API socket ready${NC}"
+            break
+        fi
+        if [ $i -eq 30 ]; then
+            echo -e "${YELLOW}  ⚠ Workload API socket not found after 30s — SVID fetch may fail${NC}"
+        fi
+        sleep 1
+    done
+fi
+
 if [ -f "${SCRIPT_DIR}/scripts/demo.sh" ]; then
     # Call demo script in quiet mode (suppresses header, uses our step header)
     "${SCRIPT_DIR}/scripts/demo.sh" --quiet || {
