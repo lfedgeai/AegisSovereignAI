@@ -41,7 +41,7 @@ import urllib.request
 import argparse
 
 # ── OID for the AegisSovereignAI SVID extension ───────────────────────────────
-UNIFIED_IDENTITY_OID = "1.3.6.1.4.1.55744.1.1"
+UNIFIED_IDENTITY_OID = "1.3.6.1.4.1.65284.1.1"
 
 
 def b64url_decode(s: str) -> bytes:

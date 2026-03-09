@@ -317,7 +317,7 @@ act2_3_envoy() {
 
     if [[ -n "$RESPONSE" && "$RESPONSE" != *"curl"* ]]; then
         echo -e "    1. ${GREEN}✅${NC}  Envoy verified certificate chain (SPIRE CA → Agent → Workload)"
-        echo -e "    2. ${GREEN}✅${NC}  WASM filter extracted LAH bundle from X.509 extension (OID 1.3.6.1.4.1.55744.1.1)"
+        echo -e "    2. ${GREEN}✅${NC}  WASM filter extracted LAH bundle from X.509 extension (OID 1.3.6.1.4.1.65284.1.1)"
         echo -e "    3. ${GREEN}✅${NC}  WASM verified geolocation claims (ZKP proof hash present)"
         echo -e "    4. ${GREEN}✅${NC}  mTLS connection forwarded to Key Vault (Server App)"
         echo -e "    5. ${GREEN}✅${NC}  Server App responded with secret data"
@@ -356,7 +356,7 @@ if isinstance(gp, str):
     try: gp = json.loads(gp)
     except: gp = {}
 
-print('  \033[1mFrom the X.509 certificate (OID 1.3.6.1.4.1.55744.1.1):\033[0m')
+print('  \033[1mFrom the X.509 certificate (OID 1.3.6.1.4.1.65284.1.1):\033[0m')
 print()
 print(f'    \033[1;33mgeolocation-proof-hash\033[0m : \033[1;36m{lb.get(\"geolocation-proof-hash\", \"N/A\")}\033[0m')
 print(f'    \033[1;33mzkp-proof-uri\033[0m          : \033[1;36m{gp.get(\"zkp-proof-uri\", \"N/A\")}\033[0m')

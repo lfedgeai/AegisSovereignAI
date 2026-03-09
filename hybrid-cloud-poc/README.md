@@ -243,7 +243,7 @@ For details on regulatory mapping (Reg-K, OCC 2021-19), IETF draft alignment, an
 
 👉 **[Governance, Compliance & Standards (Architecture Doc)](README-arch-sovereign-unified-identity.md#governance-compliance-standards)**
 
-> **Note:** The custom X.509 extension OID `1.3.6.1.4.1.55744.1.1` used for Unified Identity attestation claims is under a temporary IANA Private Enterprise Number request (tracking: [PHE1-CSY-PJ5](https://www.iana.org/requests/phe1-csy-pj5/)). The OID will be updated once IANA assigns a permanent enterprise number.
+> **Note:** The custom X.509 extension OID `1.3.6.1.4.1.65284.1.1` used for Unified Identity attestation claims is under a temporary IANA Private Enterprise Number request (tracking: [PHE1-CSY-PJ5](https://www.iana.org/requests/phe1-csy-pj5/)). The OID will be updated once IANA assigns a permanent enterprise number.
 
 ## Components
 

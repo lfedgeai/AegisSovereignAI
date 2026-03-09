@@ -21,7 +21,7 @@ This document outlines the sequential steps for introducing the Unified Identity
 > We're from the **AegisSovereignAI** project under LF Edge/AI. We've developed a CredentialComposer plugin that extends X.509 SVIDs with hardware attestation claims from Keylime TPM verification.
 >
 > **What we built:**
-> - A `unifiedidentity` CredentialComposer plugin that adds an AttestedClaims X.509 extension (OID `1.3.6.1.4.1.55744.1.1`)
+> - A `unifiedidentity` CredentialComposer plugin that adds an AttestedClaims X.509 extension (OID `1.3.6.1.4.1.65284.1.1`)
 > - TPM "App Key" support - workload-specific keys certified by Keylime's Attestation Key
 > - Geolocation claims bound to TPM PCR-15
 >
@@ -122,7 +122,7 @@ This document outlines the sequential steps for introducing the Unified Identity
 > We're from the **AegisSovereignAI** project under LF Edge/AI. We've built a Rust-based WASM filter that extracts custom X.509 extension claims from SPIRE SVIDs for policy enforcement in hybrid cloud scenarios.
 >
 > **What it does:**
-> - Extracts Unified Identity extension (OID `1.3.6.1.4.1.55744.1.1`) from client certificates
+> - Extracts Unified Identity extension (OID `1.3.6.1.4.1.65284.1.1`) from client certificates
 > - Parses sensor ID, geolocation, IMEI/IMSI claims
 > - Supports three verification modes: Trust, Runtime (cached), Strict (real-time)
 > - Calls a sidecar for CAMARA device location verification (mobile sensors)

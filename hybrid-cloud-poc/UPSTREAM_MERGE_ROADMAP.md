@@ -60,7 +60,7 @@ The "Unified Identity" feature introduces a hardware-rooted relationship between
 | **Governance** | ✅ Ready | Apache 2.0, DCO, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY |
 | **Documentation** | ✅ Ready | 3,600+ lines of architecture docs, API diagrams |
 | **P1 Completion** | ✅ 100% | 33/33 mandatory tasks complete |
-| **OID Registration** | ✅ Done | `1.3.6.1.4.1.55744.1.1` for AttestedClaims |
+| **OID Registration** | ✅ Done | `1.3.6.1.4.1.65284.1.1` for AttestedClaims |
 | **Integration Tests** | ✅ Passing | End-to-end on real TPM hardware (2 nodes) |
 | **Production TLS** | ✅ Hardened | InsecureSkipVerify removed, mTLS throughout |
 
@@ -82,7 +82,7 @@ To ensure maximum external visibility, every public issue is mapped to the archi
 | **Task 13** | [#126](https://github.com/lfedgeai/AegisSovereignAI/issues/126) | Remove `InsecureSkipVerify` (Production TLS) | ✅ Closed |
 | **Task 14** | [#141](https://github.com/lfedgeai/AegisSovereignAI/issues/141) | Secure Credentials (Secrets Management) | ✅ Closed |
 | **Task 18** | [#151](https://github.com/lfedgeai/AegisSovereignAI/issues/151) | Production Observability & Prometheus Metrics | ✅ Closed |
-| **Task 13b** | [#130](https://github.com/lfedgeai/AegisSovereignAI/issues/130) | Registered OID for AttestedClaims (`1.3.6.1.4.1.55744.1.1`) | ✅ Closed |
+| **Task 13b** | [#130](https://github.com/lfedgeai/AegisSovereignAI/issues/130) | Registered OID for AttestedClaims (`1.3.6.1.4.1.65284.1.1`) | ✅ Closed |
 | **Task 15b** | [#153](https://github.com/lfedgeai/AegisSovereignAI/issues/153) | Externalize Hardcoded Config Defaults | ✅ Closed |
 
 ### � P2 Backlog (Deferred from P1)
@@ -543,7 +543,7 @@ Effort: 2 days
 | **Task 16** | Cleanup stale backup files | P1 | `[x]` | — | Done |
 | **Task 17** | Rate limiting at Envoy gateway level | P2 | `[ ]` | TBD | Week 4 |
 | **Task 18** | Standardize Observability (Metrics & Telemetry) | P1 | `[x]` | — | Done |
-| **Task 13b** | Registered OID for AttestedClaims (`1.3.6.1.4.1.55744.1.1`) | P1 | `[x]` | — | Done |
+| **Task 13b** | Registered OID for AttestedClaims (`1.3.6.1.4.1.65284.1.1`) | P1 | `[x]` | — | Done |
 | **Task 15b** | Externalize Remaining Hardcoded Defaults | P1 | `[x]` | — | Done |
 
 ### Task 15: Quality Assurance - Linting, pre-commit hooks (COMPLETE)

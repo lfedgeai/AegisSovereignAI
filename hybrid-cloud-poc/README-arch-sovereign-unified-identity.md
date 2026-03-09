@@ -11,7 +11,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 | IETF V-GAP Term | Implementation Name | Description |
 |---|---|---|
 | `lah-bundle` | `AttestedClaims` (X.509 extension) | Hardware-sealed evidence structure in SVID |
-| OID `1.3.6.1.4.1.<PEN>.1.1` | OID `1.3.6.1.4.1.55744.1.1` | X.509 extension identifier (PEN registration pending) |
+| OID `1.3.6.1.4.1.<PEN>.1.1` | OID `1.3.6.1.4.1.65284.1.1` | X.509 extension identifier (PEN registration pending) |
 | Sensor Type Input Recipe | `detect_geolocation_sensor()` | Mobile/GNSS/OS-fallback sensor detection |
 | TPM Quote Verification | Keylime Verifier `sovereignattestation` | 6-step TPM quote verification procedure |
 | Nonce Chain | `nonce` field in LAH bundle | TOCTOU protection via PCR 15 extension (recursive HMAC chaining: [ROADMAP]) |
@@ -137,7 +137,7 @@ SPIRE Server    SPIRE Agent   TPM Sidecar   Keylime Agent    Geo Sidecar   TPM H
      │  vs allowlist                 │              │              │          │              │
      │  CredentialComposer:         │              │              │          │              │
      │  Embed lah-bundle in X.509   │              │              │          │              │
-     │  extension (OID 55744.1.1)   │              │              │          │              │
+     │  extension (OID 65284.1.1)   │              │              │          │              │
      │               │              │              │              │          │              │
      │── Sovereign   │              │              │              │          │              │
      │   Agent SVID ▶│              │              │              │          │              │
@@ -180,7 +180,7 @@ Workload         SPIRE Agent
 
 ### Phase 3: Runtime Request Verification
 
-The workload uses its SVID to access an enterprise service through Envoy. The WASM filter reads the `lah-bundle` from the SVID's X.509 extension (OID `1.3.6.1.4.1.55744.1.1`) — the ZKP proof and TPM-signed location are already embedded at attestation time.
+The workload uses its SVID to access an enterprise service through Envoy. The WASM filter reads the `lah-bundle` from the SVID's X.509 extension (OID `1.3.6.1.4.1.65284.1.1`) — the ZKP proof and TPM-signed location are already embedded at attestation time.
 
 ```
 mTLS Client      Envoy Gateway     WASM Filter                   Backend Server
@@ -1357,7 +1357,7 @@ After workloads receive their SPIRE SVIDs, they can use these certificates to ac
 
 - **WASM Filter Extracts Sensor Information**:
   - Parses the certificate chain.
-  - Extracts Unified Identity extension (OID `1.3.6.1.4.1.55744.1.1`) from Agent SVID (second certificate in chain).
+  - Extracts Unified Identity extension (OID `1.3.6.1.4.1.65284.1.1`) from Agent SVID (second certificate in chain).
   - Extracts sensor metadata: `sensor_id`, `sensor_type`, `sensor_imei`, `sensor_imsi`, `sensor_msisdn`.
   - **Coordinate Propagation**: Extracts `latitude`, `longitude`, and `accuracy` if present in SVID claims to enable the **DB-less verification flow**.
   - **No Filter Caching**: The WASM filter is stateless; all result caching is centralized in the mobile location microservice.
@@ -2009,7 +2009,7 @@ typed_config:
 
 The WASM filter extracts claims from the SPIRE certificate chain:
 
-1. **Extract Unified Identity Extension** (OID `1.3.6.1.4.1.55744.1.1`) from Agent SVID
+1. **Extract Unified Identity Extension** (OID `1.3.6.1.4.1.65284.1.1`) from Agent SVID
 2. **Parse JSON claims**: `sensor_id`, `sensor_type`, `sensor_imei`, `sensor_imsi`, **`msisdn`** ← NEW
 3. **Apply policy**:
    - GPS/GNSS sensors: Always bypass (trusted hardware)

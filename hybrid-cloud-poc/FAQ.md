@@ -129,7 +129,7 @@ Fallback to VFIO passthrough for the entire device. Less granular but same DMA i
 
 ```
 idhash   = SHA-256(TPM AK public key)                           — Device binding in ZKP
-SVID     = SPIRE cert + LAH bundle (OID 1.3.6.1.4.1.55744.1.1) — Unified Identity
+SVID     = SPIRE cert + LAH bundle (OID 1.3.6.1.4.1.65284.1.1) — Unified Identity
 ```
 
 ### Roadmap

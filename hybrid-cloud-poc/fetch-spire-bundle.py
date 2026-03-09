@@ -65,7 +65,7 @@ import json
 import base64
 
 # OID for Unified Identity Claims
-UNIFIED_IDENTITY_OID = "1.3.6.1.4.1.55744.1.1"
+UNIFIED_IDENTITY_OID = "1.3.6.1.4.1.65284.1.1"
 
 def fetch_bundle_via_grpc(socket_path):
     """Fetch trust bundle and leaf SVID from SPIRE Agent via direct gRPC."""

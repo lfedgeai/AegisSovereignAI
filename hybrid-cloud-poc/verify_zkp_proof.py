@@ -41,13 +41,13 @@ def extract_attested_claims(svid_path):
         cert = x509.load_pem_x509_certificate(blocks[0], default_backend())
         
         for ext in cert.extensions:
-            if ext.oid.dotted_string == "1.3.6.1.4.1.55744.1.1":
+            if ext.oid.dotted_string == "1.3.6.1.4.1.65284.1.1":
                 data = ext.value.value if hasattr(ext.value, "value") else ext.value
                 if isinstance(data, bytes):
                     data = data.decode('utf-8')
                 return json.loads(data)
         
-        print(f"Error: AttestedClaims extension (1.3.6.1.4.1.55744.1.1) not found in {svid_path}")
+        print(f"Error: AttestedClaims extension (1.3.6.1.4.1.65284.1.1) not found in {svid_path}")
         return None
     except Exception as e:
         print(f"Error extracting claims: {e}")
