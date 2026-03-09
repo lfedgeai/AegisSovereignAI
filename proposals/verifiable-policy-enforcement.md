@@ -209,7 +209,7 @@ sequenceDiagram
 |---------|-------------------|-----|
 | **Sovereignty Receipt (SNARK)** | `Extension` (Octet String) | `1.3.6.1.4.1.58156.1.1` (AegisSovereignAI Arc) |
 | **Residency Hash** | `SubjectAlternativeName` (otherName) | `1.3.6.1.4.1.58156.1.2` |
-| **Hardware Evidence** | `Extension` (Keylime/TPM) | `1.3.6.1.4.1.55744.1.1` (Unified Identity) |
+| **Hardware Evidence** | `Extension` (Keylime/TPM) | `1.3.6.1.4.1.65284.1.1` (Unified Identity) |
 
 ### Residency Hash Algorithm
 
