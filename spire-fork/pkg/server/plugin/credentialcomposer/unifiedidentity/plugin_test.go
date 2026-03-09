@@ -38,7 +38,7 @@ func TestComposeAgentX509SVID(t *testing.T) {
 	// Check for the AttestedClaims extension
 	found := false
 	for _, ext := range resp.Attributes.ExtraExtensions {
-		if ext.Oid == "1.3.6.1.4.1.55744.1.1" {
+		if ext.Oid == "1.3.6.1.4.1.65284.1.1" {
 			found = true
 			assert.Equal(t, unifiedJSON, ext.Value)
 			break
@@ -73,7 +73,7 @@ func TestComposeWorkloadX509SVID(t *testing.T) {
 	// Check for the AttestedClaims extension
 	found := false
 	for _, ext := range resp.Attributes.ExtraExtensions {
-		if ext.Oid == "1.3.6.1.4.1.55744.1.1" {
+		if ext.Oid == "1.3.6.1.4.1.65284.1.1" {
 			found = true
 			// When unifiedJSON is nil, it should marshal claims to JSON
 			assert.Contains(t, string(ext.Value), "test-sensor")

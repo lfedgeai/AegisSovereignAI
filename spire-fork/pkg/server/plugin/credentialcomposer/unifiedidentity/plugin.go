@@ -385,10 +385,10 @@ func (p *Plugin) processSovereignAttestation(ctx context.Context, spiffeID strin
 }
 
 // attestedClaimsOID is the OID for the AegisSovereignAI attested claims X.509 extension.
-// Arc: 1.3.6.1.4.1 (private enterprise), 55744 (Sovereign Unified Identity Claims).
+// Arc: 1.3.6.1.4.1 (private enterprise), 65284 (Sovereign Unified Identity Claims).
 // This is the canonical OID from the Aegis SPIRE fork (credtemplate/attested_claims_extension.go)
 // that passed all integration tests. Must match the OID checked by dump-svid-attested-claims.sh.
-var attestedClaimsOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 55744, 1, 1}
+var attestedClaimsOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 65284, 1, 1}
 
 // attestedClaimsExtension encodes LAH-Bundle unified identity data as a pkix.Extension.
 // The extension value is the raw unifiedJSON bytes (JSON-encoded lah-bundle claims).
