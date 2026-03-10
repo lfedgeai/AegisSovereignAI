@@ -11,7 +11,7 @@ For the operational proof-of-concept (PoC) implementation demonstrating this arc
 | IETF V-GAP Term | Implementation Name | Description |
 |---|---|---|
 | `lah-bundle` | `AttestedClaims` (X.509 extension) | Hardware-sealed evidence structure in SVID |
-| OID `1.3.6.1.4.1.<PEN>.1.1` | OID `1.3.6.1.4.1.65284.1.1` | X.509 extension identifier (PEN registration pending) |
+| OID `1.3.6.1.4.1.<PEN>.1.1` | OID `1.3.6.1.4.1.65284.1.1` | X.509 extension identifier (IANA PEN 65284, Ram Krishnan) |
 | Sensor Type Input Recipe | `detect_geolocation_sensor()` | Mobile/GNSS/OS-fallback sensor detection |
 | TPM Quote Verification | Keylime Verifier `sovereignattestation` | 6-step TPM quote verification procedure |
 | Nonce Chain | `nonce` field in LAH bundle | TOCTOU protection via PCR 15 extension (recursive HMAC chaining: [ROADMAP]) |
