@@ -75,7 +75,17 @@ pause_for_presenter() {
 # ── Ensure SVID dump exists ──────────────────────────────────────────────────
 ensure_svid_dump() {
     if [ -f "${DUMP_DIR}/attested_claims.json" ]; then
-        return 0
+        if [ -f "${DUMP_DIR}/svid.pem" ]; then
+            if openssl x509 -in "${DUMP_DIR}/svid.pem" -checkend 60 >/dev/null 2>&1; then
+                return 0
+            fi
+            echo -e "    ${DIM}Existing SVID is expired or expiring soon — refreshing SVID dump...${NC}"
+            warn "Stale SVID dump detected. This often happens when a previous --no-cleanup run left /tmp/svid-dump behind."
+        else
+            echo -e "    ${DIM}Existing SVID dump is incomplete — refreshing...${NC}"
+            warn "Incomplete /tmp/svid-dump found. Refreshing the SVID dump now."
+        fi
+        rm -rf "${DUMP_DIR}"
     fi
     local attempt=0
     while [ ! -f "${DUMP_DIR}/attested_claims.json" ] && [ $attempt -lt 3 ]; do
