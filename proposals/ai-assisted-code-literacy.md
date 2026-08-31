@@ -49,6 +49,13 @@ minimal changes, applies focused test-first proof to approved implementation
 behavior changes where practical, and uses broader risk-driven functional
 validation followed by a separate final diff review.
 
+Even when independent expert or LLM review is unavailable, the phased outputs
+make a change more explainable and auditable than a one-step "find and fix"
+request by linking the behavior model, finding, expected outcome,
+implementation change, and executable evidence. This improves traceability,
+but does not prove that inferred requirements or unfamiliar-language
+interpretations are correct; those limitations must remain explicit.
+
 ### Cross-Validation at a Glance
 
 Cross-validation should match the claim being checked and the risk of getting
@@ -65,7 +72,9 @@ domain claims, while an accountable human authorizes changes and accepts risk.
 When appropriate expertise is unavailable, independent role-specific LLM
 judges and deterministic tools may challenge the output and expose uncertainty.
 They do not create missing requirements, accept organizational risk, or replace
-authorization to modify code.
+authorization to modify code. If neither qualified expert review nor independent
+LLM review is available, record the assurance gap rather than describing the
+overall result as independently cross-validated.
 
 ### What It Is Not Yet
 
@@ -99,9 +108,10 @@ defects are distinguished from conditional risks and assumptions.
 ### 3. Fix
 
 Select only the issues worth addressing and propose the smallest safe change
-before editing. After the plan is reviewed and explicitly approved, reuse or
-add the focused test coverage needed to demonstrate the expected failure,
-implement the smallest targeted change, and prove that the test passes.
+before editing. After the plan is reviewed and explicitly approved, use focused
+test-first proof where practical—or an approved executable reproduction when it
+is not—implement the smallest targeted change, and confirm the expected
+behavior.
 
 ### 4. Validate
 
@@ -183,9 +193,10 @@ What is distinctive here is the **combination**: a single, bounded-unit,
 phase-gated loop (**Understand → optional Deep Model → Analyze → Fix →
 Validate**) that forbids code changes during understanding and analysis, keeps
 the human in control of phase progression and change authorization, and
-separates observed fact from inference. It is a **meta-workflow**: it does not replace task-specific practices
-(code review, refactoring, test generation, incident investigation, security
-remediation) — it sequences them behind an understand-first discipline.
+separates observed fact from inference. It is a **meta-workflow**: it does not
+replace task-specific practices (code review, refactoring, test generation,
+incident investigation, security remediation) — it sequences them behind an
+understand-first discipline.
 
 ---
 
@@ -270,6 +281,8 @@ reference material into one-level-deep supporting files.
 * Prefer existing project conventions, libraries, architecture, build tools, and testing frameworks.
 * Avoid unrelated refactoring and speculative improvements.
 * Do not assume AI-generated analysis or code is correct.
+* Do not confuse explainability with validation: a coherent analysis, test, and
+  patch can share the same incorrect assumption.
 * The human retains control of requirements, priorities, tradeoffs, implementation scope, and acceptance.
 
 ---
@@ -335,7 +348,8 @@ truth into confirmation. Unless a separately defined and explicitly authorized
 operating mode says otherwise, automated cross-validation may support every
 phase but does **not** remove the Phase 3 Human Checkpoint.
 
-Use the following risk-proportional arrangement:
+Use the following risk-proportional arrangement when the relevant reviewers and
+tools are available:
 
 1. Assemble the bounded code, available requirements, relevant documentation,
    build instructions, tests, and operational evidence into a common evidence
@@ -367,6 +381,32 @@ Use the following risk-proportional arrangement:
 9. Preserve the Human Checkpoint before modifying implementation code. AI judges
    may recommend approval but cannot grant it or accept organizational risk.
 
+### When No Independent Reviewer Is Available
+
+If neither qualified human review nor independent LLM review is available, do
+not describe the overall result as independently cross-validated. The phased
+artifact trail still makes the change easier to explain, challenge, and review
+later, but the same AI may produce a self-consistent error across its behavior
+model, finding, test, and implementation.
+
+In this situation:
+
+* mark domain intent and unfamiliar-language interpretations as unverified
+  unless authoritative evidence establishes them
+* prefer official language references, compilers, existing tests, static
+  analysis, and reproducible experiments over unsupported model judgment
+* keep the scope and implementation change minimal, preserve interfaces, and
+  record assumptions and residual risks explicitly
+* treat generated tests as evidence that the implementation matches the chosen
+  expectation, not as proof that the expectation is correct
+* stop or defer the change when unresolved uncertainty could materially affect
+  important behavior
+
+The Phase 3 Human Checkpoint still applies. Human authorization accepts the
+proposed scope and residual risk; it does not convert unverified technical or
+domain claims into validated ones. If no authorized human is available, stop
+before Phase 3C.
+
 For material claims, especially when expertise is limited, include a compact
 assurance status in the phase output:
 
@@ -375,6 +415,7 @@ Cross-validation:
 - Domain intent: CONFIRMED — access policy section 4.2
 - Language semantics: EVIDENCE-CHECKED — compiler and official reference
 - Operational assumptions: UNVERIFIED — deployment details unavailable
+- Independent review: UNAVAILABLE — no qualified reviewer or independent judge
 - Human authorization: NOT YET GRANTED
 ```
 
