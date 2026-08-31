@@ -10,6 +10,26 @@ engineers to work safely in technologies they may not already know while
 keeping language semantics, intended behavior, testing, and human approval
 authoritative.
 
+## Table of Contents
+
+* [Executive Summary](#executive-summary)
+* [Workflow Phase Summary](#workflow-phase-summary)
+* [Scope](#scope)
+* [Prior Art and Positioning](#prior-art-and-positioning)
+* [How to Use](#how-to-use)
+* [Operating Principles](#operating-principles)
+* [Cross-Validation and Assurance](#cross-validation-and-assurance)
+* [Phase 1 — Understand](#phase-1--understand)
+* [Phase 1.1 — Deep Model (Optional)](#phase-11--deep-model-optional)
+* [Phase 2 — Analyze](#phase-2--analyze)
+* [Phase 3 — Fix](#phase-3--fix)
+* [Phase 4 — Validate](#phase-4--validate)
+* [Mental Model](#mental-model)
+* [Typical Invocation](#typical-invocation)
+* [Core Principle](#core-principle)
+* [References](#references)
+* [License](#license)
+
 ## Executive Summary
 
 ### Problem
@@ -157,9 +177,15 @@ phase boundaries and evidence rules do not depend on deployment status.
 In this document, **implementation code** means the code whose behavior is
 being changed; it does not imply that the code is deployed to production.
 
-It is deliberately **not** a whole-repository comprehension tool. For a large or unfamiliar repository, first narrow the scope: pick one entry point (an API route, a job, a CLI command, a failing test) and apply the workflow there. Widen only after the initial unit is understood.
+It is deliberately **not** a whole-repository comprehension tool. For a large
+or unfamiliar repository, first narrow the scope: pick one entry point—an API
+route, job, CLI command, or failing test—and apply the workflow there. Widen
+only after the initial unit is understood.
 
-The heavier structural elements (architecture diagrams in Phase 1A; multiple stores, queues, and trust boundaries in Phase 1.1) apply only when the unit in scope actually spans them. For a single self-contained file, keep the diagram small and usually skip Phase 1.1.
+The heavier structural elements—architecture diagrams in Phase 1A and multiple
+stores, queues, or trust boundaries in Phase 1.1—apply only when the unit in
+scope actually spans them. For a single self-contained file, keep the diagram
+small and usually skip Phase 1.1.
 
 ---
 
@@ -226,10 +252,11 @@ in a directory whose name matches the frontmatter `name`. For example:
 
 `.github/skills/ai-assisted-code-literacy/SKILL.md`
 
-The current all-in-one source exceeds the [Agent Skills recommendation](https://agentskills.io/specification#progressive-disclosure)
-to keep `SKILL.md` below 500 lines. Before publishing it as an installable
-skill, retain the operational core in `SKILL.md` and move detailed examples and
-reference material into one-level-deep supporting files.
+The current all-in-one source exceeds the Agent Skills recommendation to keep
+[`SKILL.md` below 500 lines](https://agentskills.io/specification#progressive-disclosure).
+Before publishing it as an installable skill, retain the operational core in
+`SKILL.md` and move detailed examples and reference material into one-level-deep
+supporting files.
 
 ---
 
@@ -638,24 +665,43 @@ Focus especially on semantics involving:
 
 Example:
 
-> `await` suspends this async function until the asynchronous operation completes. It does not necessarily block the runtime thread.
+> `await` suspends this async function until the asynchronous operation
+> completes. It does not necessarily block the runtime thread.
 
 ---
 
 ## Phase 1D — Ambiguities and Early Risk Flags
 
-Call out only **obvious, high-confidence observations** noticed while understanding the code. Do not perform the full engineering review yet — that is Phase 2.
+Call out only **obvious, high-confidence observations** noticed while
+understanding the code. Do not perform the full engineering review yet—that is
+Phase 2.
 
 Watch especially for:
 
-* **Security** — authentication without authorization; roles or permissions modeled but not enforced; mishandled credentials, secrets, or tokens; sensitive data crossing an unexpected boundary.
-* **Data and state consistency** — cache and authoritative store can diverge; a mutation leaves dependent state stale; multiple sources of truth; deleted objects with live references.
-* **Reliability and lifecycle** — expired objects never cleaned up; resources with no visible lifecycle; unbounded state growth; obviously absent failure handling.
-* **Performance and scalability** — only readily visible issues (repeated expensive work, unnecessary blocking, unbounded collections, duplicate I/O). Do not invent scalability issues without evidence.
-* **Design and architecture** — data models a concept the behavior ignores; responsibilities conflict with apparent requirements; unclear ownership or authority; coupling that creates a concrete correctness or lifecycle problem.
-* **Claims that live elsewhere** — a behavior or invariant that actually depends on another file, process, or a replaced/ported implementation (for example a comment asserting what a different component caches or enforces). Verify it against that artifact rather than trusting the comment.
+* **Security** — authentication without authorization; roles or permissions
+  modeled but not enforced; mishandled credentials, secrets, or tokens;
+  sensitive data crossing an unexpected boundary.
+* **Data and state consistency** — cache and authoritative store can diverge; a
+  mutation leaves dependent state stale; multiple sources of truth; deleted
+  objects with live references.
+* **Reliability and lifecycle** — expired objects never cleaned up; resources
+  with no visible lifecycle; unbounded state growth; obviously absent failure
+  handling.
+* **Performance and scalability** — only readily visible issues such as
+  repeated expensive work, unnecessary blocking, unbounded collections, or
+  duplicate I/O. Do not invent scalability issues without evidence.
+* **Design and architecture** — data models a concept the behavior ignores;
+  responsibilities conflict with apparent requirements; unclear ownership or
+  authority; coupling that creates a concrete correctness or lifecycle problem.
+* **Claims that live elsewhere** — a behavior or invariant that depends on
+  another file, process, or replaced or ported implementation. For example, a
+  comment may assert what another component caches or enforces. Verify the
+  claim against that artifact rather than trusting the comment.
 
-Name the **design pattern or paradigm** (procedural, object-oriented, functional, event-driven, layered, repository/service, ...) only when it improves understanding. Do not recommend changing paradigms merely because another style is possible.
+Name the **design pattern or paradigm**—procedural, object-oriented, functional,
+event-driven, layered, repository/service, and so on—only when it improves
+understanding. Do not recommend changing paradigms merely because another style
+is possible.
 
 The full dimension taxonomy for the systematic review is in Phase 2A.
 
@@ -1096,7 +1142,8 @@ Priority              = when the issue should be addressed after considering the
 Do not force a finding into every priority level. It is valid to have no P0
 findings. Do not equate theoretical severity with implementation priority.
 
-For example, a potentially HIGH-severity issue may still be **P2** if it depends on an unconfirmed deployment assumption.
+For example, a potentially HIGH-severity issue may still be **P2** if it depends
+on an unconfirmed deployment assumption.
 
 ---
 
@@ -1597,19 +1644,38 @@ And when understanding is insufficient:
 
 ## Phase 1
 
-> Execute Phase 1 against the current code for a reader with no prior familiarity with its language or domain. Lead with a named, plain-English end-to-end flow, then map responsibilities to exact source units and show only useful state/interaction pictures. Define material domain terms, explain only the unfamiliar language constructs needed to understand behavior, and cover intent, state/storage, expected behavior, and obvious early risk/design flags. End by recommending whether Phase 1.1 is useful. Do not modify files.
+> Execute Phase 1 against the current code for a reader with no prior
+> familiarity with its language or domain. Lead with a named, plain-English
+> end-to-end flow, then map responsibilities to exact source units and show only
+> useful state/interaction pictures. Define material domain terms, explain only
+> the unfamiliar language constructs needed to understand behavior, and cover
+> intent, state/storage, expected behavior, and obvious early risk/design flags.
+> End by recommending whether Phase 1.1 is useful. Do not modify files.
 
 ## Phase 1.1 — Optional
 
-> Execute Phase 1.1. Build the deeper control/data model, identify invariants and trust boundaries, and explain unfamiliar language semantics that materially affect behavior. Do not modify files.
+> Execute Phase 1.1. Build the deeper control/data model, identify invariants
+> and trust boundaries, and explain unfamiliar language semantics that
+> materially affect behavior. Do not modify files.
 
 ## Phase 2
 
-> Execute Phase 2. Perform the full engineering analysis. Start with prioritized findings using P0–P3, then provide evidence, severity, certainty, root cause, and the smallest reasonable mitigation for each important finding. Do not modify files.
+> Execute Phase 2. Perform the full engineering analysis. Start with prioritized
+> findings using P0–P3, then provide evidence, severity, certainty, root cause,
+> and the smallest reasonable mitigation for each important finding. Do not
+> modify files.
 
 ## Phase 3
 
-> Execute Phase 3A and 3B only. Select the appropriate scope and propose the smallest reasonable implementation plan. Apply test-first development to each behavior change where practical: reuse an adequate focused test or add one when relevant coverage is missing or insufficient. If test-first proof is impractical, explain why, propose the strongest executable reproduction available, and expose the residual risk. Stop before modifying files. Ask the user the direct Y/N authorization question in the Phase 3 hard-stop gate, end the response, and wait for the answer; do not require a separate approval command.
+> Execute Phase 3A and 3B only. Select the appropriate scope and propose the
+> smallest reasonable implementation plan. Apply test-first development to each
+> behavior change where practical: reuse an adequate focused test or add one
+> when relevant coverage is missing or insufficient. If test-first proof is
+> impractical, explain why, propose the strongest executable reproduction
+> available, and expose the residual risk. Stop before modifying files. Ask the
+> user the direct Y/N authorization question in the Phase 3 hard-stop gate, end
+> the response, and wait for the answer; do not require a separate approval
+> command.
 
 After explicit approval:
 
@@ -1620,7 +1686,13 @@ After explicit approval:
 
 ## Phase 4
 
-> Execute Phase 4. Build broader, risk-driven functional confidence for the bounded unit. Reuse adequate existing coverage, add high-value tests only where coverage is missing or insufficient, run the relevant suite, distinguish explicit accepted expected failures from unexpected failures, diagnose results, and perform a final read-only diff review. Report which behavioral coverage was reused or added and identify material gaps. Return any newly required implementation change to Phase 3.
+> Execute Phase 4. Build broader, risk-driven functional confidence for the
+> bounded unit. Reuse adequate existing coverage, add high-value tests only
+> where coverage is missing or insufficient, run the relevant suite,
+> distinguish explicit accepted expected failures from unexpected failures,
+> diagnose results, and perform a final read-only diff review. Report which
+> behavioral coverage was reused or added and identify material gaps. Return
+> any newly required implementation change to Phase 3.
 
 ---
 
@@ -1664,8 +1736,10 @@ the smallest justified change. Validate in a separate skeptical pass.**
 * NIST. "AI Risk Management Framework Core" — human oversight, domain expertise, independent assessment, and testing, evaluation, verification, and validation. <https://airc.nist.gov/airmf-resources/airmf/5-sec-core/>
 * OpenAI. "How evals drive the next chapter in AI for businesses" — expert-defined evaluation criteria, LLM graders, and continuing human audit. <https://openai.com/index/evals-drive-next-chapter-of-ai/>
 * L. Shi et al. "Judging the Judges: A Systematic Study of Position Bias in LLM-as-a-Judge." arXiv:2406.07791, 2024. <https://arxiv.org/abs/2406.07791>
-* G. K. Chesterton. *The Thing* (1929) — origin of "Chesterton's Fence": understand why a mechanism exists before removing it.
-* M. Feathers. *Working Effectively with Legacy Code.* Prentice Hall, 2004 — characterization tests for pinning existing behavior before change.
+* G. K. Chesterton. *The Thing* (1929) — origin of "Chesterton's Fence":
+  understand why a mechanism exists before removing it.
+* M. Feathers. *Working Effectively with Legacy Code.* Prentice Hall, 2004 —
+  characterization tests for pinning existing behavior before change.
 
 ---
 
